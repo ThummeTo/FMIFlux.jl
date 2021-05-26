@@ -1,0 +1,15 @@
+~FMUOutput/
+SpringPendulum1D/
+SpringFrictionPendulum1D/
+buildlog.txt
+dsfinal.txt
+dsin.txt
+dslog.txt
+modelDescription.xml
+*.exe
+*.c
+*.h
+*.mat
+*.zip
+*.svg
+*.pdf
