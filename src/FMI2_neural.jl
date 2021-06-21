@@ -19,14 +19,15 @@ function _build_jac_dx_x(fmu::FMU2, rdx, rx)
     mat
 end
 
-""" Performs the equivalent of fmiDoStep for ME-FMUs (note, that fmiDoStep is for CS-FMUs only).
-Currently no event handling supported. """
+"""
+Performs the equivalent of fmiDoStep for ME-FMUs (note, that fmiDoStep is for CS-FMUs only).
+Currently no event handling supported.
+"""
 function fmi2DoStepME(fmu::FMU2, t, x)
 
     @assert fmu.modelDescription.isModelExchange == fmi2True ["fmi2DoStepME(...): As in the name, this function only supports ME-FMUs."]
 
     fmu.t = t
-
     fmi2SetTime(fmu, t)
 
     fmi2SetContinuousStates(fmu, x)
@@ -38,12 +39,17 @@ function fmi2DoStepME(fmu::FMU2, t, x)
     dx
 end
 
+function fmi2DoStepME(fmu::FMU2, x)
+    t = fmu.next_t
+    fmi2DoStepME(fmu, t, x)
+end
+
 # The gradient for the function fmi2DoStepME.
 function fmi2DoStepME_Gradient(c̄, fmu::FMU2, t, x)
 
     fmu.t = t
-
     fmi2SetTime(fmu, t)
+
     fmi2SetContinuousStates(fmu, x)
 
     rdx = fmu.modelDescription.derivativeValueReferences
@@ -56,16 +62,26 @@ function fmi2DoStepME_Gradient(c̄, fmu::FMU2, t, x)
     tuple(0.0, 0.0, n)
 end
 
-# The adjoint connection between function and function gradient.
-@adjoint fmi2DoStepME(fmu, t, x) = fmi2DoStepME(fmu, t, x), c̄ -> fmi2DoStepME_Gradient(c̄, fmu, t, x)
+function fmi2DoStepME_Gradient(c̄, fmu::FMU2, x)
+    t = fmu.t
+    grad = fmi2DoStepME_Gradient(c̄, fmu::FMU2, t, x)
+    grad[2:end] # remove one of the leading zeros
+end
 
-""" Sets all FMU inputs to u, performs a fmi2DoStep and returns all FMU outputs. """
+# The adjoint connection between ME-function and function gradient.
+@adjoint fmi2DoStepME(fmu, t, x) = fmi2DoStepME(fmu, t, x), c̄ -> fmi2DoStepME_Gradient(c̄, fmu, t, x)
+@adjoint fmi2DoStepME(fmu, x) = fmi2DoStepME(fmu, x), c̄ -> fmi2DoStepME_Gradient(c̄, fmu, x)
+
+"""
+Sets all FMU inputs to u, performs a ´´´fmi2DoStep´´´ and returns all FMU outputs.
+"""
 function fmi2InputDoStepCSOutput(fmu::FMU2, dt, u)
 
     @assert fmu.modelDescription.isCoSimulation == fmi2True ["fmi2InputDoStepCSOutput(...): As in the name, this function only supports CS-FMUs."]
 
     fmi2SetReal(fmu, fmu.modelDescription.inputValueReferences, u)
 
+    t = fmu.t
     fmi2DoStep(fmu, t, dt)
     fmu.t += dt
 
@@ -87,5 +103,5 @@ function fmi2InputDoStepCSOutput_Gradient(c̄, fmu::FMU2, dt, u)
     tuple(0.0, 0.0, n)
 end
 
-# The adjoint connection between function and function gradient.
-@adjoint fmi2InputDoStepCSOutput(fmu, t, u) = fmi2InputDoStepCSOutput(fmu, t, u), c̄ -> fmi2InputDoStepCSOutput_Gradient(c̄, fmu, t, u)
+# The adjoint connection between CS-function and function gradient.
+@adjoint fmi2InputDoStepCSOutput(fmu, dt, u) = fmi2InputDoStepCSOutput(fmu, dt, u), c̄ -> fmi2InputDoStepCSOutput_Gradient(c̄, fmu, dt, u)

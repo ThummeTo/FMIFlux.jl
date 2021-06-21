@@ -7,13 +7,11 @@ module FMIFlux
 
 using FMI
 include("FMI_neural.jl")
-#include("FMI2_neural.jl")
 include("FMI_plot.jl")
 
 # FMI2_neural.jl
-export fmi2DoStepME, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
-
-# FMI_plot.jl
-# export fmiPlot
+export fmi2DoStepME
+export fmi2InputDoStepCSOutput
+export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
 
 end # module

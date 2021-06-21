@@ -5,9 +5,13 @@
 
 using Plots
 
-function fmiPlot(nfmu::NeuralFMU)
+function fmiPlot(nfmu::ME_NeuralFMU)
     FMI.fmiPlot(nfmu.fmu, nfmu.solution, true)
 end
 
-FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
-Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+function fmiPlot(nfmu::CS_NeuralFMU)
+    FMI.fmiPlot(nfmu.simulationResult)
+end
+
+FMI.fmiPlot(nfmu::NeuralFMUs) = fmiPlot(nfmu)
+Plots.plot(nfmu::NeuralFMUs) = fmiPlot(nfmu)
