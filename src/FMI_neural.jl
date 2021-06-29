@@ -38,6 +38,24 @@ function NeuralFMUCacheTime_Gradient(c̄, fmu, t)
 end
 @adjoint NeuralFMUCacheTime(fmu, t) = NeuralFMUCacheTime(fmu, t), c̄ -> NeuralFMUCacheTime(c̄, fmu, t)
 
+# state caching (to set correct state in ME-NeuralFMUs)
+function NeuralFMUCacheState(fmu, x)
+    fmu.next_x = x
+end
+function NeuralFMUCacheState_Gradient(c̄, fmu, x)
+    tuple(0.0, 0.0)
+end
+@adjoint NeuralFMUCacheState(fmu, x) = NeuralFMUCacheState(fmu, x), c̄ -> NeuralFMUCacheState(c̄, fmu, x)
+
+# state derivative caching (to set correct state in ME-NeuralFMUs)
+# function NeuralFMUCacheStateDerivative(fmu, dx)
+#     fmu.next_dx = dx
+# end
+# function NeuralFMUCacheStateDerivative_Gradient(c̄, fmu, dx)
+#     tuple(0.0, 0.0)
+# end
+# @adjoint NeuralFMUCacheStateDerivative(fmu, dx) = NeuralFMUCacheStateDerivative(fmu, dx), c̄ -> NeuralFMUCacheStateDerivative(c̄, fmu, dx)
+
 # helper to add an additional time state later used to setup time inside the FMU
 function NeuralFMUInputLayer(fmu, inputs)
     t = inputs[1]
@@ -62,7 +80,7 @@ end
 """
 Constructs a ME-NeuralFMU where the FMU is at an unknown location inside of the NN.
 """
-function ME_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = true, addBottomLayer = true)
+function ME_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = true, addBottomLayer = true, recordValues = fmu.modelDescription.stateValueReferences)
     nfmu = ME_NeuralFMU()
     nfmu.fmu = fmu
 
@@ -79,10 +97,20 @@ function ME_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = t
         ext_model = Chain(model.layers...,
                           inputs -> NeuralFMUOutputLayerME(inputs))
     else
-        ext_model = model.layers
+        ext_model = Chain(model.layers...)
     end
 
-    nfmu.neuralODE = NeuralODE(ext_model, tspan, alg, saveat=saveat) #, p=Flux.params(ext_model))
+    nfmu.neuralODE = NeuralODE(ext_model, tspan, alg, saveat=saveat, dt=1e-4, adaptive=false) #, p=Flux.params(ext_model))   dtmax=1e-4, dtmin=1e-4,
+
+    # allocate simulation result
+    fmu.simulationResult = fmi2SimulationResult()
+    fmu.simulationResult.valueReferences = recordValues
+    fmu.simulationResult.dataPoints = []
+    fmu.simulationResult.fmu = fmu
+    # for t in saveat
+    #     values = zeros(length(fmu.simulationResult.valueReferences))
+    #     push!(fmu.simulationResult.dataPoints, [t, values...])
+    # end
 
     nfmu
 end
@@ -139,7 +167,7 @@ function (nfmu::ME_NeuralFMU)(val0, reset::Bool=false)
 
     nfmu.solution = nfmu.neuralODE(val0)
 
-    nfmu.solution
+    nfmu.fmu.simulationResult # nfmu.solution
 end
 
 function (nfmu::CS_NeuralFMU)(t_start, t_step, t_stop, inputs, reset::Bool=true)
@@ -204,3 +232,25 @@ end
 @adjoint fmiEnterInitializationMode(fmu) = fmiEnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
 @adjoint fmiExitInitializationMode(fmu) = fmiExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
 @adjoint fmiReset(fmu) = fmiReset(fmu), c̄ -> neutralGradient(c̄)
+
+##################
+
+# function (nfmu::ME_NeuralFMU)(t0, x0, inputs, reset::Bool=false)
+#     nfmu([t0, x0...], inputs, reset) # vcat([t0], x0)
+# end
+#
+# function (nfmu::ME_NeuralFMU)(val0, inputs, reset::Bool=false)
+#
+#     t0 = val0[1]
+#
+#     if reset
+#         fmiReset(nfmu.fmu)
+#         fmiSetupExperiment(nfmu.fmu, t0)
+#         fmiEnterInitializationMode(nfmu.fmu)
+#         fmiExitInitializationMode(nfmu.fmu)
+#     end
+#
+#     nfmu.solution = nfmu.neuralODE(val0, inputs) # x, p
+#
+#     nfmu.solution
+# end

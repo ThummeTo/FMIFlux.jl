@@ -11,7 +11,9 @@ include("FMI_plot.jl")
 
 # FMI2_neural.jl
 export fmi2DoStepME
-export fmi2InputDoStepCSOutput
+export fmi2InputDoStepCSOutput, fmi2InputDoStepMEOutput, fmi2InputDoStepME
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
+
+export NeuralFMUCacheTime, NeuralFMUCacheState
 
 end # module

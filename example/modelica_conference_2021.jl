@@ -45,7 +45,7 @@ fmiReset(myFMU)
 fmiSetupExperiment(myFMU, 0.0)
 
 fmi2SetReal(myFMU, "fixed.s0", displacement)
-fmi2SetReal(myFMU, "mass_s0", 0.5 + displacement) # das sollte wurst sein oder?
+fmi2SetReal(myFMU, "mass_s0", 0.5 + displacement) # das sollte Wurst sein oder?
 
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)

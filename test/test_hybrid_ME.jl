@@ -76,11 +76,11 @@ solutionBefore = problem(t_start, x0)
 p_net = Flux.params(problem)
 
 optim = ADAM()
-for i in 1:2
-    @info "Epoch: $i / 2"
+for i in 1:3
+    @info "Epoch: $i / 3"
     Flux.train!(losssum, p_net, Iterators.repeated((), 500), optim; cb=callb)
 end
-@test losssum() < 0.05
+@test losssum() < 0.1
 
 # check results
 solutionAfter = problem(t_start, x0)
