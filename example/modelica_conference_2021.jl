@@ -21,6 +21,7 @@ realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fm
 t_start = 0.0
 t_step = 0.01
 t_stop = 5.0
+tData = t_start:t_step:t_stop
 
 myFMU = fmiLoad(realFMUPath)
 fmiInstantiate!(myFMU; loggingOn=false)
@@ -31,7 +32,7 @@ fmiExitInitializationMode(myFMU)
 
 x0 = fmi2GetContinuousStates(myFMU)
 
-realSimData = fmi2SimulateCS(myFMU, t_step, t_start, t_stop, ["mass.s", "mass.v", "mass.f", "mass.a"], false)
+realSimData = fmi2Simulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], saveat=tData, setup=false)
 fmiUnload(myFMU)
 
 fmiPlot(realSimData)
@@ -40,7 +41,7 @@ displacement = 0.1
 myFMU = fmiLoad(modelFMUPath)
 
 fmiInstantiate!(myFMU; loggingOn=false)
-fmuSimData = fmiSimulate(myFMU, t_step, t_start, t_stop, ["mass.s", "mass.v", "mass.a"])
+fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData)
 fmiReset(myFMU)
 fmiSetupExperiment(myFMU, 0.0)
 
@@ -50,13 +51,12 @@ fmi2SetReal(myFMU, "mass_s0", 0.5 + displacement) # das sollte Wurst sein oder?
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 #x0 = fmi2GetContinuousStates(myFMU)
-tData = t_start:t_step:t_stop
 posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
 velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
 
 # loss function for training
 function losssum()
-    solution = problem(t_start, x0)
+    solution = problem(x0)
 
     posNet = collect(data[2] for data in solution.u)
     velNet = collect(data[3] for data in solution.u)
@@ -77,7 +77,7 @@ function callb()
 
     if iterCB % 10 == 1
         avg_ls = losssum()
-        display("Loss: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls / 2.0), digits=5))   Weight/Scale: $(p_net[1][1])   Bias/Offset: $(p_net[1][5])")
+        @info "Loss: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls / 2.0), digits=5))   Weight/Scale: $(p_net[1][1])   Bias/Offset: $(p_net[1][5])"
     end
 
 end
@@ -91,20 +91,20 @@ net = Chain(Dense(numStates, numStates, identity; initW = (out, in) -> [[1.0, 0.
             Dense(16, 16, tanh),
             Dense(16, numStates))
 
-problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(), tData)
-solutionBefore = problem(t_start, x0)
+problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
+solutionBefore = problem(x0)
 fmiPlot(problem)
 
 # train it ...
 p_net = Flux.params(problem)
 optim = ADAM()
 for i in 1:3
-    display("epoch: $i/3")
+    @info "epoch: $i/3"
     Flux.train!(losssum, p_net, Iterators.repeated((), 1000), optim; cb=callb)
 end
 
 ###### plot results s
-solutionAfter = problem(t_start, x0)
+solutionAfter = problem(x0)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
     xtickfontsize=12, ytickfontsize=12,
     xguidefontsize=12, yguidefontsize=12,
@@ -115,7 +115,7 @@ Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter.u), label="Neu
 Plots.savefig(fig, "exampleResult_s.pdf")
 
 ###### plot results v
-solutionAfter = problem(t_start, x0)
+solutionAfter = problem(x0)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass velocity [m/s]", linewidth=2,
     xtickfontsize=12, ytickfontsize=12,
     xguidefontsize=12, yguidefontsize=12,
@@ -124,35 +124,6 @@ Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.v"), lab
 Plots.plot!(fig, tData, velData, label="reference", linewidth=2)
 Plots.plot!(fig, tData, collect(data[3] for data in solutionAfter.u), label="NeuralFMU", linewidth=2)
 Plots.savefig(fig, "exampleResult_v.pdf")
-
-# write training parameters *p_net* back to *net* with data offset *c*
-function transferParams!(net, p_net, c=0)
-    numLayers = length(net.layers)
-    for l in 1:numLayers
-        ni = size(net.layers[l].weight,2)
-        no = size(net.layers[l].weight,1)
-
-        w = zeros(no, ni)
-        b = zeros(no)
-
-        for i in 1:ni
-            for o in 1:no
-                w[o,i] = p_net[1][c + (i-1)*no + (o-1)]
-            end
-        end
-
-        c += ni*no
-
-        for o in 1:no
-            b[o] = p_net[1][c + (o-1)]
-        end
-
-        c += no
-
-        copy!(net.layers[l].weight, w)
-        copy!(net.layers[l].bias, b)
-    end
-end
 
 ###### friction model extraction
 layers = problem.neuralODE.model.layers[4:6]

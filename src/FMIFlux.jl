@@ -8,12 +8,20 @@ module FMIFlux
 using FMI
 include("FMI_neural.jl")
 include("FMI_plot.jl")
+#include("FMI_cache.jl")
+include("misc.jl")
 
 # FMI2_neural.jl
-export fmi2DoStepME
-export fmi2InputDoStepCSOutput, fmi2InputDoStepMEOutput, fmi2InputDoStepME
+export fmi2DoStepME, fmi2DoStepCS
+export fmi2InputDoStepCSOutput
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
 
-export NeuralFMUCacheTime, NeuralFMUCacheState
+# FMI_neural.jl
+export fmiDoStepME, fmiDoStepCS
+export fmiInputDoStepCSOutput
+#export NeuralFMUCacheTime, NeuralFMUCacheState
+
+# misc.jl
+export mse_interpolate, transferParams!
 
 end # module
