@@ -17,11 +17,12 @@ using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
-FMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulumExtForce1D.fmu")
+FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.fmu")
 
 t_start = 0.0
 t_step = 0.01
 t_stop = 5.0
+tData = t_start:t_step:t_stop
 
 myFMU = fmiLoad(FMUPath)
 fmiInstantiate!(myFMU; loggingOn=false)
@@ -31,7 +32,7 @@ fmiSetReal(myFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
-realSimData = fmi2SimulateCS(myFMU, t_step, t_start, t_stop, ["mass.s", "mass.v", "mass.a"], false)
+realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, saveat=tData)
 fmiPlot(realSimData)
 
 fmiReset(myFMU)
@@ -39,12 +40,11 @@ fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
-fmuSimData = fmi2SimulateCS(myFMU, t_step, t_start, t_stop, ["mass.s", "mass.v", "mass.a"], false)
+fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, saveat=tData)
 fmiPlot(fmuSimData)
 
 ######
 
-tData = t_start:t_step:t_stop
 extF = zeros(length(tData)) # no external force
 posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
 velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
@@ -52,7 +52,7 @@ accData = fmi2SimulationResultGetValues(realSimData, "mass.a")
 
 # loss function for training
 function losssum()
-    solution = problem(t_start, t_step, t_stop, extF)
+    solution = problem(t_step; inputs=extF)
 
     accNet = collect(data[2] for data in solution)
     #velNet = collect(data[3] for data in solution)
@@ -67,7 +67,7 @@ function callb()
 
     if iterCB % 10 == 1
         avg_ls = losssum()
-        display("Loss: $(round(avg_ls, digits=5))")
+        @info "Loss: $(round(avg_ls, digits=5))"
     end
 end
 
@@ -75,14 +75,13 @@ end
 numInputs = length(myFMU.modelDescription.inputValueReferences)
 numOutputs = length(myFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmi2InputDoStepCSOutput(myFMU, t_step, inputs),
+net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
 
-problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(), tData, true, true)
-solutionBefore = problem(t_start, t_step, t_stop, extF)
-fmiPlot(problem)
+problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
+solutionBefore = problem(t_step; inputs=extF)
 
 # train it ...
 p_net = Flux.params(problem)
@@ -91,7 +90,7 @@ optim = ADAM()
 Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb) # Feel free to increase training steps or epochs for better results
 
 ###### plot results a
-solutionAfter = problem(t_start, t_step, t_stop, extF)
+solutionAfter = problem(t_step; inputs=extF)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m s^-2]", linewidth=2,
     xtickfontsize=12, ytickfontsize=12,
     xguidefontsize=12, yguidefontsize=12,

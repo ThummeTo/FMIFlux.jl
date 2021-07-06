@@ -3,26 +3,43 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+import Zygote
 using Zygote: @adjoint
-using Zygote
+
 using Flux, DiffEqFlux
 using OrdinaryDiffEq
+using DiffEqCallbacks
 
 include("FMI2_neural.jl")
 
+"""
+Structure definition for a NeuralFMU, that runs in mode `Model Exchange` (ME).
+"""
 mutable struct ME_NeuralFMU
     neuralODE::NeuralODE
     solution::ODESolution
-    fmu
+    fmu::FMU
+
+    tspan
+    saveat
+    saved_values
+    recordValues
 
     ME_NeuralFMU() = new()
 end
 
+"""
+Structure definition for a NeuralFMU, that runs in mode `Co-Simulation` (CS).
+"""
 mutable struct CS_NeuralFMU
     model
-    simulationResult::fmi2SimulationResult
-    fmu
+    #simulationResult::fmi2SimulationResult
+    fmu::FMU
 
+    tspan
+    saveat
+    valueStack
+    
     CS_NeuralFMU() = new()
 end
 
@@ -30,13 +47,39 @@ NeuralFMU = ME_NeuralFMU
 NeuralFMUs = Union{ME_NeuralFMU, CS_NeuralFMU}
 
 # time caching (to set correct time in ME-NeuralFMUs)
+function NeuralFMUGetCachedTime(fmu)
+    Zygote.ignore() do
+        return fmu.next_t
+    end
+
+    return 0.0
+end
 function NeuralFMUCacheTime(fmu, t)
     fmu.next_t = t
+    nothing
 end
 function NeuralFMUCacheTime_Gradient(c̄, fmu, t)
     tuple(0.0, 0.0)
 end
-@adjoint NeuralFMUCacheTime(fmu, t) = NeuralFMUCacheTime(fmu, t), c̄ -> NeuralFMUCacheTime(c̄, fmu, t)
+@adjoint NeuralFMUCacheTime(fmu, t) = NeuralFMUCacheTime(fmu, t), c̄ -> NeuralFMUCacheTime_Gradient(c̄, fmu, t)
+
+# state caching (to set correct state in ME-NeuralFMUs)
+function NeuralFMUCacheState(fmu, x)
+    fmu.next_x = x
+end
+function NeuralFMUCacheState_Gradient(c̄, fmu, x)
+    tuple(0.0, 0.0)
+end
+@adjoint NeuralFMUCacheState(fmu, x) = NeuralFMUCacheState(fmu, x), c̄ -> NeuralFMUCacheState_Gradient(c̄, fmu, x)
+
+# state derivative caching (to set correct state derivative in ME-NeuralFMUs)
+function NeuralFMUCacheStateDerivative(fmu, dx)
+    fmu.next_dx = dx
+end
+function NeuralFMUCacheStateDerivative_Gradient(c̄, fmu, dx)
+    tuple(0.0, 0.0)
+end
+@adjoint NeuralFMUCacheStateDerivative(fmu, dx) = NeuralFMUCacheStateDerivative(fmu, dx), c̄ -> NeuralFMUCacheStateDerivative_Gradient(c̄, fmu, dx)
 
 # helper to add an additional time state later used to setup time inside the FMU
 function NeuralFMUInputLayer(fmu, inputs)
@@ -46,23 +89,39 @@ function NeuralFMUInputLayer(fmu, inputs)
     x
 end
 
-# helper to add an additional time state later used to setup time inside the FMU
+# helper to add an additional time state derivative (for ME-NeuralFMUs)
 function NeuralFMUOutputLayerME(inputs)
     dt = 1.0
     dx = inputs
-    vcat([dt], dx)
+    vcat([dt], dx) # [dt, dx...] 
 end
 
+# helper to add an additional time state derivative (for CS-NeuralFMUs)
 function NeuralFMUOutputLayerCS(fmu, inputs)
     out = inputs
-    t = Zygote.@ignore fmu.t
+    t = fmu.t # NeuralFMUGetCachedTime(fmu)
     vcat([t], out)
+end
+
+# function that saves periodically FMU values (in case you are interested in any)
+function saveFunc(nfmu, u, t, integrator)
+    values = fmi2GetReal(nfmu.fmu, nfmu.recordValues)
+    return (values...,)
 end
 
 """
 Constructs a ME-NeuralFMU where the FMU is at an unknown location inside of the NN.
+
+Arguents:
+    - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
+    - `addTopLayer` adds an input layer to add a time state (default) to set the FMU-time
+    - `addBottomLayer` adds an input layer to remove the time state (default)
+
+Keyword arguments:
+    - `fixstep` forces fixed step integration
+    - `recordFMUValues` additionally records internal FMU variables (currently not supported because of issues)
 """
-function ME_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = true, addBottomLayer = true)
+function ME_NeuralFMU(fmu, model, tspan, alg=nothing; saveat=[], addTopLayer = true, addBottomLayer = true, recordFMUValues = [], fixstep=0.0)
     nfmu = ME_NeuralFMU()
     nfmu.fmu = fmu
 
@@ -79,18 +138,47 @@ function ME_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = t
         ext_model = Chain(model.layers...,
                           inputs -> NeuralFMUOutputLayerME(inputs))
     else
-        ext_model = model.layers
+        ext_model = Chain(model.layers...)
     end
 
-    nfmu.neuralODE = NeuralODE(ext_model, tspan, alg, saveat=saveat) #, p=Flux.params(ext_model))
+    nfmu.recordValues = recordFMUValues
+    if length(nfmu.recordValues) > 0
+        @assert false "ME_NeuralFMU(...): keyword `recordFMUValues` is currently not supported (under development). Please remove keyword."
+
+        tmp = zeros(Float64, length(nfmu.recordValues))
+        type = typeof((tmp...,))
+
+        nfmu.saved_values = SavedValues(Float64, type)
+        cb = SavingCallback((u,t,integrator)->saveFunc(nfmu, u, t, integrator), nfmu.saved_values; saveat=saveat)
+
+        if fixstep > 0.0
+            nfmu.neuralODE = NeuralODE(ext_model, tspan, alg, callback=cb, dt=fixstep, adaptive=false)
+        else
+            nfmu.neuralODE = NeuralODE(ext_model, tspan, alg, callback=cb)
+        end
+    else
+        if fixstep > 0.0
+            nfmu.neuralODE = NeuralODE(ext_model, tspan, alg; saveat=saveat, dt=fixstep, adaptive=false)
+        else
+            nfmu.neuralODE = NeuralODE(ext_model, tspan, alg; saveat=saveat)
+        end
+    end
+
+    nfmu.tspan = tspan
+    nfmu.saveat = saveat
 
     nfmu
 end
 
 """
 Constructs a CS-NeuralFMU where the FMU is at an unknown location inside of the NN.
+
+Arguents:
+    - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
+    - `addTopLayer` adds an input layer to add a time state (default) to set the FMU-time
+    - `addBottomLayer` adds an input layer to remove the time state (default)
 """
-function CS_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = true, addBottomLayer = true, recordValues = [])
+function CS_NeuralFMU(fmu, model, tspan; saveat=[], addTopLayer = true, addBottomLayer = true, recordValues = [])
     nfmu = CS_NeuralFMU()
     nfmu.fmu = fmu
 
@@ -108,43 +196,26 @@ function CS_NeuralFMU(fmu, model, tspan, alg=nothing, saveat=[], addTopLayer = t
         nfmu.model = model.layers
     end
 
-    # allocate simulation result
-    nfmu.simulationResult = fmi2SimulationResult()
-    nfmu.simulationResult.valueReferences = nfmu.fmu.modelDescription.outputValueReferences # vcat(recordValues, nfmu.fmu.modelDescription.inputValueReferences, nfmu.fmu.modelDescription.outputValueReferences)
-    nfmu.simulationResult.dataPoints = []
-    nfmu.simulationResult.fmu = nfmu.fmu
-
-    for t in saveat
-        values = zeros(length(nfmu.simulationResult.valueReferences))
-        push!(nfmu.simulationResult.dataPoints, [t, values...])
-    end
+    nfmu.tspan = tspan
+    nfmu.saveat = saveat
 
     nfmu
 end
 
-function (nfmu::ME_NeuralFMU)(t0, x0, reset::Bool=false)
-    nfmu([t0, x0...], reset) # vcat([t0], x0)
-end
-
-function (nfmu::ME_NeuralFMU)(val0, reset::Bool=false)
-
-    t0 = val0[1]
+function (nfmu::ME_NeuralFMU)(x_start, t_start::Real = nfmu.tspan[1]; reset::Bool=true)
 
     if reset
         fmiReset(nfmu.fmu)
-        fmiSetupExperiment(nfmu.fmu, t0)
+        fmiSetupExperiment(nfmu.fmu, t_start)
         fmiEnterInitializationMode(nfmu.fmu)
         fmiExitInitializationMode(nfmu.fmu)
     end
 
-    nfmu.solution = nfmu.neuralODE(val0)
-
-    nfmu.solution
+    x0 = [t_start, x_start...]
+    nfmu.solution = nfmu.neuralODE(x0)
 end
 
-function (nfmu::CS_NeuralFMU)(t_start, t_step, t_stop, inputs, reset::Bool=true)
-
-    numIter = round((t_stop-t_start)/t_step)
+function (nfmu::CS_NeuralFMU)(t_step, t_start = nfmu.tspan[1], t_stop = nfmu.tspan[end]; inputs=[], reset::Bool=true)
 
     if reset
         while fmiReset(nfmu.fmu) != 0
@@ -157,13 +228,11 @@ function (nfmu::CS_NeuralFMU)(t_start, t_step, t_stop, inputs, reset::Bool=true)
         end
     end
 
-    t = t_start
-
     ts = t_start:t_step:t_stop
     modelInput = collect.(eachrow(hcat(ts, inputs)))
-    valueStack = nfmu.model.(modelInput)
+    nfmu.valueStack = nfmu.model.(modelInput)
 
-    valueStack
+    nfmu.valueStack
 end
 
 # adapting the Flux functions
@@ -176,24 +245,29 @@ function Flux.params(neuralfmu::CS_NeuralFMU)
 end
 
 # FMI version independent dosteps
-function fmiDoStepME(fmu::FMU2, t, x)
-    fmi2DoStepME(fmu, t, x)
-end
-function fmiDoStepME(fmu::FMU2, x)
-    fmi2DoStepME(fmu, x)
-end
-
-# FMI version independent dostep-gradients
-function fmiDoStepME_Gradient(c̄, fmu::FMU2, t, x)
-    fmi2DoStepME_Gradient(c̄, fmu, t, x)
-end
-function fmiDoStepME_Gradient(c̄, fmu::FMU2, x)
-    fmi2DoStepME_Gradient(c̄, fmu, x)
+# function fmiDoStepME(fmu::FMU2, x, t = -1.0; setValueReferences = [], setValues = [], getValueReferences = [])
+#     fmi2DoStepME(fmu, x, t;
+#                 setValueReferences = setValueReferences,
+#                 setValues = setValues,
+#                 getValueReferences = getValueReferences)
+# end
+function fmiDoStepME(fmu::FMU2, x, t = -1.0, setValueReferences = [], setValues = [], getValueReferences = [])
+    fmi2DoStepME(fmu, x, t,
+                setValueReferences,
+                setValues,
+                getValueReferences)
 end
 
-@adjoint fmiDoStepME(fmu, t, x) = fmiDoStepME(fmu, t, x), c̄ -> fmiDoStepME_Gradient(c̄, fmu, t, x)
-@adjoint fmiDoStepME(fmu, x) = fmiDoStepME(fmu, x), c̄ -> fmiDoStepME_Gradient(c̄, fmu, x)
+function fmiDoStepCS(fmu::FMU2, dt; setValueReferences = [], setValues = [], getValueReferences = [])
+    fmi2DoStepCS(fmu, dt;
+                setValueReferences = setValueReferences,
+                setValues = setValues,
+                getValueReferences = getValueReferences)
+end
 
+function fmiInputDoStepCSOutput(fmu::FMU2, dt, u)
+    fmi2InputDoStepCSOutput(fmu, dt, u)
+end
 
 # define neutral gradients (=feed-trough) for ccall-functions
 function neutralGradient(c̄)

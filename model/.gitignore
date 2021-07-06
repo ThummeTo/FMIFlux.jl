@@ -1,6 +1,7 @@
 ~FMUOutput/
 SpringPendulum1D/
 SpringFrictionPendulum1D/
+SpringPendulumExtForce1D/
 buildlog.txt
 dsfinal.txt
 dsin.txt

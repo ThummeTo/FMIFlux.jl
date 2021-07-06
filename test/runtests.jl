@@ -10,10 +10,10 @@ using Test
     if Sys.iswindows()
         @info "Automated testing for Windows is supported."
         @testset "ME-NeuralFMU" begin
-            include("test_hybrid_ME.jl")
+            include("hybrid_ME.jl")
         end
         @testset "CS-NeuralFMU" begin
-            include("test_hybrid_CS.jl")
+            include("hybrid_CS.jl")
         end
     elseif Sys.islinux()
         @warn "Test-sets are using Windows-FMUs, automated testing for Linux is currently not supported."
