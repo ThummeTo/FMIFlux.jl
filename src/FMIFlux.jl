@@ -19,7 +19,7 @@ export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutp
 # FMI_neural.jl
 export fmiDoStepME, fmiDoStepCS
 export fmiInputDoStepCSOutput
-#export NeuralFMUCacheTime, NeuralFMUCacheState
+export NeuralFMUCacheTime, NeuralFMUCacheState
 
 # misc.jl
 export mse_interpolate, transferParams!
