@@ -54,10 +54,10 @@ function callb()
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 20 == 0
+    if iterCB % 50 == 0
         loss = losssum()
         @info "Loss: $loss"
-        @test loss< lastLoss  
+        @test loss < lastLoss  
         lastLoss = loss
     end
 end

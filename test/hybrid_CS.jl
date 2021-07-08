@@ -53,7 +53,7 @@ function callb()
         lastLoss = losssum()
     end
 
-    if iterCB % 20 == 0
+    if iterCB % 50 == 0
         loss = losssum()
         @info "Loss: $loss"
         @test loss < lastLoss   
