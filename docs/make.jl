@@ -6,6 +6,25 @@
 using Documenter, FMIFlux
 
 makedocs(sitename="FMIFlux.jl",
-         pages=Any["Home" => "index.md"])
+         format = Documenter.HTML(
+            collapselevel = 1,
+            sidebar_sitename = false
+         ),
+         pages= Any[
+            "Introduction" => "index.md"
+            "Tutorials" => [
+                "tutorials/overview.md"
+            ]
+            "Examples" => [
+                "examples/overview.md"
+            ]
+            "Library Functions" => Any[
+                "library/overview.md"
+            ]
+            "related.md"
+            "contents.md"
+            "Library Index" => "indices.md"
+            ]
+         )
 
 deploydocs(repo = "github.com/ThummeTo/FMIFlux.jl.git", devbranch = "main")
