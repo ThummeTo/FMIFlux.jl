@@ -189,7 +189,7 @@ end
 @adjoint _fmi2DoStepCS(fmu, dt, setValueReferences, setValues, getValueReferences) = _fmi2DoStepCS(fmu, dt, setValueReferences, setValues, getValueReferences), c̄ -> _fmi2DoStepCS_Gradient(c̄, fmu, dt, setValueReferences, setValues, getValueReferences)
 
 """
-Sets all FMU inputs to u, performs a ´´´fmi2DoStep´´´ and returns all FMU outputs.
+Sets all FMU inputs to u, performs a `fmi2DoStep` and returns all FMU outputs.
 """
 function fmi2InputDoStepCSOutput(fmu::FMU2, dt, u)
     _fmi2DoStepCS(fmu, dt,
