@@ -21,7 +21,6 @@ makedocs(sitename="FMIFlux.jl",
             "library/overview.md"
             "related.md"
             "contents.md"
-            "Library Index" => "indices.md"
             ]
          )
 
