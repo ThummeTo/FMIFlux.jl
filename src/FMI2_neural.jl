@@ -26,17 +26,6 @@ Optional, FMU-values can be retrieved by keyword argument `getValueReferences`.
 
 Function returns an array with state derivatives and optionally the FMU-values for `getValueReferences`.
 """
-# function fmi2DoStepME(fmu::FMU2,
-#                       x::Array,
-#                       t::Real = -1.0;
-#                       setValueReferences=[],
-#                       setValues=[],
-#                       getValueReferences=[])
-#     if t < 0.0
-#         t = NeuralFMUGetCachedTime(fmu)
-#     end
-#     _fmi2DoStepME(fmu, x, t, setValueReferences, setValues, getValueReferences)
-# end
 function fmi2DoStepME(fmu::FMU2,
     x::Array,
     t::Real = -1.0,
@@ -48,6 +37,17 @@ function fmi2DoStepME(fmu::FMU2,
     end
     _fmi2DoStepME(fmu, x, t, setValueReferences, setValues, getValueReferences)
 end
+# function fmi2DoStepME(fmu::FMU2,
+#                       x::Array,
+#                       t::Real = -1.0;
+#                       setValueReferences=[],
+#                       setValues=[],
+#                       getValueReferences=[])
+#     if t < 0.0
+#         t = NeuralFMUGetCachedTime(fmu)
+#     end
+#     _fmi2DoStepME(fmu, x, t, setValueReferences, setValues, getValueReferences)
+# end
 
 # helper because keyword arguments are not supported by Zygote
 function _fmi2DoStepME(fmu::FMU2,
