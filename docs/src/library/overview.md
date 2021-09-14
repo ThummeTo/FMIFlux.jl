@@ -1,4 +1,4 @@
-# Library Functions
+# [Library Functions](@id library)
 
 ## FMI 2 version dependent functions
 

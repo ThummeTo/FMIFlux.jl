@@ -17,10 +17,13 @@ makedocs(sitename="FMIFlux.jl",
             ]
             "Examples" => [
                 "examples/overview.md"
+                "Simple hybrid CS" => "examples/simple_hybrid_CS.md"
+                "Simple hybrid ME" => "examples/simple_hybrid_ME.md"
+                "Advanced hybrid ME" => "examples/advanced_hybrid_ME.md"
             ]
             "library/overview.md"
             "related.md"
-            "contents.md"
+            "Contents" => "contents.md"
             ]
          )
 
