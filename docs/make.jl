@@ -18,9 +18,7 @@ makedocs(sitename="FMIFlux.jl",
             "Examples" => [
                 "examples/overview.md"
             ]
-            "Library Functions" => Any[
-                "library/overview.md"
-            ]
+            "library/overview.md"
             "related.md"
             "contents.md"
             "Library Index" => "indices.md"
