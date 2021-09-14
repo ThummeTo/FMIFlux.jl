@@ -1,8 +1,10 @@
 # Overview
 
-This section gives an overview and short examples on how to work with the FMI.jl library. Please note, that in these tutorials only the version independent function calls starting with ```fmi``` are used. You are able to use the version dependent function calls ```fmiX``` can be used. But as of now, only FMI standard 2.0.1 is supported, so these calls translate to ```fmi2``` function calls. However support for the upcoming FMI standard 3 is plannend and you will be able to use the ```fmi3``` function calls as well.
+This section gives an overview and short examples on how to work with the FMIFlux.jl library. For further advise on working with FMUs, it is recommended to check the Documentation of the [FMI.jl library](https://thummeto.github.io/FMI.jl/dev/)
 
 The tutorials are grouped as followed:
 
-- __Load/Unload an FMU__: A short introductory example on how to load/unload a FMU and what happens in the background.
-- __Simulate a FMU__: Guides you through all the nessacery steps to instatiate, initialize and simulate a FMU.
+- Still work in progress
+- How to set up a neural FMU
+- How to train a neural FMU
+- Plot the results
