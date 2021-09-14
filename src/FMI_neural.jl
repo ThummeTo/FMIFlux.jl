@@ -81,7 +81,9 @@ function NeuralFMUCacheStateDerivative_Gradient(c̄, fmu, dx)
 end
 @adjoint NeuralFMUCacheStateDerivative(fmu, dx) = NeuralFMUCacheStateDerivative(fmu, dx), c̄ -> NeuralFMUCacheStateDerivative_Gradient(c̄, fmu, dx)
 
-# helper to add an additional time state later used to setup time inside the FMU
+"""
+helper to add an additional time state later used to setup time inside the FMU
+"""
 function NeuralFMUInputLayer(fmu, inputs)
     t = inputs[1]
     x = inputs[2:end]
@@ -89,14 +91,18 @@ function NeuralFMUInputLayer(fmu, inputs)
     x
 end
 
-# helper to add an additional time state derivative (for ME-NeuralFMUs)
+"""
+helper to add an additional time state derivative (for ME-NeuralFMUs)
+"""
 function NeuralFMUOutputLayerME(inputs)
     dt = 1.0
     dx = inputs
     vcat([dt], dx) # [dt, dx...] 
 end
 
-# helper to add an additional time state derivative (for CS-NeuralFMUs)
+"""
+helper to add an additional time state derivative (for CS-NeuralFMUs)
+"""
 function NeuralFMUOutputLayerCS(fmu, inputs)
     out = inputs
     t = fmu.t # NeuralFMUGetCachedTime(fmu)
