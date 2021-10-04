@@ -4,8 +4,8 @@ This section discusses the included examples of the FMIFlux.jl library. So you c
 
 The examples are:
 
-- __Simple hybrid CS__: Showing how to train a Neural CS FMU.
-- __simple hybrid ME__: Showing how to train a Neural ME FMU.
-- __advanced hybrid ME__: Showing how to train an advanced Neural ME FMU.
+- __Simple hybrid CS__: Showing how you can train a Neural CS FMU.
+- __simple hybrid ME__: Showing how you can train a Neural ME FMU.
+- __advanced hybrid ME__: A short example explaining how to parameterize a FMU before simulation.
 
 
