@@ -54,6 +54,7 @@ function NeuralFMUGetCachedTime(fmu)
 
     return 0.0
 end
+# TODO: docstring
 function NeuralFMUCacheTime(fmu, t)
     fmu.next_t = t
     nothing
@@ -62,6 +63,7 @@ function NeuralFMUCacheTime_Gradient(c̄, fmu, t)
     tuple(0.0, 0.0)
 end
 @adjoint NeuralFMUCacheTime(fmu, t) = NeuralFMUCacheTime(fmu, t), c̄ -> NeuralFMUCacheTime_Gradient(c̄, fmu, t)
+
 
 # state caching (to set correct state in ME-NeuralFMUs)
 function NeuralFMUCacheState(fmu, x)
@@ -251,6 +253,7 @@ end
 #                 setValues = setValues,
 #                 getValueReferences = getValueReferences)
 # end
+# TODO: docstring
 function fmiDoStepME(fmu::FMU2, x, t = -1.0, setValueReferences = [], setValues = [], getValueReferences = [])
     fmi2DoStepME(fmu, x, t,
                 setValueReferences,
@@ -258,6 +261,7 @@ function fmiDoStepME(fmu::FMU2, x, t = -1.0, setValueReferences = [], setValues 
                 getValueReferences)
 end
 
+# TODO: docstring
 function fmiDoStepCS(fmu::FMU2, dt; setValueReferences = [], setValues = [], getValueReferences = [])
     fmi2DoStepCS(fmu, dt;
                 setValueReferences = setValueReferences,
@@ -265,6 +269,7 @@ function fmiDoStepCS(fmu::FMU2, dt; setValueReferences = [], setValues = [], get
                 getValueReferences = getValueReferences)
 end
 
+# TODO: docstring
 function fmiInputDoStepCSOutput(fmu::FMU2, dt, u)
     fmi2InputDoStepCSOutput(fmu, dt, u)
 end
