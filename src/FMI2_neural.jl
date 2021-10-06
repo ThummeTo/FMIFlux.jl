@@ -165,6 +165,17 @@ function fmi2DoStepME(fmu::FMU2,
     end
     _fmi2DoStepME(fmu, x, t, setValueReferences, setValues, getValueReferences)
 end
+# function fmi2DoStepME(fmu::FMU2,
+#                       x::Array,
+#                       t::Real = -1.0;
+#                       setValueReferences=[],
+#                       setValues=[],
+#                       getValueReferences=[])
+#     if t < 0.0
+#         t = NeuralFMUGetCachedTime(fmu)
+#     end
+#     _fmi2DoStepME(fmu, x, t, setValueReferences, setValues, getValueReferences)
+# end
 
 # Helper because keyword arguments are (currently) not supported by Zygote.
 function _fmi2DoStepME(fmu::FMU2,
