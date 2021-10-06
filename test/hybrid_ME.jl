@@ -124,7 +124,7 @@ net = Chain(states ->  fmiDoStepME(myFMU, states, -1.0, setVRs, [1.1], getVRs),
             Dense(16, numStates))
 push!(nets, net)
 
-optim = ADAM()
+optim = ADAM(1e-4)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
