@@ -38,13 +38,12 @@ posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
 
 # loss function for training
 function losssum()
-    global problem, x0
+    global problem, x0, posData
     solution = problem(x0)
 
     posNet = collect(data[2] for data in solution.u)
-    #velNet = collect(data[3] for data in solution.u)
-
-    Flux.Losses.mse(posNet, posData) #+ Flux.Losses.mse(velNet, velData)
+    
+    Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -54,7 +53,7 @@ function callb()
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 50 == 0
+    if iterCB % 30 == 0
         loss = losssum()
         @info "Loss: $loss"
         @test loss < lastLoss  
@@ -80,14 +79,14 @@ push!(nets, net)
 net = Chain(Dense(numStates, 16, leakyrelu),
             Dense(16, 16, leakyrelu),
             Dense(16, numStates),
-            states ->  fmiDoStepME(myFMU, states))
+            states -> fmiDoStepME(myFMU, states))
 push!(nets, net)
 
 # 3 # default ME-NeuralFMU (learn dynamics and states)
 net = Chain(Dense(numStates, 16, leakyrelu),
             Dense(16, 16, leakyrelu),
             Dense(16, numStates),
-            states ->  fmiDoStepME(myFMU, states),
+            states -> fmiDoStepME(myFMU, states),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
@@ -103,7 +102,7 @@ push!(nets, net)
 # 5 # NeuralFMU with additional getter 
 getVRs = [fmi2String2ValueReference(myFMU, "mass.m")]
 numGetVRs = length(getVRs)
-net = Chain(states ->  fmiDoStepME(myFMU, states, -1.0, [], [], getVRs), 
+net = Chain(states ->  fmiDoStepME(myFMU, states, -1.0, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
@@ -143,8 +142,8 @@ for i in 1:length(nets)
 
         iterCB = 0
         lastLoss = losssum()
-
-        Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
+        @info "Start-Loss for net #$i: $lastLoss"
+        Flux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=callb)
 
         # check results
         solutionAfter = problem(x0)

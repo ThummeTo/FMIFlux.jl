@@ -29,5 +29,5 @@ function fmiPlot(nfmu::CS_NeuralFMU)
 end
 
 # extends the existing plot-commands.
-FMI.fmiPlot(nfmu::NeuralFMUs) = fmiPlot(nfmu)
-Plots.plot(nfmu::NeuralFMUs) = fmiPlot(nfmu)
+FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
