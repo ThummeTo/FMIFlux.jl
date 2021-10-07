@@ -9,7 +9,7 @@ function _build_jac_dx_x(fmu::FMU2, rdx, rx)
 
     for i in 1:length(rdx)
         for j in 1:length(rx)
-            mat[i,j] = fmi2GetDirectionalDerivative(fmu, rdx[i], rx[j])
+            mat[i,j] = fmi2SampleDirectionalDerivative(fmu, rdx[i], rx[j]) # fix for FMI v0.1.6
         end
     end
 

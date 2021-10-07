@@ -31,16 +31,16 @@ end
 """
 Structure definition for a NeuralFMU, that runs in mode `Co-Simulation` (CS).
 """
-mutable struct CS_NeuralFMU
+mutable struct CS_NeuralFMU{T}
     model
     #simulationResult::fmi2SimulationResult
-    fmu::FMU
+    fmu::T
 
     tspan
     saveat
     valueStack
     
-    CS_NeuralFMU() = new()
+    CS_NeuralFMU{T}() where {T} = new{T}()
 end
 
 NeuralFMU = ME_NeuralFMU
@@ -89,6 +89,15 @@ function NeuralFMUInputLayer(fmu, inputs)
     x
 end
 
+function NeuralFMUInputLayer(fmus::Vector{T}, inputs) where {T}
+    t = inputs[1]
+    x = inputs[2:end]
+    for fmu in fmus
+        NeuralFMUCacheTime(fmu, t)
+    end
+    return x
+end
+
 # helper to add an additional time state derivative (for ME-NeuralFMUs)
 function NeuralFMUOutputLayerME(inputs)
     dt = 1.0
@@ -100,6 +109,15 @@ end
 function NeuralFMUOutputLayerCS(fmu, inputs)
     out = inputs
     t = fmu.t # NeuralFMUGetCachedTime(fmu)
+    vcat([t], out)
+end
+
+function NeuralFMUOutputLayerCS(fmus::Vector{T}, inputs) where {T}
+    out = inputs
+    t = fmus[1].t
+    for fmu in fmus
+        @assert t == fmu.t
+    end
     vcat([t], out)
 end
 
@@ -179,7 +197,7 @@ Arguents:
     - `addBottomLayer` adds an input layer to remove the time state (default)
 """
 function CS_NeuralFMU(fmu, model, tspan; saveat=[], addTopLayer = true, addBottomLayer = true, recordValues = [])
-    nfmu = CS_NeuralFMU()
+    nfmu = CS_NeuralFMU{typeof(fmu)}()
     nfmu.fmu = fmu
 
     if addTopLayer && addBottomLayer
@@ -215,7 +233,7 @@ function (nfmu::ME_NeuralFMU)(x_start, t_start::Real = nfmu.tspan[1]; reset::Boo
     nfmu.solution = nfmu.neuralODE(x0)
 end
 
-function (nfmu::CS_NeuralFMU)(t_step, t_start = nfmu.tspan[1], t_stop = nfmu.tspan[end]; inputs=[], reset::Bool=true)
+function (nfmu::CS_NeuralFMU{T})(t_step, t_start = nfmu.tspan[1], t_stop = nfmu.tspan[end]; inputs=[], reset::Bool=true) where {T}
 
     if reset
         while fmiReset(nfmu.fmu) != 0
@@ -233,6 +251,28 @@ function (nfmu::CS_NeuralFMU)(t_step, t_start = nfmu.tspan[1], t_stop = nfmu.tsp
     nfmu.valueStack = nfmu.model.(modelInput)
 
     nfmu.valueStack
+end
+
+function (nfmu::CS_NeuralFMU{Vector{T}})(t_step, t_start=nfmu.tspan[1], t_stop=nfmu.tspan[end]; inputs=[], reset::Bool=true) where {T}
+    if reset
+        for fmu in nfmu.fmu
+            while fmiReset(fmu) !=0
+            end
+            while fmiSetupExperiment(fmu, t_start) !=0
+            end
+            while fmiEnterInitializationMode(fmu) !=0
+            end
+            while fmiExitInitializationMode(fmu) !=0
+            end
+        end
+    end
+
+    ts = t_start:t_step:t_stop
+
+    model_input = collect.(eachrow(hcat(ts, inputs)))
+    nfmu.valueStack = nfmu.model.(model_input)
+
+    return nfmu.valueStack
 end
 
 # adapting the Flux functions
