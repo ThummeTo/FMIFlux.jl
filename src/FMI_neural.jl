@@ -60,6 +60,7 @@ function NeuralFMUGetCachedTime(fmu::FMU)
 
     return 0.0
 end
+
 function NeuralFMUCacheTime(fmu::FMU, 
                             t::Real)
     fmu.next_t = t
@@ -71,6 +72,7 @@ function NeuralFMUCacheTime_Gradient(c̄,
     tuple(0.0, 0.0)
 end
 @adjoint NeuralFMUCacheTime(fmu, t) = NeuralFMUCacheTime(fmu, t), c̄ -> NeuralFMUCacheTime_Gradient(c̄, fmu, t)
+
 
 # state caching (to set correct state in ME-NeuralFMUs)
 function NeuralFMUCacheState(fmu::FMU, 
