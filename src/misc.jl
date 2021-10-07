@@ -6,7 +6,8 @@
 using Flux
 
 """
-Compares non-equidistant (or equdistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`.
+Compares non-equidistant (or equdistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
+(Zygote-friendly: Zygote can differentiate through via AD.)
 """
 function mse_interpolate(t1, x1, t2, x2, t_comp)
     #lin1 = LinearInterpolation(t1, x1)
@@ -16,7 +17,7 @@ function mse_interpolate(t1, x1, t2, x2, t_comp)
     Flux.Losses.mse(ar1, ar2)
 end
 
-# helper: simple linear interpolation 
+# Helper: simple linear interpolation 
 function lin_interp(t, x, t_sample)
     if t_sample <= t[1]
         return x[1]

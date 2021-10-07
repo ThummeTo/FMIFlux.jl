@@ -15,13 +15,18 @@ include("misc.jl")
 export fmi2DoStepME, fmi2DoStepCS
 export fmi2InputDoStepCSOutput
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
+export fmi2GetJacobian, fmi2GetJacobian!, fmi2GetFullJacobian, fmi2GetFullJacobian!
 
 # FMI_neural.jl
 export fmiDoStepME, fmiDoStepCS
 export fmiInputDoStepCSOutput
 export NeuralFMUCacheTime, NeuralFMUCacheState
+export NeuralFMUGetCachedTime
 
 # misc.jl
-export mse_interpolate, transferParams!
+export mse_interpolate, transferParams!, lin_interp
+
+# debugging only 
+# export _build_jac_dx_x_slow
 
 end # module
