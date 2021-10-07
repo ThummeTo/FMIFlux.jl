@@ -21,7 +21,7 @@ FMIFlux.jl is a free-to-use software library for the Julia programming language,
 ## What is under development in FMIFlux.jl?
 - performance optimizations
 - different modes for sensitivity estimation
-- improoved documentation
+- improved documentation
 - more examples
 - ...
 
