@@ -1,7 +1,7 @@
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
 authors = ["TT <tobias.thummerer@informatik.uni-augsburg.de>", "LM <lars.mikelsons@informatik.uni-augsburg.de>"]
-version = "0.1.2"
+version = "0.1.4"
 
 [deps]
 DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
