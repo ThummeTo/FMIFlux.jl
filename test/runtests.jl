@@ -15,6 +15,9 @@ using Test
         @testset "CS-NeuralFMU" begin
             include("hybrid_CS.jl")
         end
+        @testset "Multiple FMUs" begin
+            include("multi.jl")
+        end
     elseif Sys.islinux()
         @warn "Test-sets are using Windows-FMUs, automated testing for Linux is currently not supported."
     elseif Sys.isapple()
