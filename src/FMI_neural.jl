@@ -107,7 +107,8 @@ function NeuralFMUInputLayer(fmu::FMU,
     x
 end
 
-function NeuralFMUInputLayer(fmus::Vector{T}, inputs) where {T}
+function NeuralFMUInputLayer(fmus::Vector{T}, 
+                             inputs::Array{<:Real}) where {T}
     t = inputs[1]
     x = inputs[2:end]
     for fmu in fmus
@@ -305,10 +306,10 @@ Evaluates the CS_NeuralFMU in the timespan given during construction or in a cus
 Via optional argument `reset`, the FMU is reset every time evaluation is started (default=`true`).
 """
 function (nfmu::CS_NeuralFMU{T})(t_step::Real, 
-                              t_start::Real = nfmu.tspan[1], 
-                              t_stop::Real = nfmu.tspan[end]; 
-                              inputs::Array{<:Real} = zeros(Real,0), 
-                              reset::Bool = true) where {T}
+                                 t_start::Real = nfmu.tspan[1], 
+                                 t_stop::Real = nfmu.tspan[end]; 
+                                 inputs::Array{<:Real} = zeros(Real,0), 
+                                 reset::Bool = true) where {T}
 
     if reset
         while fmiReset(nfmu.fmu) != 0
@@ -325,25 +326,27 @@ function (nfmu::CS_NeuralFMU{T})(t_step::Real,
     modelInput = collect.(eachrow(hcat(ts, inputs)))
     nfmu.valueStack = nfmu.model.(modelInput)
 
-    nfmu.valueStack
+    return nfmu.valueStack
 end
-
-function (nfmu::CS_NeuralFMU{Vector{T}})(t_step, t_start=nfmu.tspan[1], t_stop=nfmu.tspan[end]; inputs=[], reset::Bool=true) where {T}
+function (nfmu::CS_NeuralFMU{Vector{T}})(t_step::Real, 
+                                         t_start::Real = nfmu.tspan[1], 
+                                         t_stop::Real = nfmu.tspan[end]; 
+                                         inputs::Array{<:Real} = zeros(Real,0), 
+                                         reset::Bool = true) where {T}
     if reset
         for fmu in nfmu.fmu
-            while fmiReset(fmu) !=0
+            while fmiReset(fmu) != 0
             end
-            while fmiSetupExperiment(fmu, t_start) !=0
+            while fmiSetupExperiment(fmu, t_start) != 0
             end
-            while fmiEnterInitializationMode(fmu) !=0
+            while fmiEnterInitializationMode(fmu) != 0
             end
-            while fmiExitInitializationMode(fmu) !=0
+            while fmiExitInitializationMode(fmu) != 0
             end
         end
     end
 
     ts = t_start:t_step:t_stop
-
     model_input = collect.(eachrow(hcat(ts, inputs)))
     nfmu.valueStack = nfmu.model.(model_input)
 
