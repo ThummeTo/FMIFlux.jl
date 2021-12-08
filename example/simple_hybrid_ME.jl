@@ -9,7 +9,7 @@
 # (3) Install FMIFlux via           add FMIFlux   or   add "https://github.com/ThummeTo/FMIFlux.jl"
 ################################ END INSTALLATION ##################################################
 
-# this example covers creation and training am ME-NeuralFMUs
+# this example covers creation and training of ME-NeuralFMUs
 
 using FMI
 using FMIFlux
@@ -34,26 +34,26 @@ fmiExitInitializationMode(myFMU)
 
 x0 = fmiGetContinuousStates(myFMU)
 
-realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], saveat=tData, setup=false)
+vrs = ["mass.s", "mass.v", "mass.f", "mass.a"]
+_, realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=vrs, saveat=tData, setup=false, reset=false)
 fmiUnload(myFMU)
 
-fmiPlot(realSimData)
+fmiPlot(myFMU, vrs, realSimData)
 
 myFMU = fmiLoad(modelFMUPath)
 
 fmiInstantiate!(myFMU; loggingOn=false)
-fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData)
+_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData)
 
-posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
-velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
+posData = collect(data[1] for data in realSimData.saveval)
+velData = collect(data[2] for data in realSimData.saveval)
 
 # loss function for training
 function losssum()
     solution = problem(x0, t_start)
 
-    tNet = collect(data[1] for data in solution.u)
-    posNet = collect(data[2] for data in solution.u)
-    #velNet = collect(data[3] for data in solution.u)
+    posNet = collect(data[1] for data in solution.u)
+    #velNet = collect(data[2] for data in solution.u)
 
     Flux.Losses.mse(posData, posNet) #+ Flux.Losses.mse(velData, velNet)
 end
@@ -65,7 +65,7 @@ function callb()
 
     if iterCB % 10 == 1
         avg_ls = losssum()
-        @info "Loss: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))"
+        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))"
     end
 end
 
@@ -79,13 +79,13 @@ net = Chain(inputs -> fmiDoStepME(myFMU, inputs),
 
 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
 solutionBefore = problem(x0, t_start)
-fmiPlot(problem)
+fmiPlot(myFMU, solutionBefore)
 
 # train it ...
 p_net = Flux.params(problem)
 
 optim = ADAM()
-Flux.train!(losssum, p_net, Iterators.repeated((), 1000), optim; cb=callb) # Feel free to increase training steps or epochs for better results
+Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb) # Feel free to increase training steps or epochs for better results
 
 ###### plot results mass.s
 solutionAfter = problem(x0, t_start)
@@ -93,9 +93,10 @@ fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
     xtickfontsize=12, ytickfontsize=12,
     xguidefontsize=12, yguidefontsize=12,
     legendfontsize=12, legend=:bottomright)
-Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.s"), label="FMU", linewidth=2)
+Plots.plot!(fig, tData, collect(data[1] for data in fmuSimData.saveval), label="FMU", linewidth=2)
 Plots.plot!(fig, tData, posData, label="reference", linewidth=2)
 Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter.u), label="NeuralFMU", linewidth=2)
 Plots.savefig(fig, "exampleResult_s.pdf")
+fig 
 
 fmiUnload(myFMU)

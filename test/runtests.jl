@@ -9,8 +9,14 @@ using Test
 @testset "FMIFlux.jl" begin
     if Sys.iswindows()
         @info "Automated testing for Windows is supported."
-        @testset "ME-NeuralFMU" begin
+        @testset "Sensitivities" begin
+            include("sens.jl")
+        end
+        @testset "ME-NeuralFMU (Continuous)" begin
             include("hybrid_ME.jl")
+        end
+        @testset "ME-NeuralFMU (Discontinuous)" begin
+            include("hybrid_ME_dis.jl")
         end
         @testset "CS-NeuralFMU" begin
             include("hybrid_CS.jl")

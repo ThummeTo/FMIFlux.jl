@@ -20,8 +20,6 @@ export fmi2GetJacobian, fmi2GetJacobian!, fmi2GetFullJacobian, fmi2GetFullJacobi
 # FMI_neural.jl
 export fmiDoStepME, fmiDoStepCS
 export fmiInputDoStepCSOutput
-export NeuralFMUCacheTime, NeuralFMUCacheState
-export NeuralFMUGetCachedTime
 
 # misc.jl
 export mse_interpolate, transferParams!, lin_interp
