@@ -163,7 +163,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
         # ToDo: Problem-related parameterization of optimize-call
         #result = optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu), left_x, LBFGS(); autodiff = :forward)
-        result = optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, NelderMead())
+        result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, NelderMead())
 
         #display(result)
 

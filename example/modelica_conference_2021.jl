@@ -45,7 +45,7 @@ fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 success, realSimData_test = fmi2Simulate(myFMU, t_start, t_stop; recordValues=vrs, saveat=tData, setup=false, reset=false)
 posData_test = collect(data[1] for data in realSimData_test.saveval)
-velData_test = collect(data[1] for data in realSimData_test.saveval)
+velData_test = collect(data[2] for data in realSimData_test.saveval)
 
 fmiPlot(myFMU, vrs, realSimData)
 fmiPlot(myFMU, vrs, realSimData_test)
