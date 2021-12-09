@@ -14,7 +14,6 @@ using FMIFlux
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
-using JLD
 
 modelFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
 realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
@@ -30,26 +29,28 @@ fmiInstantiate!(myFMU; loggingOn=false)
 fmiReset(myFMU)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 x0 = [0.5, 0.0]
-fmiSetReal(myFMU, ["mass_s0", "mass_v0"], x0)
+fmiSetReal(myFMU, ["s0", "v0"], x0)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-realSimData = fmi2Simulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], saveat=tData, setup=false)
-posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
-velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
+vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
+success, realSimData = fmi2Simulate(myFMU, t_start, t_stop; recordValues=vrs, saveat=tData, setup=false, reset=false)
+posData = collect(data[1] for data in realSimData.saveval)
+velData = collect(data[2] for data in realSimData.saveval)
 
 fmiReset(myFMU)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 x0_test = [1.0, -1.5]
-fmiSetReal(myFMU, ["mass_s0", "mass_v0"], x0_test)
+fmiSetReal(myFMU, ["s0", "v0"], x0_test)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-realSimData_test = fmi2Simulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], saveat=tData, setup=false)
-posData_test = fmi2SimulationResultGetValues(realSimData_test, "mass.s")
-velData_test = fmi2SimulationResultGetValues(realSimData_test, "mass.v")
+success, realSimData_test = fmi2Simulate(myFMU, t_start, t_stop; recordValues=vrs, saveat=tData, setup=false, reset=false)
+posData_test = collect(data[1] for data in realSimData_test.saveval)
+velData_test = collect(data[2] for data in realSimData_test.saveval)
+
+fmiPlot(myFMU, vrs, realSimData)
+fmiPlot(myFMU, vrs, realSimData_test)
 
 fmiUnload(myFMU)
-fmiPlot(realSimData)
-fmiPlot(realSimData_test)
 
 displacement = 0.1
 myFMU = fmiLoad(modelFMUPath)
@@ -63,7 +64,7 @@ fmiSetReal(myFMU, ["mass_s0", "mass_v0"], x0)
 fmi2SetReal(myFMU, "fixed.s0", displacement)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData, setup=false)
+_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData, setup=false, reset=false)
 
 # pure FMU simulation data (test)
 fmiReset(myFMU)
@@ -72,15 +73,15 @@ fmiSetReal(myFMU, ["mass_s0", "mass_v0"], x0_test)
 fmi2SetReal(myFMU, "fixed.s0", displacement)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-fmuSimData_test = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData, setup=false)
+_, fmuSimData_test = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData, setup=false, reset=false)
 
 # loss function for training
 function losssum()
     global x0
     solution = problem(x0)
 
-    posNet = collect(data[2] for data in solution.u)
-    velNet = collect(data[3] for data in solution.u)
+    posNet = collect(data[1] for data in solution.u)
+    velNet = collect(data[2] for data in solution.u)
 
     (Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)) / 2.0
 end
@@ -99,7 +100,7 @@ function callb()
 
     if iterCB % 10 == 1
         avg_ls = losssum()
-        @info "[$iterCB] Loss: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))   Weight/Scale: $(p_net[1][1])   Bias/Offset: $(p_net[1][5])"
+        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))   Weight/Scale: $(p_net[1][1])   Bias/Offset: $(p_net[1][5])"
     end
 end
 
@@ -149,10 +150,10 @@ for run in 1:2
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
         legendfontsize=12, legend=:topright)
-    Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.s"), label="FMU", linewidth=2)
+    Plots.plot!(fig, tData, collect(data[1] for data in fmuSimData.saveval), label="FMU", linewidth=2)
     Plots.plot!(fig, tData, posData, label="reference", linewidth=2)
     for s in 1:length(solutionAfter)
-        Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
+        Plots.plot!(fig, solutionAfter[s].t, collect(data[1] for data in solutionAfter[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
     end
     Plots.savefig(fig, "exampleResult_s_train$(run).pdf")
 
@@ -161,10 +162,10 @@ for run in 1:2
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
         legendfontsize=12, legend=:topright)
-    Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData_test, "mass.s"), label="FMU", linewidth=2)
+    Plots.plot!(fig, tData, collect(data[1] for data in fmuSimData_test.saveval), label="FMU", linewidth=2)
     Plots.plot!(fig, tData, posData_test, label="reference", linewidth=2)
     for s in 1:length(solutionAfter)
-        Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter_test[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
+        Plots.plot!(fig, solutionAfter_test[s].t, collect(data[1] for data in solutionAfter_test[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
     end
     Plots.savefig(fig, "exampleResult_s_test$(run).pdf")
 
@@ -173,10 +174,10 @@ for run in 1:2
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
         legendfontsize=12, legend=:topright)
-    Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.v"), label="FMU", linewidth=2)
+    Plots.plot!(fig, tData, collect(data[2] for data in fmuSimData.saveval), label="FMU", linewidth=2)
     Plots.plot!(fig, tData, velData, label="reference", linewidth=2)
     for s in 1:length(solutionAfter)
-        Plots.plot!(fig, tData, collect(data[3] for data in solutionAfter[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
+        Plots.plot!(fig, solutionAfter[s].t, collect(data[2] for data in solutionAfter[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
     end
     Plots.savefig(fig, "exampleResult_v_train$(run).pdf")
 
@@ -185,30 +186,27 @@ for run in 1:2
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
         legendfontsize=12, legend=:topright)
-    Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData_test, "mass.v"), label="FMU", linewidth=2)
+    Plots.plot!(fig, tData, collect(data[2] for data in fmuSimData_test.saveval), label="FMU", linewidth=2)
     Plots.plot!(fig, tData, velData_test, label="reference", linewidth=2)
     for s in 1:length(solutionAfter)
-        Plots.plot!(fig, tData, collect(data[3] for data in solutionAfter_test[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
+        Plots.plot!(fig, solutionAfter_test[s].t, collect(data[2] for data in solutionAfter_test[s].u), label="NeuralFMU ($(s*2500))", linewidth=2, linestyle=linestyles[s], linecolor=:green)
     end
     Plots.savefig(fig, "exampleResult_v_test$(run).pdf")
 
     ###### friction model extraction
 
-    layers_bottom = problem.neuralODE.model.layers[4:6]
+    layers_bottom = problem.neuralODE.model.layers[3:5]
     net_bottom = Chain(layers_bottom...)
     transferParams!(net_bottom, p_net, 7)
 
-    #s_neural = collect(data[2] for data in solutionAfter.u)
-    #v_neural = collect(data[3] for data in solutionAfter.u)
+    s_fmu = collect(data[1] for data in fmuSimData.saveval)
+    v_fmu = collect(data[2] for data in fmuSimData.saveval)
+    a_fmu = collect(data[3] for data in fmuSimData.saveval)
 
-    s_fmu = fmi2SimulationResultGetValues(fmuSimData, "mass.s")
-    v_fmu = fmi2SimulationResultGetValues(fmuSimData, "mass.v")
-    a_fmu = fmi2SimulationResultGetValues(fmuSimData, "mass.a")
-
-    f_real = fmi2SimulationResultGetValues(realSimData, "mass.f")
-    s_real = fmi2SimulationResultGetValues(realSimData, "mass.s")
-    v_real = fmi2SimulationResultGetValues(realSimData, "mass.v")
-    a_real = fmi2SimulationResultGetValues(realSimData, "mass.a")
+    s_real = collect(data[1] for data in realSimData.saveval)
+    v_real = collect(data[2] for data in realSimData.saveval)
+    a_real = collect(data[3] for data in realSimData.saveval)
+    f_real = collect(data[4] for data in realSimData.saveval)
 
     push!(fs, zeros(length(v_real)))
     for i in 1:length(v_real)
@@ -239,7 +237,7 @@ for run in 1:2
 
     #########
 
-    layers_top = problem.neuralODE.model.layers[2:2]
+    layers_top = problem.neuralODE.model.layers[1:1]
     net_top = Chain(layers_top...)
     transferParams!(net_top, p_net, 1)
 

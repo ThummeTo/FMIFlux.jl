@@ -7,6 +7,9 @@ using FMI
 using Flux
 using DifferentialEquations: Tsit5
 
+import Random 
+Random.seed!(1234);
+
 FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.fmu")
 
 t_start = 0.0
@@ -21,7 +24,7 @@ fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiSetReal(myFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, saveat=tData)
+success, realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
 
 # reset FMU for use as NeuralFMU
 fmiReset(myFMU)
@@ -29,15 +32,17 @@ fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
-# setup traing data
-extF = zeros(length(tData)) # no external force
-accData = fmi2SimulationResultGetValues(realSimData, "mass.a")
+# sine(t) as external force
+function extForce(t)
+    return [sin(t)]
+end
+accData = collect(data[1] for data in realSimData.saveval)
 
 # loss function for training
 function losssum()
-    solution = problem(t_step; inputs=extF)
+    solution = problem(extForce, t_step)
 
-    accNet = collect(data[2] for data in solution)
+    accNet = collect(data[1] for data in solution)
 
     Flux.Losses.mse(accNet, accData)
 end
@@ -73,11 +78,8 @@ net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
 
-solutionBefore = problem(t_step; inputs=extF)
-ts = collect(data[1] for data in solutionBefore)
-@test length(ts) == length(tData)
-@test abs(ts[1] - (t_start+t_step)) < 1e-10
-@test abs(ts[end] - (t_stop+t_step)) < 1e-10
+solutionBefore = problem(extForce, t_step)
+vals = collect(data[1] for data in solutionBefore)
 
 # train it ...
 p_net = Flux.params(problem)
@@ -86,10 +88,7 @@ optim = ADAM()
 Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb)
 
 # check results
-solutionAfter = problem(t_step; inputs=extF)
-ts = collect(data[1] for data in solutionAfter)
-@test length(ts) == length(tData)
-@test abs(ts[1] - (t_start+t_step)) < 1e-10
-@test abs(ts[end] - (t_stop+t_step)) < 1e-10
+solutionAfter = problem(extForce, t_step)
+vals = collect(data[1] for data in solutionAfter)
 
 fmiUnload(myFMU)

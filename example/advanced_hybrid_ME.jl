@@ -10,7 +10,6 @@
 ################################ END INSTALLATION ##################################################
 
 # this example covers creation and training of a ME-NeuralFMU
-# here, solver step size is adaptive controlled for better training performance
 
 using FMI
 using FMIFlux
@@ -36,33 +35,29 @@ fmiExitInitializationMode(myFMU)
 
 x0 = fmi2GetContinuousStates(myFMU)
 
-realSimData = fmiSimulate(myFMU, t_start, t_stop; saveat=tData, recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], setup=false)
+vrs = ["mass.s", "mass.v", "mass.f", "mass.a"]
+success, realSimData = fmiSimulate(myFMU, t_start, t_stop; saveat=tData, recordValues=["mass.s", "mass.v", "mass.f", "mass.a"], setup=false, reset=false)
 fmiUnload(myFMU)
 
-fmiPlot(realSimData)
+fmiPlot(myFMU, vrs, realSimData)
 
 myFMU = fmiLoad(modelFMUPath)
 
 fmiInstantiate!(myFMU; loggingOn=false)
-fmuSimData = fmiSimulate(myFMU, t_start, t_stop; saveat=tData, recordValues=["mass.s", "mass.v", "mass.a"])
+_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; saveat=tData, recordValues=["mass.s", "mass.v", "mass.a"])
 
-posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
-velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
+posData = collect(data[1] for data in realSimData.saveval)
+velData = collect(data[2] for data in realSimData.saveval)
 
 # loss function for training
-global integratorSteps
 function losssum()
     global integratorSteps, problem
 
     solution = problem(x0)
 
-    tNet = collect(data[1] for data in solution.u)
-    posNet = collect(data[2] for data in solution.u)
-    #velNet = collect(data[3] for data in solution.u)
+    posNet = collect(data[1] for data in solution.u)
+    # velNet = collect(data[2] for data in solution.u)
 
-    integratorSteps = length(tNet)
-
-    #mse_interpolate(tData, posData, tNet, posNet, tData) # mse_interpolate(tData, velData, tNet, velNet, tData)
     Flux.mse(posData, posNet)
 end
 
@@ -70,14 +65,11 @@ end
 global iterCB = 0
 function callb()
     global iterCB += 1
-    global integratorSteps
-
-    if iterCB % 10 == 1
+   
+    if iterCB % 30 == 1
         avg_ls = losssum()
-        @info "Loss: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))   Integ.Steps: $integratorSteps"
-    end
-
-    if iterCB % 100 == 1
+        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))"
+   
         fig = plotResults()
         println("Fig. update.")
         display(fig)
@@ -90,9 +82,9 @@ function plotResults()
         xtickfontsize=12, ytickfontsize=12,
         xguidefontsize=12, yguidefontsize=12,
         legendfontsize=12, legend=:bottomright)
-    Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.s"), label="FMU", linewidth=2)
+    Plots.plot!(fig, tData, collect(data[1] for data in fmuSimData.saveval), label="FMU", linewidth=2)
     Plots.plot!(fig, tData, posData, label="reference", linewidth=2)
-    Plots.plot!(fig, collect(data[1] for data in solutionAfter.u), collect(data[2] for data in solutionAfter.u), label="NeuralFMU", linewidth=2)
+    Plots.plot!(fig, solutionAfter.t, collect(data[1] for data in solutionAfter.u), label="NeuralFMU", linewidth=2)
     fig
 end
 
@@ -101,14 +93,14 @@ numStates = fmiGetNumberOfStates(myFMU)
 additionalVRs = [fmi2String2ValueReference(myFMU, "mass.m")]
 numAdditionalVRs = length(additionalVRs)
 
-net = Chain(inputs -> fmiDoStepME(myFMU, inputs, -1.0, [], [], additionalVRs), 
+net = Chain(inputs -> fmiDoStepME(myFMU, inputs, -1.0, zeros(fmi2ValueReference, 0), zeros(fmi2Real, 0), additionalVRs), 
             Dense(numStates+numAdditionalVRs, 16, tanh), 
             Dense(16, 16, tanh),
             Dense(16, numStates))
 
 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
 solutionBefore = problem(x0, t_start)
-fmiPlot(problem)
+fmiPlot(myFMU, solutionBefore)
 
 # train it ...
 p_net = Flux.params(problem)

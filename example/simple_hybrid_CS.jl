@@ -32,32 +32,34 @@ fmiSetReal(myFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
-realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, saveat=tData)
-fmiPlot(realSimData)
+_, realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, reset=false, saveat=tData)
+fmiPlot(myFMU, ["mass.s", "mass.v", "mass.a"], realSimData)
 
 fmiReset(myFMU)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
-fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, saveat=tData)
-fmiPlot(fmuSimData)
+_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, reset=false, saveat=tData)
+fmiPlot(myFMU, ["mass.s", "mass.v", "mass.a"], fmuSimData)
 
 ######
 
-extF = zeros(length(tData)) # no external force
-posData = fmi2SimulationResultGetValues(realSimData, "mass.s")
-velData = fmi2SimulationResultGetValues(realSimData, "mass.v")
-accData = fmi2SimulationResultGetValues(realSimData, "mass.a")
+function extForce(t)
+    return [0.0]
+end 
+
+posData = collect(data[1] for data in realSimData.saveval)
+velData = collect(data[2] for data in realSimData.saveval)
+accData = collect(data[3] for data in realSimData.saveval)
 
 # loss function for training
 function losssum()
-    solution = problem(t_step; inputs=extF)
+    solution = problem(extForce, t_step)
 
-    accNet = collect(data[2] for data in solution)
-    #velNet = collect(data[3] for data in solution)
-
-    Flux.Losses.mse(accNet, accData) #+ Flux.Losses.mse(velNet, velData)
+    accNet = collect(data[1] for data in solution)
+    
+    Flux.Losses.mse(accNet, accData)
 end
 
 # callback function for training
@@ -67,7 +69,7 @@ function callb()
 
     if iterCB % 10 == 1
         avg_ls = losssum()
-        @info "Loss: $(round(avg_ls, digits=5))"
+        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))"
     end
 end
 
@@ -81,7 +83,7 @@ net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
             Dense(16, numOutputs))
 
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
-solutionBefore = problem(t_step; inputs=extF)
+solutionBefore = problem(extForce, t_step)
 
 # train it ...
 p_net = Flux.params(problem)
@@ -90,14 +92,15 @@ optim = ADAM()
 Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb) # Feel free to increase training steps or epochs for better results
 
 ###### plot results a
-solutionAfter = problem(t_step; inputs=extF)
+solutionAfter = problem(extForce, t_step)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m s^-2]", linewidth=2,
     xtickfontsize=12, ytickfontsize=12,
     xguidefontsize=12, yguidefontsize=12,
     legendfontsize=12, legend=:bottomright)
-Plots.plot!(fig, tData, fmi2SimulationResultGetValues(fmuSimData, "mass.a"), label="FMU", linewidth=2)
+Plots.plot!(fig, tData, collect(data[3] for data in fmuSimData.saveval), label="FMU", linewidth=2)
 Plots.plot!(fig, tData, accData, label="reference", linewidth=2)
-Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter), label="NeuralFMU", linewidth=2)
+Plots.plot!(fig, tData, collect(data[1] for data in solutionAfter), label="NeuralFMU", linewidth=2)
 Plots.savefig(fig, "exampleResult_a.pdf")
+fig 
 
 fmiUnload(myFMU)
