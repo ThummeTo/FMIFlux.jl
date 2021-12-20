@@ -15,6 +15,8 @@ using DiffEqFlux: ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, Interpolating
 import ForwardDiff
 import Optim
 
+import DiffEqBase: RightRootFind
+
 include("FMI2_neural.jl")
 
 """
@@ -349,7 +351,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             eventCb = VectorContinuousCallback((out, x, t, integrator) -> condition(nfmu, out, x, t, integrator),
                                             (integrator, idx) -> affectFMU!(nfmu, integrator, idx),
                                             Int64(nfmu.fmu.modelDescription.numberOfEventIndicators);
-                                            rootfind=DiffEqBase.RightRootFind,
+                                            rootfind=RightRootFind,
                                             save_positions=(false, false),
                                             interp_points=rootSearchInterpolationPoints) 
             push!(callbacks, eventCb)
