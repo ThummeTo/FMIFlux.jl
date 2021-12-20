@@ -277,7 +277,7 @@ Via optional argument `reset`, the FMU is reset every time evaluation is started
 Via optional argument `setup`, the FMU is set up every time evaluation is started (default=`true`).
 Via optional argument `rootSearchInterpolationPoints`, the number of interpolation points during root search before event-handling is controlled (default=`100`). Try to increase this value, if event-handling fails with exception.
 """
-function (nfmu::ME_NeuralFMU)(x_start::Array{<:Real}, 
+function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing, 
                               t_start::Real = nfmu.tspan[1], 
                               t_stop = nfmu.tspan[end]; 
                               reset::Bool=true,
@@ -288,13 +288,12 @@ function (nfmu::ME_NeuralFMU)(x_start::Array{<:Real},
     if reset
         fmiReset(nfmu.fmu)
     end
+
     if setup
         fmiSetupExperiment(nfmu.fmu, t_start)
         fmiEnterInitializationMode(nfmu.fmu)
         fmiExitInitializationMode(nfmu.fmu)
     end
-
-    x0 = x_start # [t_start, x_start...]
 
     c = nfmu.fmu.components[end]
     tspan = getfield(nfmu.neuralODE,:tspan)
@@ -306,6 +305,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Array{<:Real},
     callbacks = []
     sense = nothing
     savedValues = nothing
+    x0 = nothing
 
     saving = (length(nfmu.recordValues) > 0)
 
@@ -319,7 +319,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Array{<:Real},
         end
 
         # First evaluation of the FMU
-        x0 = fmi2GetContinuousStates(c)
+        if x_start == nothing
+            x0 = fmi2GetContinuousStates(c)
+        else 
+            x0 = x_start
+        end
         x0_nom = fmi2GetNominalsOfContinuousStates(c)
 
         fmi2SetContinuousStates(c, x0)

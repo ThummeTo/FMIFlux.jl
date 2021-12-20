@@ -43,7 +43,7 @@ fmiPlot(myFMU, vrs, realSimData)
 myFMU = fmiLoad(modelFMUPath)
 
 fmiInstantiate!(myFMU; loggingOn=false)
-_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData)
+_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData, reset=false)
 
 posData = collect(data[1] for data in realSimData.saveval)
 velData = collect(data[2] for data in realSimData.saveval)
