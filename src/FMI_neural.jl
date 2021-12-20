@@ -15,7 +15,7 @@ using DiffEqFlux: ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, Interpolating
 import ForwardDiff
 import Optim
 
-import DiffEqBase: RightRootFind
+import SciMLBase: RightRootFind
 
 include("FMI2_neural.jl")
 
