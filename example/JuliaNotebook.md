@@ -1,5 +1,17 @@
 # This example covers creation and training of ME-NeuralFMUs
 
+## Motivation
+This Julia Package is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of a hybrid modeling with artificial neural networks is, that effects, that are difficult to model, can easily be learned by the neural networks. For this purpose, the so-called NeuralFMU is trained with measurement data containing the effect and as a final product a simulation with the mapping of complex effects is obtained. Another big advantage of the NeuralFMU is that it works with relatively little data, because the FMU already contains the rough functionality of the simulation and only the missing effects are added.
+
+## Introduction to the example
+Test!!!!!!!!!!!!!!
+
+
+Grob Erklärung der Funktion
+Zielgruppe: Leute, die Modell bauen und Machine Learning mit diesen Modell durchführen wollen
+            -> hybride Modellbildung
+
+
 Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
 
 Licensed under the MIT license. See LICENSE file in the project root for details.
@@ -9,8 +21,8 @@ Licensed under the MIT license. See LICENSE file in the project root for details
 |    | Description                       | Command     |  Alternative  |   
 |:--- |:---                               |:---:        |:---:|
 |1.  | Enter Package Manager via         |     ]       |     |
-|2.  | Install FMI via                   |   add FMI   | add "https://github.com/ThummeTo/FMI.jl"   |
-|3.  | Install FMIFlux via               | add FMIFlux | add "https://github.com/ThummeTo/FMIFlux.jl" |
+|2.  | Install FMI via                   |   add FMI   | add " https://github.com/ThummeTo/FMI.jl "   |
+|3.  | Install FMIFlux via               | add FMIFlux | add " https://github.com/ThummeTo/FMIFlux.jl " |
 |4.  | Install Flux via                  |  add Flux   |     |
 |5.  | Install DifferentialEquations via | add DifferentialEquations |  |
 |6.  | Install Plots via                 | add Plots   |     |
@@ -22,6 +34,8 @@ To run the example, the previously installed packages must be included.
 
 ```julia
 # imports
+# using Pkg
+# Pkg.activate("Your Env")
 using FMI
 using FMIFlux
 using Flux
@@ -29,7 +43,7 @@ using DifferentialEquations: Tsit5
 import Plots
 ```
 
-After importing the packages, the path to the FMUs (FMU = functional mock-up unit) is set. The FMU is a model from the Functional Mock-up Interface (FMI) Standard. The FMI is a free standard that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. Here the path for the *SpringPendulum1D* and the *SpringFrictionPendulum1D* model is set. The structure of the *SpringPendulum1D* can be seen in the following graphic and corresponds to a simple modeling.
+After importing the packages, the path to the FMUs (FMU = functional mock-up unit) is set. The FMU is a model from the Functional Mock-up Interface (FMI) Standard. The FMI is a free standard that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. Here the path for the [*SpringPendulum1D*](../model/SpringPendulum1D.mo) and the *SpringFrictionPendulum1D* model is set. The structure of the *SpringPendulum1D* can be seen in the following graphic and corresponds to a simple modeling.
 
 <img src="./pics/SpringPendulum1D.png" alt="" width="300"/>
 
@@ -42,6 +56,14 @@ In contrast, the other model (*SpringFrictionPendulum1D*) is somewhat more accur
 ```julia
 modelFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
 realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+```
+
+
+
+
+
+
+```julia
 
 t_start = 0.0
 t_step = 0.01

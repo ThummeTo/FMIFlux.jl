@@ -1,4 +1,6 @@
 # imports
+# using Pkg
+# Pkg.activate("Your Env")
 using FMI
 using FMIFlux
 using Flux
@@ -7,6 +9,7 @@ import Plots
 
 modelFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
 realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+
 
 t_start = 0.0
 t_step = 0.01
