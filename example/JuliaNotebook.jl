@@ -1,94 +1,107 @@
 # imports
-# using Pkg
-# Pkg.activate("Your Env")
 using FMI
 using FMIFlux
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
-modelFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+simpleFmuPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
+realFmuPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+println("SimpleFmu path: ", simpleFmuPath)
+println("RealFmu path: ", realFmuPath)
 
+tStart = 0.0
+tStep = 0.01
+tStop = 5.0
+tSave = collect(tStart:tStep:tStop)
 
-t_start = 0.0
-t_step = 0.01
-t_stop = 5.0
-tData = collect(t_start:t_step:t_stop)
+realFmu = fmiLoad(realFmuPath)
+fmiInstantiate!(realFmu; loggingOn=false)
+nothing
 
-myFMU = fmiLoad(realFMUPath)
-fmiInstantiate!(myFMU; loggingOn=false)
-fmiSetupExperiment(myFMU, t_start, t_stop)
+fmiSetupExperiment(realFmu, tStart, tStop)
 
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
+fmiEnterInitializationMode(realFmu)
+fmiExitInitializationMode(realFmu)
 
-x0 = fmiGetContinuousStates(myFMU)
+x₀ = fmiGetContinuousStates(realFmu)
 
-vrs = ["mass.s", "mass.v", "mass.f", "mass.a"]
-_, realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=vrs, saveat=tData, setup=false, reset=false)
-fmiUnload(myFMU)
+vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
+_, realSimData = fmiSimulate(realFmu, tStart, tStop; recordValues=vrs, saveat=tSave, setup=false, reset=false)
+fmiPlot(realFmu, vrs, realSimData)
 
-fmiPlot(myFMU, vrs, realSimData)
+fmiUnload(realFmu)
 
-myFMU = fmiLoad(modelFMUPath)
+velReal = collect(data[2] for data in realSimData.saveval)
+posReal = collect(data[1] for data in realSimData.saveval)
 
-fmiInstantiate!(myFMU; loggingOn=false)
-_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], saveat=tData)
+simpleFmu = fmiLoad(simpleFmuPath)
 
-posData = collect(data[1] for data in realSimData.saveval)
-velData = collect(data[2] for data in realSimData.saveval)
+fmiInstantiate!(simpleFmu; loggingOn=false)
+
+vrs = ["mass.s", "mass.v", "mass.a"]
+_, simpleSimData = fmiSimulate(simpleFmu, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
+fmiPlot(simpleFmu, vrs, simpleSimData)
+
+velSimple = collect(data[2] for data in simpleSimData.saveval)
+posSimple = collect(data[1] for data in simpleSimData.saveval)
 
 # loss function for training
-function losssum()
-    solution = problem(x0, t_start)
+function lossSum()
+    solution = neuralFmu(x₀, tStart)
 
     posNet = collect(data[1] for data in solution.u)
     #velNet = collect(data[2] for data in solution.u)
 
-    Flux.Losses.mse(posData, posNet) #+ Flux.Losses.mse(velData, velNet)
+    Flux.Losses.mse(posReal, posNet) #+ Flux.Losses.mse(velReal, velNet)
 end
 
 # callback function for training
-global iterCB = 0
+global counter = 0
 function callb()
-    global iterCB += 1
+    global counter += 1
 
-    if iterCB % 10 == 1
-        avg_ls = losssum()
-        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))   Avg displacement in data: $(round(sqrt(avg_ls), digits=5))"
+    if counter % 10 == 1
+        avgLoss = lossSum()
+        @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
     end
 end
 
 # NeuralFMU setup
-numStates = fmiGetNumberOfStates(myFMU)
+numStates = fmiGetNumberOfStates(simpleFmu)
 
-net = Chain(inputs -> fmiDoStepME(myFMU, inputs),
+net = Chain(inputs -> fmiDoStepME(simpleFmu, inputs),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
 
-problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
-solutionBefore = problem(x0, t_start)
-fmiPlot(myFMU, solutionBefore)
+neuralFmu = ME_NeuralFMU(simpleFmu, net, (tStart, tStop), Tsit5(); saveat=tSave)
+nothing
+
+solutionBefore = neuralFmu(x₀, tStart)
+fmiPlot(simpleFmu, solutionBefore)
 
 # train it ...
-p_net = Flux.params(problem)
+paramsNet = Flux.params(neuralFmu)
 
 optim = ADAM()
-Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb) # Feel free to increase training steps or epochs for better results
+# Feel free to increase training steps or epochs for better results
+Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb) 
 
 ###### plot results mass.s
-solutionAfter = problem(x0, t_start)
+solutionAfter = neuralFmu(x₀, tStart)
+
 fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
-    xtickfontsize=12, ytickfontsize=12,
-    xguidefontsize=12, yguidefontsize=12,
-    legendfontsize=12, legend=:bottomright)
-Plots.plot!(fig, tData, collect(data[1] for data in fmuSimData.saveval), label="FMU", linewidth=2)
-Plots.plot!(fig, tData, posData, label="reference", linewidth=2)
-Plots.plot!(fig, tData, collect(data[2] for data in solutionAfter.u), label="NeuralFMU", linewidth=2)
-Plots.savefig(fig, "exampleResult_s.pdf")
+                 xtickfontsize=12, ytickfontsize=12,
+                 xguidefontsize=12, yguidefontsize=12,
+                 legendfontsize=12, legend=:bottomright)
+
+posNeuralFmu = collect(data[1] for data in solutionAfter.u)
+
+Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
+Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU", linewidth=2)
+# Plots.savefig(fig, "exampleResult_s.pdf")
 fig 
 
-fmiUnload(myFMU)
-
+fmiUnload(simpleFmu)
