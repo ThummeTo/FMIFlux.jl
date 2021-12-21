@@ -24,7 +24,7 @@ jobs:
         # In this example changed markdown will be spellchecked using aspell
         # If we specify we are only interested in added or modified files, deleted files are ignored
         filters: |
-            notebooks:
+            example:
                 - added|modified: '**.ipynb'
         # Should we also identify deleted md files
         # and then try to identify (and delete) .ipynb docs otherwise paired to them?
@@ -32,12 +32,13 @@ jobs:
         # rm ${FILEPATH%.md}.ipynb
  
     - name: Install Packages if changed files
-      if: ${{ steps.filter.outputs.notebooks == 'true' }}
+      if: ${{ steps.filter.outputs.example == 'true' }}
       run: |
-        pip install jupytext
+        pip install jupyter
+        pip install nbconvert
  
     - name: Synch changed files
-      if: ${{ steps.filter.outputs.notebooks == 'true' }}
+      if: ${{ steps.filter.outputs.example == 'true' }}
       run: |
         # If a command accepts a list of files,
         # we can pass them directly
@@ -46,13 +47,15 @@ jobs:
         # The timestamp on the synched ipynb file will be set to the
         # same time as the changed markdown file
         # jupytext --use-source-timestamp  --sync ${{ steps.filter.outputs.notebooks_files }}
-        jupytext --use-source-timestamp  --to jl ${{ steps.filter.outputs.notebooks_files }}
-        jupytext --use-source-timestamp  --output test.jl ${{ steps.filter.outputs.notebooks_files }}
-        jupytext --use-source-timestamp  --to markdown ${{ steps.filter.outputs.notebooks_files }}
+        # jupytext --use-source-timestamp  --to jl ${{ steps.filter.outputs.notebooks_files }}
+        # jupytext --use-source-timestamp  --output test.jl ${{ steps.filter.outputs.notebooks_files }}
+        # jupytext --use-source-timestamp  --to markdown ${{ steps.filter.outputs.notebooks_files }}
+        jupyter nbconvert --to script ${{ steps.filter.outputs.example_files }}
+        jupyter nbconvert --to markdown ${{ steps.filter.outputs.example_files }}
 
  
     # Auto commit any updated notebook files
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
         # This would be more useful if the git hash were referenced?
-        commit_message: Jupytext synch - modified, paired .md files
+        commit_message: Jupyter nbconvert synch - modified, paired .ipynb files
