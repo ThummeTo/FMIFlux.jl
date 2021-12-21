@@ -1,0 +1,58 @@
+name: jupytext-changes
+ 
+on:
+  push
+ 
+jobs:
+  sync-jupytext:
+    runs-on: ubuntu-latest
+    steps:
+ 
+    # Checkout
+    - uses: actions/checkout@v2
+ 
+    # Test for markdown
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        # Enable listing of files matching each filter.
+        # Paths to files will be available in `${FILTER_NAME}_files` output variable.
+        # Paths will be escaped and space-delimited.
+        # Output is usable as command-line argument list in Linux shell
+        list-files: shell
+ 
+        # In this example changed markdown will be spellchecked using aspell
+        # If we specify we are only interested in added or modified files, deleted files are ignored
+        filters: |
+            notebooks:
+                - added|modified: '**.ipynb'
+        # Should we also identify deleted md files
+        # and then try to identify (and delete) .ipynb docs otherwise paired to them?
+        # For example, remove .ipynb file on same path ($FILEPATH is a file with .md suffix)
+        # rm ${FILEPATH%.md}.ipynb
+ 
+    - name: Install Packages if changed files
+      if: ${{ steps.filter.outputs.notebooks == 'true' }}
+      run: |
+        pip install jupytext
+ 
+    - name: Synch changed files
+      if: ${{ steps.filter.outputs.notebooks == 'true' }}
+      run: |
+        # If a command accepts a list of files,
+        # we can pass them directly
+        # This will only synch files if the md doc include jupytext metadata
+        # and has one or more paired docs defined
+        # The timestamp on the synched ipynb file will be set to the
+        # same time as the changed markdown file
+        # jupytext --use-source-timestamp  --sync ${{ steps.filter.outputs.notebooks_files }}
+        jupytext --use-source-timestamp  --to jl ${{ steps.filter.outputs.notebooks_files }}
+        jupytext --use-source-timestamp  --output test.jl ${{ steps.filter.outputs.notebooks_files }}
+        jupytext --use-source-timestamp  --to markdown ${{ steps.filter.outputs.notebooks_files }}
+
+ 
+    # Auto commit any updated notebook files
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        # This would be more useful if the git hash were referenced?
+        commit_message: Jupytext synch - modified, paired .md files
