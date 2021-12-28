@@ -1,3 +1,4 @@
 *.pdf
 *.gif
+*.jl
 tmp/
