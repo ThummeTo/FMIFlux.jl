@@ -34,18 +34,3 @@ To run Julia as kernel in a jupyter notebook it is necessary to add the **IJulia
 
 
 More information can be found [here](https://towardsdatascience.com/how-to-best-use-julia-with-jupyter-82678a482677).
-
-
-## Add Jupytext to Juypter
-To synchronize the *.md*, *.jl* and *.ipynb* file an installation of **Jupytext** is necessary.
-
-1. Install the package via pip.
-    ```
-    pip install jupytext 
-    ```
-
-2. Selecting the appropriate formats to synchronize.
-    ![](./pics/Jupytext.png)
-
-
-The documentation of Jupytext can be found [here](https://jupytext.readthedocs.io/_/downloads/en/latest/pdf/).
