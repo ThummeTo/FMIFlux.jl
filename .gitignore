@@ -1,2 +1,4 @@
 tmp/
+.vscode/
+example/.ipynb_checkpoints/
 build/
