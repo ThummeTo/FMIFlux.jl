@@ -99,14 +99,14 @@ posNeuralFmu = collect(data[1] for data in solutionAfter.u)
 
 Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
 Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
-Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU (300 epochs)", linewidth=2)
 fig 
 
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=callb) 
 # plot results mass.s
 solutionAfter = neuralFmu(x₀, tStart)
 posNeuralFmu = collect(data[1] for data in solutionAfter.u)
-Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU2", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU (1000 epochs)", linewidth=2)
 fig 
 
 fmiUnload(simpleFmu)
