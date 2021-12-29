@@ -26,7 +26,7 @@ jobs:
       if: ${{ steps.filter.outputs.example == 'true' }}
       run: |
         jupyter nbconvert --to script ${{ steps.filter.outputs.example_files }}
-        jupyter nbconvert --output-dir='./example' --to markdown ${{ steps.filter.outputs.example_files }}
+        jupyter nbconvert --output-dir='./docs/src/examples' --to markdown ${{ steps.filter.outputs.example_files }}
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
