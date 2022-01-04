@@ -62,7 +62,7 @@ global counter = 0
 function callb()
     global counter += 1
 
-    if counter % 10 == 1
+    if counter % 20 == 1
         avgLoss = lossSum()
         @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
     end
@@ -93,7 +93,7 @@ solutionAfter = neuralFmu(x₀, tStart)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
                  xtickfontsize=12, ytickfontsize=12,
                  xguidefontsize=12, yguidefontsize=12,
-                 legendfontsize=12, legend=:bottomright)
+                 legendfontsize=8, legend=:topright)
 
 posNeuralFmu = collect(data[1] for data in solutionAfter.u)
 
