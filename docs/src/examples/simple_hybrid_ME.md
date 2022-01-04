@@ -4,15 +4,16 @@ Tutorial by Johannes Stoljar, Tobias Thummerer
 ## License
 Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
 
-Licensed under the MIT license. See LICENSE file in the project root for details.
+Licensed under the MIT license. See [LICENSE](https://github.com/stoljarjo/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 ## Motivation
 This Julia Package is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the unmodeled physical effect. The final product is a simulation model including the orignially unmodeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characterisitic functionality of the simulation and only the missing effects are added.
 
 NeuralFMUs need not to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
 
-<img src="./pics/NeuralFMU.svg" alt="" width="300"/>
-<cite>NeuralFMU (ME) from <a href="#Source">[1]</a>.</cite>
+![NeuralFMU.svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/NeuralFMU.svg?raw=true)
+
+*NeuralFMU (ME) from* [[1]](#Source).
 
 ## Introduction to the example
 In this example, simplified modeling of a one-dimensional spring pendulum (without friction) is compared to a model of the same system that includes a nonlinear friction model. The FMU with the simplified model will be named *simpleFmu* in the following and the model with the friction will be named *realFmu*. At the beginning, the actual state of both simulations is shown, whereby clear deviations can be seen in the graphs. The *realFmu* serves as a reference graph. The *simpleFmu* is then integrated into a NeuralFMU architecture and a training of the entire network is performed. After the training the final state is compared again to the *realFmu*. It can be clearly seen that by using the NeuralFMU, learning of the friction process has taken place.  
@@ -23,7 +24,7 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides this [Jupyter Notebook](./simple_hybrid_ME.ipynb) there is also a [Julia file](./simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](./simple_hybrid_ME.md) corresponding to the notebook.  
+Besides this [Jupyter Notebook](https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.ipynb) there is also a [Julia file](https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_ME.md) corresponding to the notebook.  
 
 
 ## Getting started
@@ -56,13 +57,13 @@ After importing the packages, the path to the *Functional Mock-up Units* (FMUs) 
 
 The objec-orientated structure of the *SpringPendulum1D* (*simpleFmu*) can be seen in the following graphic and corresponds to a simple modeling.
 
-<img src="./pics/SpringPendulum1D.svg" alt="" width="700"/>
+![svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true)
 
 In contrast, the model *SpringFrictionPendulum1D* (*realFmu*) is somewhat more accurate, because it includes a friction component. 
 
-<img src="./pics/SpringFrictionPendulum1D.svg" alt="" width="700"/>
+![svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringFrictionPendulum1D.svg?raw=true)
 
-Here the path for the [*SpringPendulum1D*](../model/) and the [*SpringFrictionPendulum1D*](../model/) model is set: 
+Here the path for the [*SpringPendulum1D*](https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringPendulum1D.fmu) and the [*SpringFrictionPendulum1D*](https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringFrictionPendulum1D.fmu) model is set: 
 
 
 
@@ -131,10 +132,12 @@ fmiInstantiate!(realFmu; loggingOn=false)
 fmiInfo(realFmu)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_dUyONh\SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_XcT5D4\SpringFrictionPendulum1D`.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
+    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_XcT5D4/SpringFrictionPendulum1D/resources`
+    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
 
 
     #################### Begin information for FMU ####################
@@ -148,12 +151,6 @@ fmiInfo(realFmu)
     	Inputs:				0
     	Outputs:			0
     	States:				2
-
-
-    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_dUyONh/SpringFrictionPendulum1D/resources`
-    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
-
-
     		33554432 ["mass.s"]
     		33554433 ["mass.v", "mass.v_relfric"]
     	Supports Co-Simulation:		true
@@ -275,10 +272,6 @@ _, simpleSimData = fmiSimulate(simpleFmu, tStart, tStop; recordValues=vrs, savea
 fmiPlot(simpleFmu, vrs, simpleSimData)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_yno3p7\SpringPendulum1D`.
-    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
-
-
     #################### Begin information for FMU ####################
     	Model name:			SpringPendulum1D
     	FMI-Version:			2.0
@@ -308,9 +301,11 @@ fmiPlot(simpleFmu, vrs, simpleSimData)
     ##################### End information for FMU #####################
 
 
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_bWEjI0\SpringPendulum1D`.
+    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
-    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_yno3p7/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_bWEjI0/SpringPendulum1D/resources`
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
 
 
@@ -318,7 +313,7 @@ fmiPlot(simpleFmu, vrs, simpleSimData)
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_18_3.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_18_2.svg)
     
 
 
@@ -404,7 +399,7 @@ global counter = 0
 function callb()
     global counter += 1
 
-    if counter % 10 == 1
+    if counter % 20 == 1
         avgLoss = lossSum()
         @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
     end
@@ -486,65 +481,35 @@ optim = ADAM()
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb) 
 ```
 
-    ┌ Info: Loss [1]: 0.10395   Avg displacement in data: 0.32241
+    ┌ Info: Loss [1]: 0.06754   Avg displacement in data: 0.25988
     └ @ Main In[12]:8
-    ┌ Info: Loss [11]: 0.06154   Avg displacement in data: 0.24808
+    ┌ Info: Loss [21]: 0.04504   Avg displacement in data: 0.21223
     └ @ Main In[12]:8
-    ┌ Info: Loss [21]: 0.04664   Avg displacement in data: 0.21596
+    ┌ Info: Loss [41]: 0.04205   Avg displacement in data: 0.20507
     └ @ Main In[12]:8
-    ┌ Info: Loss [31]: 0.04218   Avg displacement in data: 0.20537
+    ┌ Info: Loss [61]: 0.04021   Avg displacement in data: 0.20053
     └ @ Main In[12]:8
-    ┌ Info: Loss [41]: 0.04071   Avg displacement in data: 0.20178
+    ┌ Info: Loss [81]: 0.03964   Avg displacement in data: 0.1991
     └ @ Main In[12]:8
-    ┌ Info: Loss [51]: 0.04023   Avg displacement in data: 0.20058
+    ┌ Info: Loss [101]: 0.03928   Avg displacement in data: 0.19819
     └ @ Main In[12]:8
-    ┌ Info: Loss [61]: 0.04003   Avg displacement in data: 0.20007
+    ┌ Info: Loss [121]: 0.03893   Avg displacement in data: 0.19731
     └ @ Main In[12]:8
-    ┌ Info: Loss [71]: 0.03993   Avg displacement in data: 0.19983
+    ┌ Info: Loss [141]: 0.03866   Avg displacement in data: 0.19662
     └ @ Main In[12]:8
-    ┌ Info: Loss [81]: 0.03986   Avg displacement in data: 0.19966
+    ┌ Info: Loss [161]: 0.03815   Avg displacement in data: 0.19532
     └ @ Main In[12]:8
-    ┌ Info: Loss [91]: 0.03981   Avg displacement in data: 0.19952
+    ┌ Info: Loss [181]: 0.03756   Avg displacement in data: 0.1938
     └ @ Main In[12]:8
-    ┌ Info: Loss [101]: 0.03975   Avg displacement in data: 0.19939
+    ┌ Info: Loss [201]: 0.03656   Avg displacement in data: 0.1912
     └ @ Main In[12]:8
-    ┌ Info: Loss [111]: 0.0397   Avg displacement in data: 0.19925
+    ┌ Info: Loss [221]: 0.03433   Avg displacement in data: 0.18529
     └ @ Main In[12]:8
-    ┌ Info: Loss [121]: 0.03965   Avg displacement in data: 0.19911
+    ┌ Info: Loss [241]: 0.02628   Avg displacement in data: 0.16212
     └ @ Main In[12]:8
-    ┌ Info: Loss [131]: 0.03959   Avg displacement in data: 0.19896
+    ┌ Info: Loss [261]: 0.00817   Avg displacement in data: 0.09037
     └ @ Main In[12]:8
-    ┌ Info: Loss [141]: 0.03952   Avg displacement in data: 0.19881
-    └ @ Main In[12]:8
-    ┌ Info: Loss [151]: 0.03945   Avg displacement in data: 0.19862
-    └ @ Main In[12]:8
-    ┌ Info: Loss [161]: 0.0394   Avg displacement in data: 0.19848
-    └ @ Main In[12]:8
-    ┌ Info: Loss [171]: 0.03933   Avg displacement in data: 0.19832
-    └ @ Main In[12]:8
-    ┌ Info: Loss [181]: 0.03926   Avg displacement in data: 0.19814
-    └ @ Main In[12]:8
-    ┌ Info: Loss [191]: 0.03919   Avg displacement in data: 0.19795
-    └ @ Main In[12]:8
-    ┌ Info: Loss [201]: 0.03911   Avg displacement in data: 0.19777
-    └ @ Main In[12]:8
-    ┌ Info: Loss [211]: 0.03904   Avg displacement in data: 0.19758
-    └ @ Main In[12]:8
-    ┌ Info: Loss [221]: 0.03895   Avg displacement in data: 0.19736
-    └ @ Main In[12]:8
-    ┌ Info: Loss [231]: 0.03886   Avg displacement in data: 0.19714
-    └ @ Main In[12]:8
-    ┌ Info: Loss [241]: 0.03878   Avg displacement in data: 0.19692
-    └ @ Main In[12]:8
-    ┌ Info: Loss [251]: 0.03869   Avg displacement in data: 0.19669
-    └ @ Main In[12]:8
-    ┌ Info: Loss [261]: 0.03859   Avg displacement in data: 0.19645
-    └ @ Main In[12]:8
-    ┌ Info: Loss [271]: 0.03849   Avg displacement in data: 0.19619
-    └ @ Main In[12]:8
-    ┌ Info: Loss [281]: 0.03838   Avg displacement in data: 0.1959
-    └ @ Main In[12]:8
-    ┌ Info: Loss [291]: 0.03824   Avg displacement in data: 0.19554
+    ┌ Info: Loss [281]: 0.00476   Avg displacement in data: 0.069
     └ @ Main In[12]:8
 
 
@@ -560,7 +525,7 @@ solutionAfter = neuralFmu(x₀, tStart)
 fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
                  xtickfontsize=12, ytickfontsize=12,
                  xguidefontsize=12, yguidefontsize=12,
-                 legendfontsize=12, legend=:bottomright)
+                 legendfontsize=8, legend=:topright)
 
 posNeuralFmu = collect(data[1] for data in solutionAfter.u)
 
@@ -593,145 +558,75 @@ Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU (1000 epochs)", linewidth
 fig 
 ```
 
-    ┌ Info: Loss [301]: 0.03816   Avg displacement in data: 0.19534
+    ┌ Info: Loss [301]: 0.00413   Avg displacement in data: 0.06423
     └ @ Main In[12]:8
-    ┌ Info: Loss [311]: 0.03804   Avg displacement in data: 0.19504
+    ┌ Info: Loss [321]: 0.00381   Avg displacement in data: 0.06172
     └ @ Main In[12]:8
-    ┌ Info: Loss [321]: 0.03791   Avg displacement in data: 0.19471
+    ┌ Info: Loss [341]: 0.00353   Avg displacement in data: 0.05937
     └ @ Main In[12]:8
-    ┌ Info: Loss [331]: 0.03779   Avg displacement in data: 0.19441
+    ┌ Info: Loss [361]: 0.00329   Avg displacement in data: 0.05739
     └ @ Main In[12]:8
-    ┌ Info: Loss [341]: 0.03769   Avg displacement in data: 0.19413
+    ┌ Info: Loss [381]: 0.00309   Avg displacement in data: 0.05559
     └ @ Main In[12]:8
-    ┌ Info: Loss [351]: 0.03756   Avg displacement in data: 0.1938
+    ┌ Info: Loss [401]: 0.00291   Avg displacement in data: 0.05393
     └ @ Main In[12]:8
-    ┌ Info: Loss [361]: 0.03742   Avg displacement in data: 0.19345
+    ┌ Info: Loss [421]: 0.00274   Avg displacement in data: 0.05236
     └ @ Main In[12]:8
-    ┌ Info: Loss [371]: 0.0373   Avg displacement in data: 0.19313
+    ┌ Info: Loss [441]: 0.00259   Avg displacement in data: 0.05085
     └ @ Main In[12]:8
-    ┌ Info: Loss [381]: 0.03715   Avg displacement in data: 0.19275
+    ┌ Info: Loss [461]: 0.00244   Avg displacement in data: 0.04939
     └ @ Main In[12]:8
-    ┌ Info: Loss [391]: 0.03699   Avg displacement in data: 0.19233
+    ┌ Info: Loss [481]: 0.0023   Avg displacement in data: 0.04796
     └ @ Main In[12]:8
-    ┌ Info: Loss [401]: 0.03682   Avg displacement in data: 0.19187
+    ┌ Info: Loss [501]: 0.00217   Avg displacement in data: 0.04654
     └ @ Main In[12]:8
-    ┌ Info: Loss [411]: 0.03661   Avg displacement in data: 0.19133
+    ┌ Info: Loss [521]: 0.00204   Avg displacement in data: 0.04513
     └ @ Main In[12]:8
-    ┌ Info: Loss [421]: 0.03644   Avg displacement in data: 0.1909
+    ┌ Info: Loss [541]: 0.00191   Avg displacement in data: 0.04372
     └ @ Main In[12]:8
-    ┌ Info: Loss [431]: 0.03624   Avg displacement in data: 0.19037
+    ┌ Info: Loss [561]: 0.00179   Avg displacement in data: 0.04228
     └ @ Main In[12]:8
-    ┌ Info: Loss [441]: 0.03602   Avg displacement in data: 0.1898
+    ┌ Info: Loss [581]: 0.00167   Avg displacement in data: 0.04082
     └ @ Main In[12]:8
-    ┌ Info: Loss [451]: 0.03579   Avg displacement in data: 0.18919
+    ┌ Info: Loss [601]: 0.00155   Avg displacement in data: 0.03933
     └ @ Main In[12]:8
-    ┌ Info: Loss [461]: 0.03554   Avg displacement in data: 0.18852
+    ┌ Info: Loss [621]: 0.00143   Avg displacement in data: 0.03777
     └ @ Main In[12]:8
-    ┌ Info: Loss [471]: 0.03527   Avg displacement in data: 0.18779
+    ┌ Info: Loss [641]: 0.0013   Avg displacement in data: 0.0361
     └ @ Main In[12]:8
-    ┌ Info: Loss [481]: 0.03497   Avg displacement in data: 0.187
+    ┌ Info: Loss [661]: 0.00118   Avg displacement in data: 0.03439
     └ @ Main In[12]:8
-    ┌ Info: Loss [491]: 0.03465   Avg displacement in data: 0.18614
+    ┌ Info: Loss [681]: 0.00106   Avg displacement in data: 0.03263
     └ @ Main In[12]:8
-    ┌ Info: Loss [501]: 0.03429   Avg displacement in data: 0.18519
+    ┌ Info: Loss [701]: 0.00094   Avg displacement in data: 0.03073
     └ @ Main In[12]:8
-    ┌ Info: Loss [511]: 0.03391   Avg displacement in data: 0.18414
+    ┌ Info: Loss [721]: 0.00083   Avg displacement in data: 0.0288
     └ @ Main In[12]:8
-    ┌ Info: Loss [521]: 0.03349   Avg displacement in data: 0.18299
+    ┌ Info: Loss [741]: 0.00072   Avg displacement in data: 0.02683
     └ @ Main In[12]:8
-    ┌ Info: Loss [531]: 0.03302   Avg displacement in data: 0.18173
+    ┌ Info: Loss [761]: 0.00062   Avg displacement in data: 0.02483
     └ @ Main In[12]:8
-    ┌ Info: Loss [541]: 0.0325   Avg displacement in data: 0.18029
+    ┌ Info: Loss [781]: 0.00052   Avg displacement in data: 0.02287
     └ @ Main In[12]:8
-    ┌ Info: Loss [551]: 0.03193   Avg displacement in data: 0.1787
+    ┌ Info: Loss [801]: 0.00044   Avg displacement in data: 0.02096
     └ @ Main In[12]:8
-    ┌ Info: Loss [561]: 0.0313   Avg displacement in data: 0.17692
+    ┌ Info: Loss [821]: 0.00037   Avg displacement in data: 0.01913
     └ @ Main In[12]:8
-    ┌ Info: Loss [571]: 0.03059   Avg displacement in data: 0.17491
+    ┌ Info: Loss [841]: 0.00031   Avg displacement in data: 0.01749
     └ @ Main In[12]:8
-    ┌ Info: Loss [581]: 0.0298   Avg displacement in data: 0.17263
+    ┌ Info: Loss [861]: 0.00026   Avg displacement in data: 0.01605
     └ @ Main In[12]:8
-    ┌ Info: Loss [591]: 0.02892   Avg displacement in data: 0.17007
+    ┌ Info: Loss [881]: 0.00022   Avg displacement in data: 0.01482
     └ @ Main In[12]:8
-    ┌ Info: Loss [601]: 0.02796   Avg displacement in data: 0.16722
+    ┌ Info: Loss [901]: 0.00019   Avg displacement in data: 0.01377
     └ @ Main In[12]:8
-    ┌ Info: Loss [611]: 0.02693   Avg displacement in data: 0.1641
+    ┌ Info: Loss [921]: 0.00017   Avg displacement in data: 0.0129
     └ @ Main In[12]:8
-    ┌ Info: Loss [621]: 0.02588   Avg displacement in data: 0.16088
+    ┌ Info: Loss [941]: 0.00015   Avg displacement in data: 0.01219
     └ @ Main In[12]:8
-    ┌ Info: Loss [631]: 0.02488   Avg displacement in data: 0.15774
+    ┌ Info: Loss [961]: 0.00013   Avg displacement in data: 0.01161
     └ @ Main In[12]:8
-    ┌ Info: Loss [641]: 0.02402   Avg displacement in data: 0.15499
-    └ @ Main In[12]:8
-    ┌ Info: Loss [651]: 0.02307   Avg displacement in data: 0.15189
-    └ @ Main In[12]:8
-    ┌ Info: Loss [661]: 0.0223   Avg displacement in data: 0.14932
-    └ @ Main In[12]:8
-    ┌ Info: Loss [671]: 0.02182   Avg displacement in data: 0.14772
-    └ @ Main In[12]:8
-    ┌ Info: Loss [681]: 0.02102   Avg displacement in data: 0.14497
-    └ @ Main In[12]:8
-    ┌ Info: Loss [691]: 0.02053   Avg displacement in data: 0.1433
-    └ @ Main In[12]:8
-    ┌ Info: Loss [701]: 0.02061   Avg displacement in data: 0.14355
-    └ @ Main In[12]:8
-    ┌ Info: Loss [711]: 0.02597   Avg displacement in data: 0.16114
-    └ @ Main In[12]:8
-    ┌ Info: Loss [721]: 0.04113   Avg displacement in data: 0.2028
-    └ @ Main In[12]:8
-    ┌ Info: Loss [731]: 0.03791   Avg displacement in data: 0.19472
-    └ @ Main In[12]:8
-    ┌ Info: Loss [741]: 0.03271   Avg displacement in data: 0.18087
-    └ @ Main In[12]:8
-    ┌ Info: Loss [751]: 0.02408   Avg displacement in data: 0.15516
-    └ @ Main In[12]:8
-    ┌ Info: Loss [761]: 0.02272   Avg displacement in data: 0.15074
-    └ @ Main In[12]:8
-    ┌ Info: Loss [771]: 0.02196   Avg displacement in data: 0.14818
-    └ @ Main In[12]:8
-    ┌ Info: Loss [781]: 0.02128   Avg displacement in data: 0.14588
-    └ @ Main In[12]:8
-    ┌ Info: Loss [791]: 0.02081   Avg displacement in data: 0.14427
-    └ @ Main In[12]:8
-    ┌ Info: Loss [801]: 0.02032   Avg displacement in data: 0.14254
-    └ @ Main In[12]:8
-    ┌ Info: Loss [811]: 0.01993   Avg displacement in data: 0.14119
-    └ @ Main In[12]:8
-    ┌ Info: Loss [821]: 0.01958   Avg displacement in data: 0.13993
-    └ @ Main In[12]:8
-    ┌ Info: Loss [831]: 0.01925   Avg displacement in data: 0.13873
-    └ @ Main In[12]:8
-    ┌ Info: Loss [841]: 0.01892   Avg displacement in data: 0.13757
-    └ @ Main In[12]:8
-    ┌ Info: Loss [851]: 0.01861   Avg displacement in data: 0.13643
-    └ @ Main In[12]:8
-    ┌ Info: Loss [861]: 0.0183   Avg displacement in data: 0.13529
-    └ @ Main In[12]:8
-    ┌ Info: Loss [871]: 0.018   Avg displacement in data: 0.13415
-    └ @ Main In[12]:8
-    ┌ Info: Loss [881]: 0.01769   Avg displacement in data: 0.133
-    └ @ Main In[12]:8
-    ┌ Info: Loss [891]: 0.01738   Avg displacement in data: 0.13183
-    └ @ Main In[12]:8
-    ┌ Info: Loss [901]: 0.01708   Avg displacement in data: 0.13069
-    └ @ Main In[12]:8
-    ┌ Info: Loss [911]: 0.01674   Avg displacement in data: 0.1294
-    └ @ Main In[12]:8
-    ┌ Info: Loss [921]: 0.01641   Avg displacement in data: 0.12812
-    └ @ Main In[12]:8
-    ┌ Info: Loss [931]: 0.01609   Avg displacement in data: 0.12684
-    └ @ Main In[12]:8
-    ┌ Info: Loss [941]: 0.01577   Avg displacement in data: 0.12557
-    └ @ Main In[12]:8
-    ┌ Info: Loss [951]: 0.01544   Avg displacement in data: 0.12424
-    └ @ Main In[12]:8
-    ┌ Info: Loss [961]: 0.01509   Avg displacement in data: 0.12283
-    └ @ Main In[12]:8
-    ┌ Info: Loss [971]: 0.01481   Avg displacement in data: 0.12168
-    └ @ Main In[12]:8
-    ┌ Info: Loss [981]: 0.01468   Avg displacement in data: 0.12118
-    └ @ Main In[12]:8
-    ┌ Info: Loss [991]: 0.01552   Avg displacement in data: 0.12457
+    ┌ Info: Loss [981]: 0.00012   Avg displacement in data: 0.01113
     └ @ Main In[12]:8
 
 
@@ -758,6 +653,4 @@ Based on the plots, it can be seen that the NeuralFMU is able to adapt the frict
 ### Source
 
 [1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. **NeuralFMU: towards structural integration of FMUs into neural networks.** Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. [DOI: 10.3384/ecp21181297](https://doi.org/10.3384/ecp21181297)
-
-
 
