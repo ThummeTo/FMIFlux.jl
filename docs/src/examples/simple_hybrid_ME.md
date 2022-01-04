@@ -1,24 +1,17 @@
 # Creation and training of ME-NeuralFMUs
 Tutorial by Johannes Stoljar, Tobias Thummerer
 
-[LICENSE]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/LICENSE
-[Jupyter Notebook]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.ipynb
-[Julia file]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.jl
-[Markdown file]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_ME.md
-[NeuralFMU]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/NeuralFMU.svg?raw=true
-
-
 ## License
 Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
 
-Licensed under the MIT license. See [LICENSE][] file in the project root for details.
+Licensed under the MIT license. See [LICENSE](https://github.com/stoljarjo/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 ## Motivation
 This Julia Package is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the unmodeled physical effect. The final product is a simulation model including the orignially unmodeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characterisitic functionality of the simulation and only the missing effects are added.
 
 NeuralFMUs need not to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
 
-![NeuralFMU.svg][NeuralFMU]
+![NeuralFMU.svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/NeuralFMU.svg?raw=true)
 
 *NeuralFMU (ME) from* [[1]](#Source).
 
@@ -31,7 +24,7 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides this [Jupyter Notebook][] there is also a [Julia file][] with the same name, which contains only the code cells and for the documentation there is a [Markdown file][] corresponding to the notebook.  
+Besides this [Jupyter Notebook](https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.ipynb) there is also a [Julia file](https://github.com/stoljarjo/FMIFlux.jl/blob/main/example/simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_ME.md) corresponding to the notebook.  
 
 
 ## Getting started
@@ -60,22 +53,17 @@ using DifferentialEquations: Tsit5
 import Plots
 ```
 
-[SpringPendulum1D]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true
-[SpringFrictionPendulum1D]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringFrictionPendulum1D.svg?raw=true
-[SpringPendulum1D path]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringPendulum1D.fmu
-[SpringFrictionPendulum1D path]: https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringFrictionPendulum1D.fmu
-
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The objec-orientated structure of the *SpringPendulum1D* (*simpleFmu*) can be seen in the following graphic and corresponds to a simple modeling.
 
-![svg][SpringPendulum1D]
+![svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true)
 
 In contrast, the model *SpringFrictionPendulum1D* (*realFmu*) is somewhat more accurate, because it includes a friction component. 
 
-![svg][SpringFrictionPendulum1D]
+![svg](https://github.com/stoljarjo/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringFrictionPendulum1D.svg?raw=true)
 
-Here the path for the [*SpringPendulum1D*][SpringPendulum1D path] and the [*SpringFrictionPendulum1D*][SpringFrictionPendulum1D path] model is set: 
+Here the path for the [*SpringPendulum1D*](https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringPendulum1D.fmu) and the [*SpringFrictionPendulum1D*](https://github.com/stoljarjo/FMIFlux.jl/blob/main/model/SpringFrictionPendulum1D.fmu) model is set: 
 
 
 
