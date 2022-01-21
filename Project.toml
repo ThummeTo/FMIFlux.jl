@@ -1,7 +1,7 @@
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
 authors = ["TT <tobias.thummerer@informatik.uni-augsburg.de>", "LM <lars.mikelsons@informatik.uni-augsburg.de>"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"

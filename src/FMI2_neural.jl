@@ -6,7 +6,7 @@
 using DifferentialEquations, DiffEqCallbacks
 
 using ChainRulesCore
-import ForwardDiff
+import ForwardDiff, Zygote
 
 # helper to collect variable IdSet
 function indiciesForValueReferences(fmu::FMU2, 
@@ -199,8 +199,10 @@ function _fmi2DoStepME_fd(TVNx, TVNu, fmu, x, t, setValueReferences, setValues, 
     args = [fmi2DoStepME, fmu, collect(ForwardDiff.value(e) for e in x), ForwardDiff.value(t), setValueReferences, collect(ForwardDiff.value(e) for e in setValues), getValueReferences]
 
     # ToDo: Find a good fix!
+    #Zygote.@ignore @debug "From $(typeof(args[6]))"
     if typeof(args[6]) == Vector{Any}
         args[6] = convert(Vector{Float64}, args[6])
+        #Zygote.@ignore @debug "To $(typeof(args[6]))"
     end 
 
     ȧrgs = (ȧrgs...,)

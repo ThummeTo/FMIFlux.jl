@@ -65,11 +65,12 @@ end
 function time_choice(c::fmi2Component, integrator)
     eventInfo = fmi2NewDiscreteStates(c)
     fmi2EnterContinuousTimeMode(c)
-    if Bool(eventInfo.nextEventTimeDefined)
-        eventInfo.nextEventTime
-    else
-        Inf
+    if eventInfo.nextEventTimeDefined == fmi2True
+        Zygote.@ignore @debug "time_choice(_, _): Next event defined at $(eventInfo.nextEventTime)s"
+        return eventInfo.nextEventTime
     end
+
+    return Inf # ToDo: better `nothing`
 end
 
 # Handles events and returns the values and nominals of the changed continuous states.
@@ -94,7 +95,7 @@ function handleEvents(c::fmi2Component, enterEventMode::Bool, exitInContinuousMo
         nominalsOfContinuousStatesChanged = eventInfo.nominalsOfContinuousStatesChanged
 
         if eventInfo.terminateSimulation == fmi2True
-            @error "Event info returned error!"
+            Zygote.@ignore @error "Event info returned error!"
         end
     end
 
@@ -108,6 +109,9 @@ end
 # Returns the event indicators for an FMU.
 function condition(nfmu::ME_NeuralFMU, out, x, t, integrator) # Event when event_f(u,t) == 0
 
+    # ToDo: set inputs here
+    #fmiSetReal(myFMU, InputRef, Value)
+
     if isa(t, ForwardDiff.Dual) 
         t = ForwardDiff.value(t)
     end 
@@ -117,16 +121,17 @@ function condition(nfmu::ME_NeuralFMU, out, x, t, integrator) # Event when event
         x = collect(ForwardDiff.value(e) for e in x)
     end
 
+    fmiSetTime(nfmu.fmu, t)
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
 
     indicators = fmi2GetEventIndicators(nfmu.fmu)
-    #@info "Integrator stepped to t=$(t)s, indicators=$(indicators)"
+    Zygote.@ignore @debug "condition(_, _, $(x), $(t), _): Event indicators=$(indicators)"
 
     copy!(out, indicators)
 end
 
-function f_optim(x, nfmu, right_x_fmu, idx, direction::Real)
+function f_optim(x, nfmu, right_x_fmu) # , idx, direction::Real)
     # propagete the new state-guess `x` through the NeuralFMU
     nfmu.neuralODE.model(x)
     indicators = fmi2GetEventIndicators(nfmu.fmu)
@@ -138,7 +143,6 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
     # Event found - handle it
 
     t = integrator.t
-
     if isa(t, ForwardDiff.Dual) 
         t = ForwardDiff.value(t)
     end 
@@ -152,8 +156,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
     continuousStatesChanged, nominalsChanged = handleEvents(nfmu.fmu.components[end], true, Bool(sign(idx)))
 
-    #@info "Event [$idx] detected at t=$(t)s (statesChanged=$(continuousStatesChanged))"
-    indicators = fmi2GetEventIndicators(nfmu.fmu)
+    Zygote.@ignore @debug "affectFMU!(_, _, $idx): Event [$idx] detected at t=$(t)s (statesChanged=$(continuousStatesChanged))"
+    #indicators = fmi2GetEventIndicators(nfmu.fmu)
 
     if continuousStatesChanged == fmi2True
 
@@ -161,19 +165,19 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
         right_x_fmu = fmiGetContinuousStates(nfmu.fmu) # the new FMU state after handled events
 
-        #@info "NeuralFMU state event from $(left_x) (fmu: $(left_x_fmu)). Indicator [$idx]: $(indicators[idx])."
+        Zygote.@ignore @debug "affectFMU!(_, _, $idx): NeuralFMU state event from $(left_x) (fmu: $(left_x_fmu)). Indicator [$idx]: $(indicators[idx]). Optimizing new state ..."
 
         # ToDo: Problem-related parameterization of optimize-call
         #result = optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu), left_x, LBFGS(); autodiff = :forward)
-        result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, NelderMead())
+        #result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, NelderMead())
+        result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu), left_x, NelderMead())
 
         #display(result)
 
         right_x = Optim.minimizer(result)
         integrator.u = right_x
 
-        #indicators = fmi2GetEventIndicators(nfmu.fmu)
-        #@info "NeuralFMU state event to   $(right_x) (fmu: $(right_x_fmu)). Indicator [$idx]: $(indicators[idx]). Minimum: $(Optim.minimum(result))."
+        Zygote.@ignore @debug "affectFMU!(_, _, $idx): NeuralFMU state event to   $(right_x) (fmu: $(right_x_fmu)). Indicator [$idx]: $(fmi2GetEventIndicators(nfmu.fmu)[idx]). Minimum: $(Optim.minimum(result))."
     end
 
     if nominalsChanged == fmi2True
@@ -183,15 +187,31 @@ end
 
 # Does one step in the simulation.
 function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator)
-
     (status, enterEventMode, terminateSimulation) = fmi2CompletedIntegratorStep(nfmu.fmu, fmi2True)
     if enterEventMode == fmi2True
         affectFMU!(nfmu, integrator, 0)
+    else
+        # ToDo: set inputs here
+        #fmiSetReal(myFMU, InputRef, Value)
     end
 end
 
 # save FMU values 
 function saveValues(c::fmi2Component, recordValues, u, t, integrator)
+
+    if isa(t, ForwardDiff.Dual) 
+        t = ForwardDiff.value(t)
+    end 
+    fmi2SetTime(nfmu.fmu, t)
+
+    if all(isa.(x, ForwardDiff.Dual))
+        x = collect(ForwardDiff.value(e) for e in x)
+    end
+
+    fmiSetTime(nfmu.fmu, t)
+    # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
+    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+
     (fmiGetReal(c, recordValues)...,)
 end
 
@@ -288,6 +308,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               kwargs...)
 
     if reset
+        fmiTerminate(nfmu.fmu)
         fmiReset(nfmu.fmu)
     end
 
@@ -315,7 +336,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     handleTimeEvents = false
 
     Zygote.ignore() do
-        if eventHandling
+        if nfmu.handleEvents && eventHandling
             eventInfo = fmi2NewDiscreteStates(c)
             handleTimeEvents = (eventInfo.nextEventTimeDefined == fmi2True)
         end
@@ -339,13 +360,13 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         fmi2EnterContinuousTimeMode(c)
     end
 
+    Zygote.@ignore @debug "NeuralFMU experimental event handling: $(nfmu.handleEvents) stateEvents: $(eventHandling) timeEvents: $(handleTimeEvents)"
+
     Zygote.ignore() do
         # Event handling only if there are event-indicators
         if nfmu.handleEvents && eventHandling
 
             # Only ForwardDiffSensitivity supports differentiation and callbacks
-            
-            #sense = ReverseDiffAdjoint() 
             sense = ForwardDiffSensitivity(;chunk_size=0,convert_tspan=true) 
 
             eventCb = VectorContinuousCallback((out, x, t, integrator) -> condition(nfmu, out, x, t, integrator),
@@ -363,8 +384,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
             if handleTimeEvents
                 timeEventCb = IterativeCallback((integrator) -> time_choice(c, integrator),
-                                                (integrator) -> affectFMU!(nfmu, integrator, 0), Float64; 
-                                                initial_affect = true,
+                                                (integrator) -> affectFMU!(nfmu, integrator, 0), 
+                                                Float64; 
+                                                initial_affect = false,
                                                 save_positions=(false,false))
             
                 push!(callbacks, timeEventCb)
@@ -398,9 +420,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     # end
     
     if length(callbacks) > 0
-        nfmu.solution = solve(prob,nfmu.neuralODE.args...;sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...)  
+        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...)  
     else
-        nfmu.solution = solve(prob,nfmu.neuralODE.args...;sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)  
+        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)  
     end
 
     if saving
@@ -423,8 +445,8 @@ function (nfmu::CS_NeuralFMU{T})(inputFct,
                                  setup::Bool = true) where {T}
 
     if reset
-        while fmiReset(nfmu.fmu) != 0
-        end
+        fmiTerminate(nfmu.fmu)
+        fmiReset(nfmu.fmu)
     end 
 
     if setup
@@ -462,8 +484,8 @@ function (nfmu::CS_NeuralFMU{Vector{T}})(inputFct,
 
     if reset
         for fmu in nfmu.fmu
-            while fmiReset(fmu) != 0
-            end
+            fmiTerminate(fmu)
+            fmiReset(fmu)
         end
     end
 
@@ -551,4 +573,5 @@ end
 @adjoint fmiEnterInitializationMode(fmu) = fmiEnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
 @adjoint fmiExitInitializationMode(fmu) = fmiExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
 @adjoint fmiReset(fmu) = fmiReset(fmu), c̄ -> neutralGradient(c̄)
+@adjoint fmiTerminate(fmu) = fmiTerminate(fmu), c̄ -> neutralGradient(c̄)
 
