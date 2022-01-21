@@ -15,6 +15,7 @@ makedocs(sitename="FMIFlux.jl",
             "Examples" => [
                 "examples/overview.md"
                 "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
+                "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
             ]
             "library/overview.md"
             "related.md"
