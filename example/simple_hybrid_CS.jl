@@ -1,106 +1,110 @@
-#
-# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
-# Licensed under the MIT license. See LICENSE file in the project root for details.
-#
-
-################################## INSTALLATION ####################################################
-# (1) Enter Package Manager via     ]
-# (2) Install FMI via               add FMI       or   add "https://github.com/ThummeTo/FMI.jl"
-# (3) Install FMIFlux via           add FMIFlux   or   add "https://github.com/ThummeTo/FMIFlux.jl"
-################################ END INSTALLATION ##################################################
-
-# this example covers creation and training am CS-NeuralFMUs
-
+# imports
 using FMI
 using FMIFlux
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
-FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.fmu")
+pathFMU = joinpath(dirname(@__FILE__), "../model/SpringPendulumExtForce1D.fmu")
+println("FMU path: ", pathFMU)
 
-t_start = 0.0
-t_step = 0.01
-t_stop = 5.0
-tData = t_start:t_step:t_stop
+tStart = 0.0
+tStep = 0.01
+tStop = 5.0
+tSave = tStart:tStep:tStop
 
-myFMU = fmiLoad(FMUPath)
-fmiInstantiate!(myFMU; loggingOn=false)
+referenceFMU = fmiLoad(pathFMU)
+fmiInstantiate!(referenceFMU; loggingOn=false)
+fmiInfo(referenceFMU)
 
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiSetReal(myFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
+fmiSetupExperiment(referenceFMU, tStart, tStop)
+fmiSetReal(referenceFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
+fmiEnterInitializationMode(referenceFMU)
+fmiExitInitializationMode(referenceFMU)
 
-_, realSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, reset=false, saveat=tData)
-fmiPlot(myFMU, ["mass.s", "mass.v", "mass.a"], realSimData)
+x₀ = fmiGetContinuousStates(referenceFMU)
 
-fmiReset(myFMU)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
+vrs = ["mass.s", "mass.v", "mass.a"]
+_, referenceSimData = fmiSimulate(referenceFMU, tStart, tStop; recordValues=vrs, setup=false, reset=false, saveat=tSave)
+fmiPlot(referenceFMU, vrs, referenceSimData)
 
-_, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; recordValues=["mass.s", "mass.v", "mass.a"], setup=false, reset=false, saveat=tData)
-fmiPlot(myFMU, ["mass.s", "mass.v", "mass.a"], fmuSimData)
+posReference = collect(data[1] for data in referenceSimData.saveval)
+velReference = collect(data[2] for data in referenceSimData.saveval)
+accReference = collect(data[3] for data in referenceSimData.saveval)
 
-######
+fmiReset(referenceFMU)
+defaultFMU = referenceFMU
+
+fmiSetupExperiment(defaultFMU, tStart, tStop)
+fmiEnterInitializationMode(defaultFMU)
+fmiExitInitializationMode(defaultFMU)
+
+x₀ = fmiGetContinuousStates(defaultFMU)
+
+_, defaultSimData = fmiSimulate(defaultFMU, tStart, tStop; recordValues=vrs, setup=false, reset=false, saveat=tSave)
+fmiPlot(defaultFMU, vrs, defaultSimData)
+
+posDefault = collect(data[1] for data in defaultSimData.saveval)
+velDefault = collect(data[2] for data in defaultSimData.saveval)
+accDefault = collect(data[3] for data in defaultSimData.saveval)
 
 function extForce(t)
     return [0.0]
 end 
 
-posData = collect(data[1] for data in realSimData.saveval)
-velData = collect(data[2] for data in realSimData.saveval)
-accData = collect(data[3] for data in realSimData.saveval)
-
 # loss function for training
-function losssum()
-    solution = problem(extForce, t_step)
+function lossSum()
+    solution = csNeuralFMU(extForce, tStep)
 
     accNet = collect(data[1] for data in solution)
     
-    Flux.Losses.mse(accNet, accData)
+    Flux.Losses.mse(accReference, accNet)
 end
 
 # callback function for training
-global iterCB = 0
+global counter = 0
 function callb()
-    global iterCB += 1
+    global counter += 1
 
-    if iterCB % 10 == 1
-        avg_ls = losssum()
-        @info "Loss [$iterCB]: $(round(avg_ls, digits=5))"
+    if counter % 20 == 1
+        avgLoss = lossSum()
+        @info "Loss [$counter]: $(round(avgLoss, digits=5))"
     end
 end
 
 # NeuralFMU setup
-numInputs = length(myFMU.modelDescription.inputValueReferences)
-numOutputs = length(myFMU.modelDescription.outputValueReferences)
+numInputs = length(defaultFMU.modelDescription.inputValueReferences)
+numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
+net = Chain(inputs -> fmiInputDoStepCSOutput(defaultFMU, tStep, inputs),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
 
-problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
-solutionBefore = problem(extForce, t_step)
+csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);
 
-# train it ...
-p_net = Flux.params(problem)
+solutionBefore = csNeuralFMU(extForce, tStep)
+Plots.plot(tSave, collect(data[1] for data in solutionBefore), label="acc CS-NeuralFMU", linewidth=2)
+
+# train
+paramsNet = Flux.params(csNeuralFMU)
 
 optim = ADAM()
-Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb) # Feel free to increase training steps or epochs for better results
+Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 
-###### plot results a
-solutionAfter = problem(extForce, t_step)
-fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m s^-2]", linewidth=2,
-    xtickfontsize=12, ytickfontsize=12,
-    xguidefontsize=12, yguidefontsize=12,
-    legendfontsize=12, legend=:bottomright)
-Plots.plot!(fig, tData, collect(data[3] for data in fmuSimData.saveval), label="FMU", linewidth=2)
-Plots.plot!(fig, tData, accData, label="reference", linewidth=2)
-Plots.plot!(fig, tData, collect(data[1] for data in solutionAfter), label="NeuralFMU", linewidth=2)
-Plots.savefig(fig, "exampleResult_a.pdf")
+# plot results mass.a
+solutionAfter = csNeuralFMU(extForce, tStep)
+
+fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m/s^2]", linewidth=2,
+                 xtickfontsize=12, ytickfontsize=12,
+                 xguidefontsize=12, yguidefontsize=12,
+                 legendfontsize=8, legend=:topright)
+
+accNeuralFMU = collect(data[1] for data in solutionAfter)
+
+Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
+Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
+Plots.plot!(fig, tSave, accNeuralFMU, label="CS-NeuralFMU (300 eps.)", linewidth=2)
 fig 
 
-fmiUnload(myFMU)
+fmiUnload(defaultFMU)

@@ -16,7 +16,7 @@ NeuralFMUs need not to be as easy as in this example. Basically a NeuralFMU can 
 *NeuralFMU (ME) from* [[1]](#Source).
 
 ## Introduction to the example
-In this example, simplified modeling of a one-dimensional spring pendulum (without friction) is compared to a model of the same system that includes a nonlinear friction model. The FMU with the simplified model will be named *simpleFmu* in the following and the model with the friction will be named *realFmu*. At the beginning, the actual state of both simulations is shown, whereby clear deviations can be seen in the graphs. The *realFmu* serves as a reference graph. The *simpleFmu* is then integrated into a NeuralFMU architecture and a training of the entire network is performed. After the training the final state is compared again to the *realFmu*. It can be clearly seen that by using the NeuralFMU, learning of the friction process has taken place.  
+In this example, simplified modeling of a one-dimensional spring pendulum (without friction) is compared to a model of the same system that includes a nonlinear friction model. The FMU with the simplified model will be named *simpleFMU* in the following and the model with the friction will be named *realFMU*. At the beginning, the actual state of both simulations is shown, whereby clear deviations can be seen in the graphs. The *realFMU* serves as a reference graph. The *simpleFMU* is then integrated into a NeuralFMU architecture and a training of the entire network is performed. After the training the final state is compared again to the *realFMU*. It can be clearly seen that by using the NeuralFMU, learning of the friction process has taken place.  
 
 
 ## Target group
@@ -55,11 +55,11 @@ import Plots
 
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
-The objec-orientated structure of the *SpringPendulum1D* (*simpleFmu*) can be seen in the following graphic and corresponds to a simple modeling.
+The objec-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
 
 ![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true)
 
-In contrast, the model *SpringFrictionPendulum1D* (*realFmu*) is somewhat more accurate, because it includes a friction component. 
+In contrast, the model *SpringFrictionPendulum1D* (*realFMU*) is somewhat more accurate, because it includes a friction component. 
 
 ![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringFrictionPendulum1D.svg?raw=true)
 
@@ -68,14 +68,14 @@ Here the path for the [*SpringPendulum1D*](https://github.com/thummeto/FMIFlux.j
 
 
 ```julia
-simpleFmuPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
-realFmuPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
-println("SimpleFmu path: ", simpleFmuPath)
-println("RealFmu path: ", realFmuPath)
+simpleFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
+realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+println("SimpleFMU path: ", simpleFMUPath)
+println("RealFMU path: ", realFMUPath)
 ```
 
-    SimpleFmu path: ../model/SpringPendulum1D.fmu
-    RealFmu path: ../model/SpringFrictionPendulum1D.fmu
+    SimpleFMU path: ../model/SpringPendulum1D.fmu
+    RealFMU path: ../model/SpringFrictionPendulum1D.fmu
 
 
 Next, the start time and end time of the simulation are set. Finally, a step size is specified to store the results of the simulation at these time steps.
@@ -121,23 +121,21 @@ tSave = collect(tStart:tStep:tStop)
 
 
 
-### RealFmu
+### RealFMU
 
 In the next lines of code the FMU of the *realFMU* model is loaded and instantiated.  
 
 
 ```julia
-realFmu = fmiLoad(realFmuPath)
-fmiInstantiate!(realFmu; loggingOn=false)
-fmiInfo(realFmu)
+realFMU = fmiLoad(realFMUPath)
+fmiInstantiate!(realFMU; loggingOn=false)
+fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_XcT5D4\SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_xMsNGp\SpringFrictionPendulum1D`.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
-    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_XcT5D4/SpringFrictionPendulum1D/resources`
-    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
 
 
     #################### Begin information for FMU ####################
@@ -151,6 +149,12 @@ fmiInfo(realFmu)
     	Inputs:				0
     	Outputs:			0
     	States:				2
+
+
+    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_xMsNGp/SpringFrictionPendulum1D/resources`
+    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
+
+
     		33554432 ["mass.s"]
     		33554433 ["mass.v", "mass.v_relfric"]
     	Supports Co-Simulation:		true
@@ -169,16 +173,16 @@ fmiInfo(realFmu)
     ##################### End information for FMU #####################
 
 
-Both the start and end time are set via the *fmiSetupExperiment()* function. The experiment is initialized to get the information of the continuous states. You can get all continuous states of a FMU by the function *fmiGetContinuousStates()* and this is also done for the *realFmu*. It has two states: The first state is the position of the mass, which is initilized with $0.5m$, the second state is the velocity, which is initialized with $0\frac{m}{s}$.   
+Both the start and end time are set via the *fmiSetupExperiment()* function. The experiment is initialized to get the information of the continuous states. You can get all continuous states of a FMU by the function *fmiGetContinuousStates()* and this is also done for the *realFMU*. It has two states: The first state is the position of the mass, which is initilized with $0.5m$, the second state is the velocity, which is initialized with $0\frac{m}{s}$.   
 
 
 ```julia
-fmiSetupExperiment(realFmu, tStart, tStop)
+fmiSetupExperiment(realFMU, tStart, tStop)
 
-fmiEnterInitializationMode(realFmu)
-fmiExitInitializationMode(realFmu)
+fmiEnterInitializationMode(realFMU)
+fmiExitInitializationMode(realFMU)
 
-x₀ = fmiGetContinuousStates(realFmu)
+x₀ = fmiGetContinuousStates(realFMU)
 ```
 
 
@@ -190,13 +194,13 @@ x₀ = fmiGetContinuousStates(realFmu)
 
 
 
-In the following code block the *realFmu* is simulated, still specifying which variables are included. After the simulation is finished the result of the *realFmu* can be plotted. This plot also serves as a reference for the other model (*simpleFmu*).
+In the following code block the *realFMU* is simulated, still specifying which variables are included. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
 
 
 ```julia
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
-_, realSimData = fmiSimulate(realFmu, tStart, tStop; recordValues=vrs, saveat=tSave, setup=false, reset=false)
-fmiPlot(realFmu, vrs, realSimData)
+_, realSimData = fmiSimulate(realFMU, tStart, tStop; recordValues=vrs, saveat=tSave, setup=false, reset=false)
+fmiPlot(realFMU, vrs, realSimData)
 ```
 
 
@@ -212,10 +216,10 @@ fmiPlot(realFmu, vrs, realSimData)
 
 
 ```julia
-fmiUnload(realFmu)
+fmiUnload(realFMU)
 ```
 
-The data from the simualtion of the *realFmu*, are divided into position and velocity data. These data will be needed later. 
+The data from the simualtion of the *realFMU*, are divided into position and velocity data. These data will be needed later. 
 
 
 ```julia
@@ -256,21 +260,25 @@ posReal = collect(data[1] for data in realSimData.saveval)
 
 
 
-### SimpleFmu
+### SimpleFMU
 
-The following lines load, instantiate, simulate and plot the *simpleFmu* just like the *realFmu*. The differences between both systems can be clearly seen from the plots. In the plot for the *realFmu* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you would simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFmu* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
+The following lines load, instantiate, simulate and plot the *simpleFMU* just like the *realFMU*. The differences between both systems can be clearly seen from the plots. In the plot for the *realFMU* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you would simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFMU* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
 
 
 ```julia
-simpleFmu = fmiLoad(simpleFmuPath)
+simpleFMU = fmiLoad(simpleFMUPath)
 
-fmiInstantiate!(simpleFmu; loggingOn=false)
-fmiInfo(simpleFmu)
+fmiInstantiate!(simpleFMU; loggingOn=false)
+fmiInfo(simpleFMU)
 
 vrs = ["mass.s", "mass.v", "mass.a"]
-_, simpleSimData = fmiSimulate(simpleFmu, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(simpleFmu, vrs, simpleSimData)
+_, simpleSimData = fmiSimulate(simpleFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
+fmiPlot(simpleFMU, vrs, simpleSimData)
 ```
+
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_waNZuu\SpringPendulum1D`.
+    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
+
 
     #################### Begin information for FMU ####################
     	Model name:			SpringPendulum1D
@@ -300,25 +308,25 @@ fmiPlot(simpleFmu, vrs, simpleSimData)
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
 
-
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_bWEjI0\SpringPendulum1D`.
-    └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
-    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_bWEjI0/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_waNZuu/SpringPendulum1D/resources`
     └ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
 
 
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_18_2.svg)
     
 
 
 
-The data from the simualtion of the *simpleFmu*, are divided into position and velocity data. These data will be needed later to plot the results. 
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_18_4.svg)
+    
+
+
+
+The data from the simualtion of the *simpleFMU*, are divided into position and velocity data. These data will be needed later to plot the results. 
 
 
 ```julia
@@ -359,11 +367,13 @@ posSimple = collect(data[1] for data in simpleSimData.saveval)
 
 
 
+## NeuralFMU
+
 #### Loss function
 
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
 
-The loss function in this implmentation consists of the mean squared error (mse) from the real position of the *realFmu* simulation (posReal) and the position data of the network (posNet).
+The loss function in this implmentation consists of the mean squared error (mse) from the real position of the *realFMU* simulation (posReal) and the position data of the network (posNet).
 $$ mse = \frac{1}{n} \sum\limits_{i=0}^n (posReal[i] - posNet[i])^2 $$
 
 As it is indicated with the comments, one could also additionally consider the mse from the real velocity (velReal) and the velocity from the network (velNet). The error in this case would be calculated from the sum of both errors.
@@ -372,7 +382,7 @@ As it is indicated with the comments, one could also additionally consider the m
 ```julia
 # loss function for training
 function lossSum()
-    solution = neuralFmu(x₀, tStart)
+    solution = neuralFMU(x₀, tStart)
 
     posNet = collect(data[1] for data in solution.u)
     #velNet = collect(data[2] for data in solution.u)
@@ -390,7 +400,7 @@ end
 
 #### Callback
 
-To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every tenth pass the loss function is called and the average error is printed out.
+To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.
 
 
 ```julia
@@ -415,14 +425,14 @@ end
 
 #### Structure of the NeuralFMU
 
-In the following, the topology of the NeuralFMU is constructed. It consists of an input layer, which then leads into the *simpleFmu* model. The ME-FMU computes the state derivatives for a given system state. Following the *simpleFmu* is a dense layer that has exactly as many inputs as the model has states (and therefore state derivatives). The output of this layer consists of 16 output nodes and a *tanh* activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of states as outputs. Here, it is important that no *tanh*-activation function follows, because otherwise the pendulums state values would be limited to the interval $[-1;1]$.
+In the following, the topology of the NeuralFMU is constructed. It consists of an input layer, which then leads into the *simpleFMU* model. The ME-FMU computes the state derivatives for a given system state. Following the *simpleFMU* is a dense layer that has exactly as many inputs as the model has states (and therefore state derivatives). The output of this layer consists of 16 output nodes and a *tanh* activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of states as outputs. Here, it is important that no *tanh*-activation function follows, because otherwise the pendulums state values would be limited to the interval $[-1;1]$.
 
 
 ```julia
 # NeuralFMU setup
-numStates = fmiGetNumberOfStates(simpleFmu)
+numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(inputs -> fmiDoStepME(simpleFmu, inputs),
+net = Chain(inputs -> fmiDoStepME(simpleFMU, inputs),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
@@ -442,21 +452,21 @@ net = Chain(inputs -> fmiDoStepME(simpleFmu, inputs),
 
 #### Definition of the NeuralFMU
 
-The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (*simpleFmu*), the structure of the network `net`, start `tStart` and end time `tStop`, the numerical solver `Tsit5()` and the time steps `tSave` for saving are specified.
+The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (*simpleFMU*), the structure of the network `net`, start `tStart` and end time `tStop`, the numerical solver `Tsit5()` and the time steps `tSave` for saving are specified.
 
 
 ```julia
-neuralFmu = ME_NeuralFMU(simpleFmu, net, (tStart, tStop), Tsit5(); saveat=tSave);
+neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
 ```
 
 #### Plot before training
 
-Here the state trajactory of the *simpleFmu* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the later plots, the effect of learning can be seen.
+Here the state trajactory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the later plots, the effect of learning can be seen.
 
 
 ```julia
-solutionBefore = neuralFmu(x₀, tStart)
-fmiPlot(simpleFmu, solutionBefore)
+solutionBefore = neuralFMU(x₀, tStart)
+fmiPlot(simpleFMU, solutionBefore)
 ```
 
 
@@ -475,63 +485,63 @@ For the training of the NeuralFMU the parameters are extracted. The known ADAM o
 
 ```julia
 # train
-paramsNet = Flux.params(neuralFmu)
+paramsNet = Flux.params(neuralFMU)
 
 optim = ADAM()
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb) 
 ```
 
-    ┌ Info: Loss [1]: 0.06754   Avg displacement in data: 0.25988
+    ┌ Info: Loss [1]: 0.07528   Avg displacement in data: 0.27437
     └ @ Main In[12]:8
-    ┌ Info: Loss [21]: 0.04504   Avg displacement in data: 0.21223
+    ┌ Info: Loss [21]: 0.04558   Avg displacement in data: 0.2135
     └ @ Main In[12]:8
-    ┌ Info: Loss [41]: 0.04205   Avg displacement in data: 0.20507
+    ┌ Info: Loss [41]: 0.04354   Avg displacement in data: 0.20867
     └ @ Main In[12]:8
-    ┌ Info: Loss [61]: 0.04021   Avg displacement in data: 0.20053
+    ┌ Info: Loss [61]: 0.04236   Avg displacement in data: 0.20582
     └ @ Main In[12]:8
-    ┌ Info: Loss [81]: 0.03964   Avg displacement in data: 0.1991
+    ┌ Info: Loss [81]: 0.04193   Avg displacement in data: 0.20478
     └ @ Main In[12]:8
-    ┌ Info: Loss [101]: 0.03928   Avg displacement in data: 0.19819
+    ┌ Info: Loss [101]: 0.04153   Avg displacement in data: 0.20379
     └ @ Main In[12]:8
-    ┌ Info: Loss [121]: 0.03893   Avg displacement in data: 0.19731
+    ┌ Info: Loss [121]: 0.04094   Avg displacement in data: 0.20233
     └ @ Main In[12]:8
-    ┌ Info: Loss [141]: 0.03866   Avg displacement in data: 0.19662
+    ┌ Info: Loss [141]: 0.04003   Avg displacement in data: 0.20008
     └ @ Main In[12]:8
-    ┌ Info: Loss [161]: 0.03815   Avg displacement in data: 0.19532
+    ┌ Info: Loss [161]: 0.03917   Avg displacement in data: 0.19793
     └ @ Main In[12]:8
-    ┌ Info: Loss [181]: 0.03756   Avg displacement in data: 0.1938
+    ┌ Info: Loss [181]: 0.03808   Avg displacement in data: 0.19515
     └ @ Main In[12]:8
-    ┌ Info: Loss [201]: 0.03656   Avg displacement in data: 0.1912
+    ┌ Info: Loss [201]: 0.03616   Avg displacement in data: 0.19016
     └ @ Main In[12]:8
-    ┌ Info: Loss [221]: 0.03433   Avg displacement in data: 0.18529
+    ┌ Info: Loss [221]: 0.0313   Avg displacement in data: 0.17692
     └ @ Main In[12]:8
-    ┌ Info: Loss [241]: 0.02628   Avg displacement in data: 0.16212
+    ┌ Info: Loss [241]: 0.01322   Avg displacement in data: 0.11497
     └ @ Main In[12]:8
-    ┌ Info: Loss [261]: 0.00817   Avg displacement in data: 0.09037
+    ┌ Info: Loss [261]: 0.006   Avg displacement in data: 0.07743
     └ @ Main In[12]:8
-    ┌ Info: Loss [281]: 0.00476   Avg displacement in data: 0.069
+    ┌ Info: Loss [281]: 0.00461   Avg displacement in data: 0.06793
     └ @ Main In[12]:8
 
 
 #### Comparison of the plots
 
-Here three plots are compared with each other and only the position of the mass is considered. The first plot represents the *simpleFmu*, the second represents the *realFmu* (reference) and the third plot represents the result after training the NeuralFMU. 
+Here three plots are compared with each other and only the position of the mass is considered. The first plot represents the *simpleFMU*, the second represents the *realFMU* (reference) and the third plot represents the result after training the NeuralFMU. 
 
 
 ```julia
 # plot results mass.s
-solutionAfter = neuralFmu(x₀, tStart)
+solutionAfter = neuralFMU(x₀, tStart)
 
 fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
                  xtickfontsize=12, ytickfontsize=12,
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-posNeuralFmu = collect(data[1] for data in solutionAfter.u)
+posNeuralFMU = collect(data[1] for data in solutionAfter.u)
 
 Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
 Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
-Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU (300 epochs)", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (300 epochs)", linewidth=2)
 fig 
 ```
 
@@ -546,87 +556,87 @@ fig
 
 #### Continue training and plotting
 
-As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFmu*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training is well recognizable, since the plot of the NeuralFMU had further converged. 
+As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFMU*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training is well recognizable, since the plot of the NeuralFMU had further converged. 
 
 
 ```julia
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=callb) 
 # plot results mass.s
-solutionAfter = neuralFmu(x₀, tStart)
-posNeuralFmu = collect(data[1] for data in solutionAfter.u)
-Plots.plot!(fig, tSave, posNeuralFmu, label="NeuralFMU (1000 epochs)", linewidth=2)
+solutionAfter = neuralFMU(x₀, tStart)
+posNeuralFMU = collect(data[1] for data in solutionAfter.u)
+Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth=2)
 fig 
 ```
 
-    ┌ Info: Loss [301]: 0.00413   Avg displacement in data: 0.06423
+    ┌ Info: Loss [301]: 0.00412   Avg displacement in data: 0.06419
     └ @ Main In[12]:8
-    ┌ Info: Loss [321]: 0.00381   Avg displacement in data: 0.06172
+    ┌ Info: Loss [321]: 0.00379   Avg displacement in data: 0.0616
     └ @ Main In[12]:8
-    ┌ Info: Loss [341]: 0.00353   Avg displacement in data: 0.05937
+    ┌ Info: Loss [341]: 0.0035   Avg displacement in data: 0.05918
     └ @ Main In[12]:8
-    ┌ Info: Loss [361]: 0.00329   Avg displacement in data: 0.05739
+    ┌ Info: Loss [361]: 0.00322   Avg displacement in data: 0.05673
     └ @ Main In[12]:8
-    ┌ Info: Loss [381]: 0.00309   Avg displacement in data: 0.05559
+    ┌ Info: Loss [381]: 0.00295   Avg displacement in data: 0.05432
     └ @ Main In[12]:8
-    ┌ Info: Loss [401]: 0.00291   Avg displacement in data: 0.05393
+    ┌ Info: Loss [401]: 0.0027   Avg displacement in data: 0.05199
     └ @ Main In[12]:8
-    ┌ Info: Loss [421]: 0.00274   Avg displacement in data: 0.05236
+    ┌ Info: Loss [421]: 0.00246   Avg displacement in data: 0.04961
     └ @ Main In[12]:8
-    ┌ Info: Loss [441]: 0.00259   Avg displacement in data: 0.05085
+    ┌ Info: Loss [441]: 0.00223   Avg displacement in data: 0.04724
     └ @ Main In[12]:8
-    ┌ Info: Loss [461]: 0.00244   Avg displacement in data: 0.04939
+    ┌ Info: Loss [461]: 0.00201   Avg displacement in data: 0.0448
     └ @ Main In[12]:8
-    ┌ Info: Loss [481]: 0.0023   Avg displacement in data: 0.04796
+    ┌ Info: Loss [481]: 0.00179   Avg displacement in data: 0.04236
     └ @ Main In[12]:8
-    ┌ Info: Loss [501]: 0.00217   Avg displacement in data: 0.04654
+    ┌ Info: Loss [501]: 0.00159   Avg displacement in data: 0.03988
     └ @ Main In[12]:8
-    ┌ Info: Loss [521]: 0.00204   Avg displacement in data: 0.04513
+    ┌ Info: Loss [521]: 0.0014   Avg displacement in data: 0.03736
     └ @ Main In[12]:8
-    ┌ Info: Loss [541]: 0.00191   Avg displacement in data: 0.04372
+    ┌ Info: Loss [541]: 0.00121   Avg displacement in data: 0.03481
     └ @ Main In[12]:8
-    ┌ Info: Loss [561]: 0.00179   Avg displacement in data: 0.04228
+    ┌ Info: Loss [561]: 0.00104   Avg displacement in data: 0.03221
     └ @ Main In[12]:8
-    ┌ Info: Loss [581]: 0.00167   Avg displacement in data: 0.04082
+    ┌ Info: Loss [581]: 0.00087   Avg displacement in data: 0.02957
     └ @ Main In[12]:8
-    ┌ Info: Loss [601]: 0.00155   Avg displacement in data: 0.03933
+    ┌ Info: Loss [601]: 0.00072   Avg displacement in data: 0.02692
     └ @ Main In[12]:8
-    ┌ Info: Loss [621]: 0.00143   Avg displacement in data: 0.03777
+    ┌ Info: Loss [621]: 0.00059   Avg displacement in data: 0.02432
     └ @ Main In[12]:8
-    ┌ Info: Loss [641]: 0.0013   Avg displacement in data: 0.0361
+    ┌ Info: Loss [641]: 0.00048   Avg displacement in data: 0.02189
     └ @ Main In[12]:8
-    ┌ Info: Loss [661]: 0.00118   Avg displacement in data: 0.03439
+    ┌ Info: Loss [661]: 0.00039   Avg displacement in data: 0.01966
     └ @ Main In[12]:8
-    ┌ Info: Loss [681]: 0.00106   Avg displacement in data: 0.03263
+    ┌ Info: Loss [681]: 0.00031   Avg displacement in data: 0.01768
     └ @ Main In[12]:8
-    ┌ Info: Loss [701]: 0.00094   Avg displacement in data: 0.03073
+    ┌ Info: Loss [701]: 0.00026   Avg displacement in data: 0.01598
     └ @ Main In[12]:8
-    ┌ Info: Loss [721]: 0.00083   Avg displacement in data: 0.0288
+    ┌ Info: Loss [721]: 0.00021   Avg displacement in data: 0.01447
     └ @ Main In[12]:8
-    ┌ Info: Loss [741]: 0.00072   Avg displacement in data: 0.02683
+    ┌ Info: Loss [741]: 0.00017   Avg displacement in data: 0.01323
     └ @ Main In[12]:8
-    ┌ Info: Loss [761]: 0.00062   Avg displacement in data: 0.02483
+    ┌ Info: Loss [761]: 0.00015   Avg displacement in data: 0.0123
     └ @ Main In[12]:8
-    ┌ Info: Loss [781]: 0.00052   Avg displacement in data: 0.02287
+    ┌ Info: Loss [781]: 0.00013   Avg displacement in data: 0.01157
     └ @ Main In[12]:8
-    ┌ Info: Loss [801]: 0.00044   Avg displacement in data: 0.02096
+    ┌ Info: Loss [801]: 0.00012   Avg displacement in data: 0.01099
     └ @ Main In[12]:8
-    ┌ Info: Loss [821]: 0.00037   Avg displacement in data: 0.01913
+    ┌ Info: Loss [821]: 0.00011   Avg displacement in data: 0.01054
     └ @ Main In[12]:8
-    ┌ Info: Loss [841]: 0.00031   Avg displacement in data: 0.01749
+    ┌ Info: Loss [841]: 0.0001   Avg displacement in data: 0.01017
     └ @ Main In[12]:8
-    ┌ Info: Loss [861]: 0.00026   Avg displacement in data: 0.01605
+    ┌ Info: Loss [861]: 0.0001   Avg displacement in data: 0.00983
     └ @ Main In[12]:8
-    ┌ Info: Loss [881]: 0.00022   Avg displacement in data: 0.01482
+    ┌ Info: Loss [881]: 9.0e-5   Avg displacement in data: 0.00958
     └ @ Main In[12]:8
-    ┌ Info: Loss [901]: 0.00019   Avg displacement in data: 0.01377
+    ┌ Info: Loss [901]: 9.0e-5   Avg displacement in data: 0.00936
     └ @ Main In[12]:8
-    ┌ Info: Loss [921]: 0.00017   Avg displacement in data: 0.0129
+    ┌ Info: Loss [921]: 8.0e-5   Avg displacement in data: 0.00917
     └ @ Main In[12]:8
-    ┌ Info: Loss [941]: 0.00015   Avg displacement in data: 0.01219
+    ┌ Info: Loss [941]: 8.0e-5   Avg displacement in data: 0.00901
     └ @ Main In[12]:8
-    ┌ Info: Loss [961]: 0.00013   Avg displacement in data: 0.01161
+    ┌ Info: Loss [961]: 8.0e-5   Avg displacement in data: 0.00887
     └ @ Main In[12]:8
-    ┌ Info: Loss [981]: 0.00012   Avg displacement in data: 0.01113
+    ┌ Info: Loss [981]: 8.0e-5   Avg displacement in data: 0.00875
     └ @ Main In[12]:8
 
 
@@ -643,12 +653,12 @@ Finally, the FMU is cleaned-up.
 
 
 ```julia
-fmiUnload(simpleFmu)
+fmiUnload(simpleFMU)
 ```
 
 ### Summary
 
-Based on the plots, it can be seen that the NeuralFMU is able to adapt the friction model of the *realFmu*. After 300 runs, the curves do not overlap very well, but this can be achieved by longer training (1000 runs) or a better initialization.
+Based on the plots, it can be seen that the NeuralFMU is able to adapt the friction model of the *realFMU*. After 300 runs, the curves do not overlap very well, but this can be achieved by longer training (1000 runs) or a better initialization.
 
 ### Source
 
