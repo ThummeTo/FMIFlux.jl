@@ -359,6 +359,8 @@ posSimple = collect(data[1] for data in simpleSimData.saveval)
 
 
 
+## NeuralFMU
+
 #### Loss function
 
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
@@ -390,7 +392,7 @@ end
 
 #### Callback
 
-To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every tenth pass the loss function is called and the average error is printed out.
+To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.
 
 
 ```julia
