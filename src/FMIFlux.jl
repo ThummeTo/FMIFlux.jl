@@ -5,6 +5,8 @@
 
 module FMIFlux
 
+@debug "Debugging messages enabled for FMIFlux ..."
+
 using FMI
 include("FMI_neural.jl")
 include("FMI_plot.jl")
