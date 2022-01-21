@@ -307,9 +307,15 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               rootSearchInterpolationPoints::Integer=100,
                               kwargs...)
 
+    c = nfmu.fmu.components[end]
+
     if reset
-        fmiTerminate(nfmu.fmu)
-        fmiReset(nfmu.fmu)
+        if c.state == fmi2ModelInitialized
+            fmiTerminate(c)
+        end
+        if c.state == fmi2ModelSetableFMUstate
+            fmiReset(c)
+        end
     end
 
     if setup
@@ -318,7 +324,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         fmiExitInitializationMode(nfmu.fmu)
     end
 
-    c = nfmu.fmu.components[end]
     tspan = getfield(nfmu.neuralODE,:tspan)
     t_start = tspan[1]
     t_stop = tspan[end]
@@ -444,10 +449,16 @@ function (nfmu::CS_NeuralFMU{T})(inputFct,
                                  reset::Bool = true,
                                  setup::Bool = true) where {T}
 
+    c = nfmu.fmu.components[end]
+    
     if reset
-        fmiTerminate(nfmu.fmu)
-        fmiReset(nfmu.fmu)
-    end 
+        if c.state == fmi2ModelInitialized
+            fmiTerminate(c)
+        end
+        if c.state == fmi2ModelSetableFMUstate
+            fmiReset(c)
+        end
+    end
 
     if setup
         while fmiSetupExperiment(nfmu.fmu, t_start) != 0
@@ -481,12 +492,17 @@ function (nfmu::CS_NeuralFMU{Vector{T}})(inputFct,
                                          t_stop::Real = nfmu.tspan[end]; 
                                          reset::Bool = true,
                                          setup::Bool = true) where {T}
-
+    
     if reset
-        for fmu in nfmu.fmu
-            fmiTerminate(fmu)
-            fmiReset(fmu)
-        end
+        for fmu in nfmu.fmu 
+            c = fmu.components[end]
+            if c.state == fmi2ModelInitialized
+                fmiTerminate(c)
+            end
+            if c.state == fmi2ModelSetableFMUstate
+                fmiReset(c)
+            end
+        end 
     end
 
     if setup
