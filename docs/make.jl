@@ -13,12 +13,12 @@ makedocs(sitename="FMIFlux.jl",
          pages= Any[
             "Introduction" => "index.md"
             "Examples" => [
-                "examples/overview.md"
+                "Examples Overview" => "examples/overview.md"
                 "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
                 "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
             ]
-            "library/overview.md"
-            "related.md"
+            "Library Functions" => "library/overview.md"
+            "Related Publication" => "related.md"
             "Contents" => "contents.md"
             ]
          )
