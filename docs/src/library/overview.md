@@ -1,24 +1,29 @@
 # [Library Functions](@id library)
 
+```@index
+```
 
 ## FMIFlux functions
 
 ```@docs
-ME_NeuralFMU
 CS_NeuralFMU
+ME_NeuralFMU
 NeuralFMU
-NeuralFMUInputLayer
-NeuralFMUOutputLayer
+```
 
-NeuralFMUCacheTime
-NeuralFMUCacheState
+## FMI 2 version dependent functions
+
+```@docs
+fmi2DoStepCS
+fmi2DoStepME
+fmi2InputDoStepCSOutput
 ```
 
 ## FMI version independent functions
 
 ```@docs
-fmiDoStepME
 fmiDoStepCS
+fmiDoStepME
 fmiInputDoStepCSOutput
 ```
 
@@ -27,12 +32,4 @@ fmiInputDoStepCSOutput
 ```@docs
 mse_interpolate
 transferParams!
-```
-
-## FMI 2 version dependent functions
-
-```@docs
-fmi2DoStepME
-fmi2DoStepCS
-fmi2InputDoStepCSOutput
 ```
