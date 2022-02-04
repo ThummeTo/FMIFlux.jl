@@ -6,6 +6,7 @@ on:
     paths:
     - 'src/**'
     - 'test/**'
+    - '.github/**'
   
 
 jobs:
@@ -39,3 +40,10 @@ jobs:
       # Run the tests
       - name: "Run tests"
         uses: julia-actions/julia-runtest@latest
+
+      # Run codecov
+      - name: "Run codecov"
+        uses: codecov/codecov-action@v2
+        with:
+          file: lcov.info
+      
