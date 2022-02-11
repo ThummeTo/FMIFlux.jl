@@ -5,7 +5,11 @@
 FMIFlux.jl is a free-to-use software library for the Julia programming language, which offers the ability to setup NeuralFMUs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard AD training process.
 
 <!--- [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/stable) --->
-[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) [![](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)]()
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
+[![CI Testing](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions)
+[![Coverage](https://codecov.io/gh/stoljarjo/FMIFlux.jl/branch/third-tutorial/graph/badge.svg)](https://codecov.io/gh/stoljarjo/FMIFlux.jl) 
+<!-- Replace 'stoljajo' with 'ThummeTo' and replace 'third-tutorial' with 'main' -->
+
 
 ## How can I use FMIFlux.jl?
 1. open a Julia-Command-Window, activate your prefered environemnt
