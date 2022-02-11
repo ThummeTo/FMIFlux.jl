@@ -46,7 +46,7 @@ jobs:
 
       # Build FMIFlux.jl package
       - name: "Build package"
-        uses: julia-actions/julia-buildpkg@v1
+        uses: julia-actions/julia-buildpkg@latest
 
       # Run the tests
       - name: "Run tests"
