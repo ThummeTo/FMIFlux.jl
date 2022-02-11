@@ -7,8 +7,7 @@ FMIFlux.jl is a free-to-use software library for the Julia programming language,
 <!--- [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/stable) --->
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
 [![CI Testing](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions)
-[![Coverage](https://codecov.io/gh/stoljarjo/FMIFlux.jl/branch/third-tutorial/graph/badge.svg)](https://codecov.io/gh/stoljarjo/FMIFlux.jl) 
-<!-- Replace 'stoljajo' with 'ThummeTo' and replace 'third-tutorial' with 'main' -->
+[![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl) 
 
 
 ## How can I use FMIFlux.jl?
