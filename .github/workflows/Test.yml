@@ -6,6 +6,7 @@ on:
     paths:
     - 'src/**'
     - 'test/**'
+    - '.github/**'
   
 
 jobs:
@@ -27,10 +28,21 @@ jobs:
 
       # Set up Julia
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@latest
+        uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+
+      - uses: actions/cache@v1
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-
 
       # Build FMIFlux.jl package
       - name: "Build package"
@@ -38,4 +50,14 @@ jobs:
 
       # Run the tests
       - name: "Run tests"
-        uses: julia-actions/julia-runtest@latest
+        uses: julia-actions/julia-runtest@v1
+
+      # Preprocess Coverage
+      - name: "Preprocess Coverage"
+        uses: julia-actions/julia-processcoverage@v1
+
+      # Run codecov
+      - name: "Run CodeCov"
+        uses: codecov/codecov-action@v1
+        with:
+          file: lcov.info
