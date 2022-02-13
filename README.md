@@ -2,16 +2,16 @@
 # FMIFlux.jl
 
 ## What is FMIFlux.jl?
-FMIFlux.jl is a free-to-use software library for the Julia programming language, which offers the ability to setup NeuralFMUs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard AD training process.
+FMIFlux.jl is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard AD training process.
 
 <!--- [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/stable) --->
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
 [![CI Testing](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions)
-[![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl) 
+[![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl)
 
 
 ## How can I use FMIFlux.jl?
-1. open a Julia-Command-Window, activate your prefered environemnt
+1. open a Julia-Command-Window, activate your preferred environment
 1. goto package manager using ```]```
 1. type ```add FMIFlux``` or ```add "https://github.com/ThummeTo/FMIFlux.jl"```
 1. have a look in the ```example``` folder
