@@ -16,7 +16,7 @@ jobs:
       # Don't cancel in-progress jobs if any matrix job fails
       fail-fast: false
       matrix:
-        julia-version: ['1.6', 'nightly'] # '1.5'
+        julia-version: ['1.6', '1']
         julia-arch: [x64]
         os: [windows-latest] # ubuntu-latest
         experimental: [false] # true
@@ -33,7 +33,9 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
 
-      - uses: actions/cache@v1
+     # Set up cache
+      - name: "Set up cache"
+        uses: actions/cache@v1
         env:
           cache-name: cache-artifacts
         with:
