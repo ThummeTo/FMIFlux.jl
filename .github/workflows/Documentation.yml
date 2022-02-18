@@ -6,8 +6,6 @@ on:
       - main
     tags:
       - '*'
-    paths:
-      - 'docs/**'
   pull_request:
 
 jobs:
