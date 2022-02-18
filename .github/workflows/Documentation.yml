@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - main
-    tags: '*'
+    tags:
+      - '*'
+    paths:
+      - 'docs/**'
   pull_request:
 
 jobs:
