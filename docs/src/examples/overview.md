@@ -6,3 +6,4 @@ The examples are:
 
 - __Simple hybrid CS__: Showing how to train a Neural CS FMU.
 - __Simple hybrid ME__: Showing how to train a Neural ME FMU.
+- __Modelica Conference 2021__: Showing how to train a Neural ME FMU.

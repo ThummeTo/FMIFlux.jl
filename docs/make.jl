@@ -14,8 +14,9 @@ makedocs(sitename="FMIFlux.jl",
             "Introduction" => "index.md"
             "Examples" => [
                 "Examples Overview" => "examples/overview.md"
-                "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
                 "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
+                "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
+                "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
             ]
             "Library Functions" => "library/overview.md"
             "Related Publication" => "related.md"
