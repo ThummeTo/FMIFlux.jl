@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Modelica Conference 2021 · FMIFlux.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="FMIFlux.jl logo"/></a><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../overview/">Examples Overview</a></li><li><a class="tocitem" href="../simple_hybrid_CS/">Simple CS-NeuralFMU</a></li><li><a class="tocitem" href="../simple_hybrid_ME/">Simple ME-NeuralFMU</a></li><li class="is-active"><a class="tocitem" href>Modelica Conference 2021</a><ul class="internal"><li><a class="tocitem" href="#License"><span>License</span></a></li><li><a class="tocitem" href="#Motivation"><span>Motivation</span></a></li><li><a class="tocitem" href="#Introduction-to-the-example"><span>Introduction to the example</span></a></li><li><a class="tocitem" href="#Target-group"><span>Target group</span></a></li><li><a class="tocitem" href="#Other-formats"><span>Other formats</span></a></li><li><a class="tocitem" href="#Getting-started"><span>Getting started</span></a></li><li><a class="tocitem" href="#Code-section"><span>Code section</span></a></li><li><a class="tocitem" href="#NeuralFMU"><span>NeuralFMU</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../library/overview/">Library Functions</a></li><li><a class="tocitem" href="../../related/">Related Publication</a></li><li><a class="tocitem" href="../../contents/">Contents</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Modelica Conference 2021</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Modelica Conference 2021</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/ThummeTo/FMIFlux.jl/blob/master/docs/src/examples/modelica_conference_2021.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="ME-NeuralFMU-from-the-Modelica-Conference"><a class="docs-heading-anchor" href="#ME-NeuralFMU-from-the-Modelica-Conference">ME-NeuralFMU from the Modelica Conference</a><a id="ME-NeuralFMU-from-the-Modelica-Conference-1"></a><a class="docs-heading-anchor-permalink" href="#ME-NeuralFMU-from-the-Modelica-Conference" title="Permalink"></a></h1><p>Tutorial by Johannes Stoljar, Tobias Thummerer</p><h2 id="License"><a class="docs-heading-anchor" href="#License">License</a><a id="License-1"></a><a class="docs-heading-anchor-permalink" href="#License" title="Permalink"></a></h2><p>Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar</p><p>Licensed under the MIT license. See <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE">LICENSE</a> file in the project root for details.</p><h2 id="Motivation"><a class="docs-heading-anchor" href="#Motivation">Motivation</a><a id="Motivation-1"></a><a class="docs-heading-anchor-permalink" href="#Motivation" title="Permalink"></a></h2><p>This Julia Package is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that the effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the unmodeled physical effect. The final product is a simulation model including the orignially unmodeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characterisitic functionality of the simulation and only the missing effects are added.</p><p>NeuralFMUs do not need to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.</p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/NeuralFMU.svg?raw=true" alt="NeuralFMU.svg"/></p><p><em>NeuralFMU (ME) from</em> <a href="#Source">[1]</a>.</p><h2 id="Introduction-to-the-example"><a class="docs-heading-anchor" href="#Introduction-to-the-example">Introduction to the example</a><a id="Introduction-to-the-example-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction-to-the-example" title="Permalink"></a></h2><p>In this example, simplified modeling of a one-dimensional spring pendulum (without friction) is compared to a model of the same system that includes a nonlinear friction model. The FMU with the simplified model will be named <em>simpleFMU</em> in the following and the model with the friction will be named <em>realFMU</em>. At the beginning, the actual state of both simulations is shown, whereby clear deviations can be seen in the graphs. In addition, the initial states are changed for both models and these graphs are also contrasted, and the differences can again be clearly seen. The <em>realFMU</em> serves as a reference graph. The <em>simpleFMU</em> is then integrated into a NeuralFMU architecture and a training of the entire network is performed. After the training the final state is compared again to the <em>realFMU</em>. It can be clearly seen that by using the NeuralFMU, learning of the friction process has taken place.  </p><h2 id="Target-group"><a class="docs-heading-anchor" href="#Target-group">Target group</a><a id="Target-group-1"></a><a class="docs-heading-anchor-permalink" href="#Target-group" title="Permalink"></a></h2><p>The example is primarily intended for users who work in the field of first principle and/or hybrid modeling and are further interested in hybrid model building. The example wants to show how simple it is to combine FMUs with machine learning and to illustrate the advantages of this approach.</p><h2 id="Other-formats"><a class="docs-heading-anchor" href="#Other-formats">Other formats</a><a id="Other-formats-1"></a><a class="docs-heading-anchor-permalink" href="#Other-formats" title="Permalink"></a></h2><p>Besides this <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/example/modelica_conference_2021.ipynb">Jupyter Notebook</a> there is also a <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/example/modelica_conference_2021.jl">Julia file</a> with the same name, which contains only the code cells. For the documentation there is a <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/modelica_conference_2021.md">Markdown file</a> corresponding to the notebook.  </p><h2 id="Getting-started"><a class="docs-heading-anchor" href="#Getting-started">Getting started</a><a id="Getting-started-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-started" title="Permalink"></a></h2><h3 id="Installation-prerequisites"><a class="docs-heading-anchor" href="#Installation-prerequisites">Installation prerequisites</a><a id="Installation-prerequisites-1"></a><a class="docs-heading-anchor-permalink" href="#Installation-prerequisites" title="Permalink"></a></h3><table><tr><th style="text-align: left"></th><th style="text-align: left">Description</th><th style="text-align: left">Command</th><th style="text-align: left">Alternative</th></tr><tr><td style="text-align: left">1.</td><td style="text-align: left">Enter Package Manager via</td><td style="text-align: left">]</td><td style="text-align: left"></td></tr><tr><td style="text-align: left">2.</td><td style="text-align: left">Install FMI via</td><td style="text-align: left">add FMI</td><td style="text-align: left">add &quot; https://github.com/ThummeTo/FMI.jl &quot;</td></tr><tr><td style="text-align: left">3.</td><td style="text-align: left">Install FMIFlux via</td><td style="text-align: left">add FMIFlux</td><td style="text-align: left">add &quot; https://github.com/ThummeTo/FMIFlux.jl &quot;</td></tr><tr><td style="text-align: left">4.</td><td style="text-align: left">Install Flux via</td><td style="text-align: left">add Flux</td><td style="text-align: left"></td></tr><tr><td style="text-align: left">5.</td><td style="text-align: left">Install DifferentialEquations via</td><td style="text-align: left">add DifferentialEquations</td><td style="text-align: left"></td></tr><tr><td style="text-align: left">6.</td><td style="text-align: left">Install Plots via</td><td style="text-align: left">add Plots</td><td style="text-align: left"></td></tr></table><h2 id="Code-section"><a class="docs-heading-anchor" href="#Code-section">Code section</a><a id="Code-section-1"></a><a class="docs-heading-anchor-permalink" href="#Code-section" title="Permalink"></a></h2><p>To run the example, the previously installed packages must be included. </p><pre><code class="language-julia"># imports
+using FMI
+using FMIFlux
+using Flux
+using DifferentialEquations: Tsit5
+import Plots</code></pre><p>After importing the packages, the path to the <em>Functional Mock-up Units</em> (FMUs) is set. The exported FMU is a model meeting the <em>Functional Mock-up Interface</em> (FMI) Standard. The FMI is a free standard (<a href="http://fmi-standard.org/">fmi-standard.org</a>) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. </p><p>The object-orientated structure of the <em>SpringPendulum1D</em> (<em>simpleFMU</em>) can be seen in the following graphic and corresponds to a simple modeling.</p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true" alt="svg"/></p><p>In contrast, the model <em>SpringFrictionPendulum1D</em> (<em>realFMU</em>) is somewhat more accurate, because it includes a friction component. </p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringFrictionPendulum1D.svg?raw=true" alt="svg"/></p><p>Here the path for the <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/model/SpringPendulum1D.fmu"><em>SpringPendulum1D</em></a> and the <a href="https://github.com/thummeto/FMIFlux.jl/blob/main/model/SpringFrictionPendulum1D.fmu"><em>SpringFrictionPendulum1D</em></a> model is set: </p><pre><code class="language-julia">simpleFMUPath = joinpath(dirname(@__FILE__), &quot;../model/SpringPendulum1D.fmu&quot;)
+realFMUPath = joinpath(dirname(@__FILE__), &quot;../model/SpringFrictionPendulum1D.fmu&quot;)
+println(&quot;SimpleFMU path: &quot;, simpleFMUPath)
+println(&quot;RealFMU path: &quot;, realFMUPath)</code></pre><pre><code class="language-none">SimpleFMU path: ../model/SpringPendulum1D.fmu
+RealFMU path: ../model/SpringFrictionPendulum1D.fmu</code></pre><p>Next, the start time and end time of the simulation are set. Finally, a step size is specified to store the results of the simulation at these time steps.</p><pre><code class="language-julia">tStart = 0.0
+tStep = 0.01
+tStop = 4.0
+tSave = collect(tStart:tStep:tStop)</code></pre><pre><code class="language-none">401-element Vector{Float64}:
+ 0.0
+ 0.01
+ 0.02
+ 0.03
+ 0.04
+ 0.05
+ 0.06
+ 0.07
+ 0.08
+ 0.09
+ 0.1
+ 0.11
+ 0.12
+ ⋮
+ 3.89
+ 3.9
+ 3.91
+ 3.92
+ 3.93
+ 3.94
+ 3.95
+ 3.96
+ 3.97
+ 3.98
+ 3.99
+ 4.0</code></pre><h3 id="RealFMU"><a class="docs-heading-anchor" href="#RealFMU">RealFMU</a><a id="RealFMU-1"></a><a class="docs-heading-anchor-permalink" href="#RealFMU" title="Permalink"></a></h3><p>In the next lines of code the FMU of the <em>realFMU</em> model is loaded and instantiated.  </p><pre><code class="language-julia">realFMU = fmiLoad(realFMUPath)
+fmiInstantiate!(realFMU; loggingOn=false)
+fmiInfo(realFMU)</code></pre><pre><code class="language-none">┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_DBHK6a\SpringFrictionPendulum1D`.
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
+┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
+┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_DBHK6a/SpringFrictionPendulum1D/resources`
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384
+
+
+#################### Begin information for FMU ####################
+	Model name:			SpringFrictionPendulum1D
+	FMI-Version:			2.0
+	GUID:				{b02421b8-652a-4d48-9ffc-c2b223aa1b94}
+	Generation tool:		Dymola Version 2020x (64-bit), 2019-10-10
+	Generation time:		2021-11-23T13:36:30Z
+	Var. naming conv.:		structured
+	Event indicators:		24
+	Inputs:				0
+	Outputs:			0
+	States:				2
+		33554432 [&quot;mass.s&quot;]
+		33554433 [&quot;mass.v&quot;, &quot;mass.v_relfric&quot;]
+	Supports Co-Simulation:		true
+		Model identifier:	SpringFrictionPendulum1D
+		Get/Set State:		true
+		Serialize State:	true
+		Dir. Derivatives:	true
+		Var. com. steps:	true
+		Input interpol.:	true
+		Max order out. der.:	1
+	Supports Model-Exchange:	true
+		Model identifier:	SpringFrictionPendulum1D
+		Get/Set State:		true
+		Serialize State:	true
+		Dir. Derivatives:	true
+##################### End information for FMU #####################</code></pre><p>In the following two subsections, the <em>realFMU</em> is simulated twice with different initial states to show what effect the choice of initial states has.</p><h4 id="Default-initial-states"><a class="docs-heading-anchor" href="#Default-initial-states">Default initial states</a><a id="Default-initial-states-1"></a><a class="docs-heading-anchor-permalink" href="#Default-initial-states" title="Permalink"></a></h4><p>The FMU is reset to the defined state by the function <code>fmiReset()</code>. Then the start and end time are set via the <code>fmiSetupExperiment()</code> function. In the next steps the initial states are set. The first state is the position of the mass, which is initilized with <span>$0.5m$</span>, the second state is the velocity, which is initialized with <span>$0\frac{m}{s}$</span>.   </p><pre><code class="language-julia">fmiReset(realFMU)
+fmiSetupExperiment(realFMU, tStart, tStop)
+states = [&quot;s0&quot;, &quot;v0&quot;]
+x₀ = [0.5, 0.0]
+
+fmiSetReal(realFMU, states, x₀)
+fmiEnterInitializationMode(realFMU)
+fmiExitInitializationMode(realFMU);</code></pre><p>In the following code block the <em>realFMU</em> is simulated, still specifying which variables are included. After the simulation is finished the result of the <em>realFMU</em> can be plotted. This plot also serves as a reference for the other model (<em>simpleFMU</em>). The extracted data will still be needed later on.</p><pre><code class="language-julia">vrs = [&quot;mass.s&quot;, &quot;mass.v&quot;, &quot;mass.a&quot;, &quot;mass.f&quot;]
+success, realSimData = fmiSimulate(realFMU, tStart, tStop; recordValues=vrs, saveat=tSave, setup=false, reset=false)
+posReal = collect(data[1] for data in realSimData.saveval)
+velReal = collect(data[2] for data in realSimData.saveval)
+fmiPlot(realFMU, vrs, realSimData)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_13_0.svg" alt="svg"/></p><h4 id="Define-functions"><a class="docs-heading-anchor" href="#Define-functions">Define functions</a><a id="Define-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Define-functions" title="Permalink"></a></h4><p>The structure of the previous code section is used more often in the further sections, so for clarity the previously explained code sections for resetting, initializing and simulating are combined into one function <code>simulate()</code>.</p><pre><code class="language-julia">function simulate(FMU, states, x₀, variables, tStart, tStop, tSave)
+    fmiReset(FMU)
+    fmiSetupExperiment(FMU, tStart, tStop)
+
+    fmiSetReal(FMU, states, x₀)
+    fmiEnterInitializationMode(FMU)
+    fmiExitInitializationMode(FMU)
+
+
+    success, simData = fmiSimulate(FMU, tStart, tStop; recordValues=variables, saveat=tSave, setup=false, reset=false)
+    return simData
+end</code></pre><pre><code class="language-none">simulate (generic function with 1 method)</code></pre><p>Also, a function to extract the position and velocity from the simulation data is created.</p><pre><code class="language-julia">function extractPosVel(simData)
+    posData = collect(data[1] for data in simData)
+    velData = collect(data[2] for data in simData)
+    return posData, velData
+end</code></pre><pre><code class="language-none">extractPosVel (generic function with 1 method)</code></pre><h4 id="Modified-initial-states"><a class="docs-heading-anchor" href="#Modified-initial-states">Modified initial states</a><a id="Modified-initial-states-1"></a><a class="docs-heading-anchor-permalink" href="#Modified-initial-states" title="Permalink"></a></h4><p>In contrast to the previous section, other initial states are selected. The position of the mass is initilized with <span>$1.0m$</span> and the velocity is initialized with <span>$-1.5\frac{m}{s}$</span>. With the modified initial states the <em>realFMU</em> is simulated and a graph is generated.</p><pre><code class="language-julia">xMod₀ = [1.0, -1.5]
+realSimDataMod = simulate(realFMU, states, xMod₀, vrs, tStart, tStop, tSave)
+fmiPlot(realFMU, vrs, realSimDataMod)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_19_0.svg" alt="svg"/></p><p>After the plots are created, the FMU is unloaded.</p><pre><code class="language-julia">fmiUnload(realFMU)</code></pre><h3 id="SimpleFMU"><a class="docs-heading-anchor" href="#SimpleFMU">SimpleFMU</a><a id="SimpleFMU-1"></a><a class="docs-heading-anchor-permalink" href="#SimpleFMU" title="Permalink"></a></h3><p>The following lines load and instantiate the <em>simpleFMU</em>. </p><pre><code class="language-julia">simpleFMU = fmiLoad(simpleFMUPath)
+fmiInstantiate!(simpleFMU; loggingOn=false)
+fmiInfo(simpleFMU)</code></pre><pre><code class="language-none">┌ Info: fmi2Unzip(...): Successfully unzipped 28 files at `C:\Users\JOHANN~1\AppData\Local\Temp\fmijl_VQfCmt\SpringPendulum1D`.
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:273
+
+
+#################### Begin information for FMU ####################
+	Model name:			SpringPendulum1D
+	FMI-Version:			2.0
+	GUID:				{5030e5a4-87c0-42cf-8779-74ebea1906aa}
+	Generation tool:		Dymola Version 2020x (64-bit), 2019-10-10
+	Generation time:		2021-07-21T05:28:53Z
+	Var. naming conv.:		structured
+	Event indicators:		0
+	Inputs:				0
+	Outputs:			0
+	States:				2
+		33554432 [&quot;mass.s&quot;]
+		33554433 [&quot;mass.v&quot;]
+	Supports Co-Simulation:		true
+		Model identifier:	SpringPendulum1D
+		Get/Set State:		true
+		Serialize State:	true
+		Dir. Derivatives:	true
+		Var. com. steps:	true
+		Input interpol.:	true
+		Max order out. der.:	1
+	Supports Model-Exchange:	true
+		Model identifier:	SpringPendulum1D
+		Get/Set State:		true
+		Serialize State:	true
+		Dir. Derivatives:	true
+##################### End information for FMU #####################
+
+
+┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:376
+┌ Info: fmi2Load(...): FMU resources location is `file:///C:/Users/JOHANN~1/AppData/Local/Temp/fmijl_VQfCmt/SpringPendulum1D/resources`
+└ @ FMI C:\Users\Johannes Stoljar\.julia\packages\FMI\l4qPg\src\FMI2.jl:384</code></pre><p>The differences between both systems can be clearly seen from the plots in the subchapters. In the plot for the <em>realFMU</em> it can be seen that the oscillation continues to decrease due to the effect of the friction. If you would simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the <em>simpleFMU</em> behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     </p><p>In the following two subsections, the <em>simpleFMU</em> is simulated twice with different initial states to show what effect the choice of initial states has.</p><h4 id="Default-initial-states-2"><a class="docs-heading-anchor" href="#Default-initial-states-2">Default initial states</a><a class="docs-heading-anchor-permalink" href="#Default-initial-states-2" title="Permalink"></a></h4><p>Similar to the simulation of the <em>realFMU</em>, the <em>simpleFMU</em> is also simulated with the default values for the position and velocity of the mass and then plotted. There is one difference, however, as another state representing a fixed displacement is set. In addition, the last variable is also removed from the varibals to be plotted.</p><pre><code class="language-julia">states = [&quot;mass_s0&quot;, &quot;mass_v0&quot;, &quot;fixed.s0&quot;]
+displacement = 0.1
+xSimple₀ = vcat(x₀, displacement)
+vrs = vrs[1:end-1]
+
+simpleSimData = simulate(simpleFMU, states, xSimple₀, vrs, tStart, tStop, tSave)
+fmiPlot(simpleFMU, vrs, simpleSimData)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_26_0.svg" alt="svg"/></p><h4 id="Modified-initial-states-2"><a class="docs-heading-anchor" href="#Modified-initial-states-2">Modified initial states</a><a class="docs-heading-anchor-permalink" href="#Modified-initial-states-2" title="Permalink"></a></h4><p>The same values for the initial states are used for this simulation as for the simulation from the <em>realFMU</em> with the modified initial states.</p><pre><code class="language-julia">xSimpleMod₀ = vcat(xMod₀, displacement)
+
+simpleSimDataMod = simulate(simpleFMU, states, xSimpleMod₀, vrs, tStart, tStop, tSave)
+fmiPlot(simpleFMU, vrs, simpleSimDataMod)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_28_0.svg" alt="svg"/></p><h2 id="NeuralFMU"><a class="docs-heading-anchor" href="#NeuralFMU">NeuralFMU</a><a id="NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#NeuralFMU" title="Permalink"></a></h2><h4 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h4><p>In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.</p><p>The error function in this implementation consists of the mean of the mean squared erros. The first part of the addition is the deviation of the position and the second part is the deviation of the velocity. The mean squared error (mse) for the position consists from the real position of the <em>realFMU</em> simulation (posReal) and the position data of the network (posNet). The mean squared error for the velocity consists of the real velocity of the <em>realFMU</em> simualtion (velReal) and the velocity data of the network (velNet). $ loss = \frac{1}{2} \Bigl[ \frac{1}{n} \sum\limits<em>{i=0}^n (posReal[i] - posNet[i])^2 + \frac{1}{n} \sum\limits</em>{i=0}^n (velReal[i] - velNet[i])^2 \Bigr]$</p><pre><code class="language-julia"># loss function for training
+function lossSum()
+    global x₀
+    solution = neuralFMU(x₀)
+
+    posNet, velNet = extractPosVel(solution.u)
+
+    (Flux.Losses.mse(posReal, posNet) + Flux.Losses.mse(velReal, velNet)) / 2.0
+end</code></pre><pre><code class="language-none">lossSum (generic function with 1 method)</code></pre><h4 id="Callback"><a class="docs-heading-anchor" href="#Callback">Callback</a><a id="Callback-1"></a><a class="docs-heading-anchor-permalink" href="#Callback" title="Permalink"></a></h4><p>To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every fiftieth pass the loss function is called and the average error is printed out. Also the parmaters for the velocity in the first layer are kept to a fixed value.</p><pre><code class="language-julia"># callback function for training
+global counter = 0
+function callb()
+    global counter, paramsNet
+    counter += 1
+
+    # freeze first layer parameters (2,4,6) for velocity -&gt; (static) direct feed trough for velocity
+    # parameters for position (1,3,5) are learned
+    paramsNet[1][2] = 0.0
+    paramsNet[1][4] = 1.0
+    paramsNet[1][6] = 0.0
+
+    if counter % 50 == 1
+        avgLoss = lossSum()
+        @info &quot;  Loss [$counter]: $(round(avgLoss, digits=5))
+        Avg displacement in data: $(round(sqrt(avgLoss), digits=5))
+        Weight/Scale: $(paramsNet[1][1])   Bias/Offset: $(paramsNet[1][5])&quot;
+    end
+end</code></pre><pre><code class="language-none">callb (generic function with 1 method)</code></pre><h4 id="Functions-for-plotting"><a class="docs-heading-anchor" href="#Functions-for-plotting">Functions for plotting</a><a id="Functions-for-plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-for-plotting" title="Permalink"></a></h4><p>In this section some important functions for plotting are defined. The function <code>generate_figure()</code> creates a new figure object and sets some attributes.</p><pre><code class="language-julia">function generate_figure(title, xLabel, yLabel, xlim=&quot;auto&quot;)
+    Plots.plot(
+        title=title, xlabel=xLabel, ylabel=yLabel, linewidth=2,
+        xtickfontsize=12, ytickfontsize=12, xguidefontsize=12, yguidefontsize=12,
+        legendfontsize=12, legend=:topright, xlim=xlim)
+end</code></pre><pre><code class="language-none">generate_figure (generic function with 2 methods)</code></pre><p>In the following function, the data of the <em>realFMU</em>, <em>simpleFMU</em> and <em>neuralFMU</em> are summarized and displayed in a graph.</p><pre><code class="language-julia">function plot_results(title, xLabel, yLabel, interval, realData, simpleData, neuralData)
+    linestyles = [:dot, :solid]
+    
+    fig = generate_figure(title, xLabel, yLabel)
+    Plots.plot!(fig, interval, simpleData, label=&quot;SimpleFMU&quot;, linewidth=2)
+    Plots.plot!(fig, interval, realData, label=&quot;reference&quot;, linewidth=2)
+    for i in 1:length(neuralData)
+        Plots.plot!(fig, neuralData[i][1], neuralData[i][2], label=&quot;NeuralFMU ($(i*2500))&quot;, 
+                    linewidth=2, linestyle=linestyles[i], linecolor=:green)
+    end
+    Plots.display(fig)
+end</code></pre><pre><code class="language-none">plot_results (generic function with 1 method)</code></pre><p>This is the superordinate function, which at the beginning extracts the position and velocity from the simulation data (<code>realSimData</code>, <code>realSimDataMod</code>, <code>simpleSimData</code>,..., <code>solutionAfterMod</code>). Four graphs are then generated, each comparing the corresponding data from the <em>realFMU</em>, <em>simpleFMU</em>, and <em>neuralFMU</em>. The comparison is made with the simulation data from the simulation with the default and modified initial states. According to the data, the designation of the title and the naming of the axes is adapted.</p><pre><code class="language-julia">function plot_all_results(realSimData, realSimDataMod, simpleSimData, 
+        simpleSimDataMod, solutionAfter, solutionAfterMod)    
+    # collect all data
+    posReal, velReal = extractPosVel(realSimData.saveval)
+    posRealMod, velRealMod = extractPosVel(realSimDataMod.saveval)
+    posSimple, velSimple = extractPosVel(simpleSimData.saveval)
+    posSimpleMod, velSimpleMod = extractPosVel(simpleSimDataMod.saveval)
+    
+    run = length(solutionAfter)
+    
+    posNeural, velNeural = [], []
+    posNeuralMod, velNeuralMod = [], []
+    for i in 1:run
+        dataNeural = extractPosVel(solutionAfter[i].u)
+        push!(posNeural, (solutionAfter[i].t, dataNeural[1]))
+        push!(velNeural, (solutionAfter[i].t, dataNeural[2]))
+        
+        dataNeuralMod = extractPosVel(solutionAfterMod[i].u)
+        push!(posNeuralMod, (solutionAfterMod[i].t, dataNeuralMod[1]))
+        push!(velNeuralMod, (solutionAfterMod[i].t, dataNeuralMod[2]))
+    end
+         
+    # plot results s (default initial states)
+    xLabel=&quot;t [s]&quot;
+    yLabel=&quot;mass position [m]&quot;
+    title = &quot;Default: Mass position after Run: $(run)&quot;
+    plot_results(title, xLabel, yLabel, tSave, posReal, posSimple, posNeural)
+
+    # plot results s (modified initial states)
+    title = &quot;Modified: Mass position after Run: $(run)&quot;
+    plot_results(title, xLabel, yLabel, tSave, posRealMod, posSimpleMod, posNeuralMod)
+
+    # plot results v (default initial states)
+    yLabel=&quot;mass velocity [m/s]&quot;
+    title = &quot;Default: Mass velocity after Run: $(run)&quot;
+    plot_results(title, xLabel, yLabel, tSave, velReal, velSimple, velNeural)
+
+    # plot results v (modified initial states)    
+    title = &quot;Modified: Mass velocity after Run: $(run)&quot;
+    plot_results(title, xLabel, yLabel, tSave, velRealMod, velSimpleMod, velNeuralMod)
+end</code></pre><pre><code class="language-none">plot_all_results (generic function with 1 method)</code></pre><p>The function <code>plot_friction_model()</code> compares the friction model of the <em>realFMU</em>, <em>simpleFMU</em> and <em>neuralFMU</em>. For this, the velocity and force from the simulation data of the <em>realFMU</em> is needed. The force data is calculated with the extracted last layer of the <em>neuralFMU</em> to the real velocity in line 9 by iterating over the vector <code>velReal</code>. In the next rows, the velocity and force data (if available) for each of the three FMUs are combined into a matrix. The first row of the matrix corresponds to the later x-axis and here the velocity is plotted. The second row corresponds to the y-axis and here the force is plotted. This matrix is sorted and plotted by the first entries (velocity) with the function <code>sortperm()</code>. The graph with at least three graphs is plotted in line 33. As output this function has the forces of the <em>neuralFMU</em>.</p><pre><code class="language-julia">function plot_friction_model(realSimData, netBottom, forces)    
+    linestyles = [:dot, :solid]
+    
+    velReal = collect(data[2] for data in realSimData.saveval)
+    forceReal = collect(data[4] for data in realSimData.saveval)
+
+    push!(forces, zeros(length(velReal)))
+    for i in 1:length(velReal)
+        forces[end][i] = -netBottom([velReal[i], 0.0])[2]
+    end
+
+    run = length(forces) 
+    
+    fig = generate_figure(&quot;Friction model $(run)&quot;, &quot;v [m/s]&quot;, &quot;friction force [N]&quot;, (-1.25, 1.25))
+
+    fricSimple = hcat(velReal, zeros(length(velReal)))
+    fricSimple[sortperm(fricSimple[:, 1]), :]
+    Plots.plot!(fig, fricSimple[:,1], fricSimple[:,2], label=&quot;SimpleFMU&quot;, linewidth=2)
+
+    fricReal = hcat(velReal, forceReal)
+    fricReal[sortperm(fricReal[:, 1]), :]
+    Plots.plot!(fig, fricReal[:,1], fricReal[:,2], label=&quot;reference&quot;, linewidth=2)
+
+    for i in 1:run
+        fricNeural = hcat(velReal, forces[i])
+        fricNeural[sortperm(fricNeural[:, 1]), :]
+        Plots.plot!(fig, fricNeural[:,1], fricNeural[:,2], label=&quot;NeuralFMU ($(i*2500))&quot;, 
+                    linewidth=2, linestyle=linestyles[i], linecolor=:green)
+        @info &quot;Friction model $i mse: $(Flux.Losses.mse(fricNeural[:,2], fricReal[:,2]))&quot;
+    end
+    flush(stderr)
+
+    Plots.display(fig)
+    
+    return forces   
+end</code></pre><pre><code class="language-none">plot_friction_model (generic function with 1 method)</code></pre><p>The following function is used to display the different displacement modells of the <em>realFMU</em>, <em>simpleFMU</em> and <em>neuralFMU</em>. The displacement of the <em>realFMU</em> and <em>simpleFMU</em> is very trivial and is only a constant. The position data of the <em>realFMU</em> is needed to calculate the displacement. The displacement for the <em>neuralFMU</em> is calculated using the first extracted layer of the neural network, subtracting the real position and the displacement of the <em>simpleFMU</em>. Also in this function, the graphs of the three FMUs are compared in a plot.</p><pre><code class="language-julia">function plot_displacement_model(realSimData, netTop, displacements, tSave, displacement)
+    linestyles = [:dot, :solid]
+    
+    posReal = collect(data[1] for data in realSimData.saveval)
+    
+    push!(displacements, zeros(length(posReal)))
+    for i in 1:length(posReal)
+        displacements[end][i] = netTop([posReal[i], 0.0])[1] - posReal[i] - displacement
+    end
+
+    run = length(displacements)
+    fig = generate_figure(&quot;Displacement model $(run)&quot;, &quot;t [s]&quot;, &quot;displacement [m]&quot;)
+    Plots.plot!(fig, [tSave[1], tSave[end]], [displacement, displacement], label=&quot;simpleFMU&quot;, linewidth=2)
+    Plots.plot!(fig, [tSave[1], tSave[end]], [0.0, 0.0], label=&quot;reference&quot;, linewidth=2)
+    for i in 1:run
+        Plots.plot!(fig, tSave, displacements[i], label=&quot;NeuralFMU ($(i*2500))&quot;, 
+                    linewidth=2, linestyle=linestyles[i], linecolor=:green)
+    end
+
+    Plots.display(fig)
+    
+    return displacements
+end</code></pre><pre><code class="language-none">plot_displacement_model (generic function with 1 method)</code></pre><h4 id="Structure-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Structure-of-the-NeuralFMU">Structure of the NeuralFMU</a><a id="Structure-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Structure-of-the-NeuralFMU" title="Permalink"></a></h4><p>In the following, the topology of the NeuralFMU is constructed. It consists of a dense layer that has exactly as many inputs and outputs as the model has states <code>numStates</code> (and therefore state derivatives). It also sets the initial weights and offsets for the first dense layer, as well as the activation function, which consists of the identity. An input layer follows, which then leads into the <em>simpleFMU</em> model. The ME-FMU computes the state derivatives for a given system state. Following the <em>simpleFMU</em> is a dense layer that has <code>numStates</code> states. The output of this layer consists of 8 output nodes and a <em>identity</em> activation function. The next layer has 8 input and output nodes with a <em>tanh</em> activation function. The last layer is again a dense layer with 8 input nodes and the number of states as outputs. Here, it is important that no <em>tanh</em>-activation function follows, because otherwise the pendulums state values would be limited to the interval <span>$[-1;1]$</span>.</p><pre><code class="language-julia"># NeuralFMU setup
+numStates = fmiGetNumberOfStates(simpleFMU)
+
+net = Chain(Dense(numStates, numStates, identity; 
+                  initW = (out, in) -&gt; [[1.0, 0.0] [0.0, 1.0]], 
+                  initb = out -&gt; zeros(out)),
+            inputs -&gt; fmi2DoStepME(simpleFMU, inputs),
+            Dense(numStates, 8, identity),
+            Dense(8, 8, tanh),
+            Dense(8, numStates))</code></pre><pre><code class="language-none">Chain(
+  Dense(2, 2),                          [90m# 6 parameters[39m
+  var&quot;#17#20&quot;(),
+  Dense(2, 8),                          [90m# 24 parameters[39m
+  Dense(8, 8, tanh),                    [90m# 72 parameters[39m
+  Dense(8, 2),                          [90m# 18 parameters[39m
+)[90m                   # Total: 8 arrays, [39m120 parameters, 1016 bytes.</code></pre><h4 id="Definition-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Definition-of-the-NeuralFMU">Definition of the NeuralFMU</a><a id="Definition-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-NeuralFMU" title="Permalink"></a></h4><p>The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (<em>simpleFMU</em>), the structure of the network <code>net</code>, start <code>tStart</code> and end time <code>tStop</code>, the numerical solver <code>Tsit5()</code> and the time steps <code>tSave</code> for saving are specified.</p><pre><code class="language-julia">neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);</code></pre><h4 id="Plot-before-training"><a class="docs-heading-anchor" href="#Plot-before-training">Plot before training</a><a id="Plot-before-training-1"></a><a class="docs-heading-anchor-permalink" href="#Plot-before-training" title="Permalink"></a></h4><p>Here the state trajactory of the <em>simpleFMU</em> is recorded. Doesn&#39;t really look like a pendulum yet, but the system is random initialized by default. In the later plots, the effect of learning can be seen.</p><pre><code class="language-julia">solutionBefore = neuralFMU(x₀)
+fmiPlot(simpleFMU, solutionBefore)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_48_0.svg" alt="svg"/></p><h4 id="Training-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-NeuralFMU">Training of the NeuralFMU</a><a id="Training-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-NeuralFMU" title="Permalink"></a></h4><p>For the training of the NeuralFMU the parameters are extracted. All parameters of the first layer are set to the absolute value.</p><pre><code class="language-julia"># train
+paramsNet = Flux.params(neuralFMU)
+
+for i in 1:length(paramsNet[1])
+    if paramsNet[1][i] &lt; 0.0 
+        paramsNet[1][i] = -paramsNet[1][i]
+    end
+end</code></pre><p>The well-known ADAM optimizer for minimizing the gradient descent is used as further passing parameters. Additionally, the previously defined loss and callback function as well as a one for the number of epochs are passed. Only one epoch is trained so that the NeuralFMU is precompiled.</p><pre><code class="language-julia">optim = ADAM()
+Flux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=callb) </code></pre><pre><code class="language-none">┌ Info:   Loss [1]: 0.42176
+│         Avg displacement in data: 0.64943
+│         Weight/Scale: 1.0009999999844448   Bias/Offset: 0.0009999999815963334
+└ @ Main In[15]:15</code></pre><p>Some vectors for collecting data are initialized and the number of runs, epochs and iterations are set.</p><pre><code class="language-julia">solutionAfter = []
+solutionAfterMod = []
+forces = []
+displacements = []
+
+numRuns = 2
+numEpochs= 5
+numIterations = 500;</code></pre><h4 id="Training-loop"><a class="docs-heading-anchor" href="#Training-loop">Training loop</a><a id="Training-loop-1"></a><a class="docs-heading-anchor-permalink" href="#Training-loop" title="Permalink"></a></h4><p>The code section shown here represents the training loop. The loop is structured so that it has <code>numRuns</code> runs, where each run has <code>numEpochs</code> epochs, and the training is performed at each epoch with <code>numIterations</code> iterations. In lines 9 and 10, the data for the <em>neuralFMU</em> for the default and modified initial states are appended to the corresponding vectors. The plots for the opposition of position and velocity is done in line 13 by calling the function <code>plot_all_results</code>. In the following lines the last layers are extracted from the <em>neuralFMU</em> and formed into an independent network <code>netBottom</code>. The parmaters for the <code>netBottom</code> network come from the original architecture and are shared. In line 20, the new network is used to represent the friction model in a graph. An analogous construction of the next part of the training loop, where here the first layer is taken from the <em>neuralFMU</em> and converted to its own network <code>netTop</code>. This network is used to record the displacement model. The different graphs are generated for each run and can thus be compared. </p><pre><code class="language-julia">for run in 1:numRuns    
+    @time for epoch in 1:numEpochs
+        @info &quot;Run: $(run)/$(numRuns)  Epoch: $(epoch)/$(numEpochs)&quot;
+        Flux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=callb)
+    end
+    flush(stderr)
+    flush(stdout)
+    
+    push!(solutionAfter, neuralFMU(x₀))
+    push!(solutionAfterMod, neuralFMU(xMod₀))
+
+    # generate all plots for the position and velocity
+    plot_all_results(realSimData, realSimDataMod, simpleSimData, simpleSimDataMod, solutionAfter, solutionAfterMod)
+    
+    # friction model extraction
+    layersBottom = neuralFMU.neuralODE.model.layers[3:5]
+    netBottom = Chain(layersBottom...)
+    transferParams!(netBottom, paramsNet, 7)
+    
+    forces = plot_friction_model(realSimData, netBottom, forces) 
+    
+    # displacement model extraction
+    layersTop = neuralFMU.neuralODE.model.layers[1:1]
+    netTop = Chain(layersTop...)
+    transferParams!(netTop, paramsNet, 1)
+
+    displacements = plot_displacement_model(realSimData, netTop, displacements, tSave, displacement)
+end</code></pre><pre><code class="language-none">┌ Info: Run: 1/2  Epoch: 1/5
+└ @ Main In[27]:3
+┌ Info:   Loss [51]: 0.28565
+│         Avg displacement in data: 0.53446
+│         Weight/Scale: 1.0286111783896719   Bias/Offset: 0.02956336213052823
+└ @ Main In[15]:15
+┌ Info:   Loss [101]: 0.27637
+│         Avg displacement in data: 0.52571
+│         Weight/Scale: 1.0227380319341028   Bias/Offset: 0.024779979783415926
+└ @ Main In[15]:15
+┌ Info:   Loss [151]: 0.23802
+│         Avg displacement in data: 0.48787
+│         Weight/Scale: 1.0109595043163218   Bias/Offset: 0.017657584767572194
+└ @ Main In[15]:15
+┌ Info:   Loss [201]: 0.11284
+│         Avg displacement in data: 0.33591
+│         Weight/Scale: 1.0187168091838543   Bias/Offset: 0.04967643587576684
+└ @ Main In[15]:15
+┌ Info:   Loss [251]: 0.04202
+│         Avg displacement in data: 0.20498
+│         Weight/Scale: 1.0513631843151288   Bias/Offset: 0.08709946191489178
+└ @ Main In[15]:15
+┌ Info:   Loss [301]: 0.03441
+│         Avg displacement in data: 0.18549
+│         Weight/Scale: 1.0521782955624404   Bias/Offset: 0.0833209946731039
+└ @ Main In[15]:15
+┌ Info:   Loss [351]: 0.02889
+│         Avg displacement in data: 0.16997
+│         Weight/Scale: 1.0507789805347363   Bias/Offset: 0.07821369759961062
+└ @ Main In[15]:15
+┌ Info:   Loss [401]: 0.0247
+│         Avg displacement in data: 0.15715
+│         Weight/Scale: 1.0489247270188242   Bias/Offset: 0.07403606623859026
+└ @ Main In[15]:15
+┌ Info:   Loss [451]: 0.0214
+│         Avg displacement in data: 0.14629
+│         Weight/Scale: 1.0466033317763261   Bias/Offset: 0.07065149828990938
+└ @ Main In[15]:15
+┌ Info:   Loss [501]: 0.01887
+│         Avg displacement in data: 0.13738
+│         Weight/Scale: 1.0438603361948664   Bias/Offset: 0.06787694206377189
+└ @ Main In[15]:15
+┌ Info: Run: 1/2  Epoch: 2/5
+└ @ Main In[27]:3
+┌ Info:   Loss [551]: 0.01706
+│         Avg displacement in data: 0.13061
+│         Weight/Scale: 1.040893662600301   Bias/Offset: 0.06575502539158813
+└ @ Main In[15]:15
+┌ Info:   Loss [601]: 0.01562
+│         Avg displacement in data: 0.12498
+│         Weight/Scale: 1.0380266250358758   Bias/Offset: 0.06428430875434155
+└ @ Main In[15]:15
+┌ Info:   Loss [651]: 0.01439
+│         Avg displacement in data: 0.11995
+│         Weight/Scale: 1.0351399591310342   Bias/Offset: 0.06312510899266015
+└ @ Main In[15]:15
+┌ Info:   Loss [701]: 0.01332
+│         Avg displacement in data: 0.11542
+│         Weight/Scale: 1.032320441439091   Bias/Offset: 0.062197166818365436
+└ @ Main In[15]:15
+┌ Info:   Loss [751]: 0.01234
+│         Avg displacement in data: 0.1111
+│         Weight/Scale: 1.029645335632183   Bias/Offset: 0.06143114604889372
+└ @ Main In[15]:15
+┌ Info:   Loss [801]: 0.01144
+│         Avg displacement in data: 0.10697
+│         Weight/Scale: 1.027236022857356   Bias/Offset: 0.06085332930418252
+└ @ Main In[15]:15
+┌ Info:   Loss [851]: 0.01064
+│         Avg displacement in data: 0.10313
+│         Weight/Scale: 1.0251223753196803   Bias/Offset: 0.06044785999331985
+└ @ Main In[15]:15
+┌ Info:   Loss [901]: 0.0099
+│         Avg displacement in data: 0.09951
+│         Weight/Scale: 1.023315362695265   Bias/Offset: 0.06024866642970074
+└ @ Main In[15]:15
+┌ Info:   Loss [951]: 0.00922
+│         Avg displacement in data: 0.09602
+│         Weight/Scale: 1.0217680458848062   Bias/Offset: 0.06023526171860316
+└ @ Main In[15]:15
+┌ Info:   Loss [1001]: 0.00858
+│         Avg displacement in data: 0.09265
+│         Weight/Scale: 1.020440934786138   Bias/Offset: 0.06039598811238556
+└ @ Main In[15]:15
+┌ Info: Run: 1/2  Epoch: 3/5
+└ @ Main In[27]:3
+┌ Info:   Loss [1051]: 0.00796
+│         Avg displacement in data: 0.0892
+│         Weight/Scale: 1.019234221745652   Bias/Offset: 0.06063012165772161
+└ @ Main In[15]:15
+┌ Info:   Loss [1101]: 0.00733
+│         Avg displacement in data: 0.08563
+│         Weight/Scale: 1.0180596810795992   Bias/Offset: 0.06083635634563215
+└ @ Main In[15]:15
+┌ Info:   Loss [1151]: 0.00672
+│         Avg displacement in data: 0.08195
+│         Weight/Scale: 1.0169472276860123   Bias/Offset: 0.061046194352924965
+└ @ Main In[15]:15
+┌ Info:   Loss [1201]: 0.00612
+│         Avg displacement in data: 0.0782
+│         Weight/Scale: 1.0159093038209581   Bias/Offset: 0.061218072186984086
+└ @ Main In[15]:15
+┌ Info:   Loss [1251]: 0.00556
+│         Avg displacement in data: 0.07456
+│         Weight/Scale: 1.014996461256444   Bias/Offset: 0.061342041802755105
+└ @ Main In[15]:15
+┌ Info:   Loss [1301]: 0.00504
+│         Avg displacement in data: 0.07099
+│         Weight/Scale: 1.014237800262788   Bias/Offset: 0.0613774404803237
+└ @ Main In[15]:15
+┌ Info:   Loss [1351]: 0.00462
+│         Avg displacement in data: 0.06797
+│         Weight/Scale: 1.0137294101233838   Bias/Offset: 0.06146807431241549
+└ @ Main In[15]:15
+┌ Info:   Loss [1401]: 0.00428
+│         Avg displacement in data: 0.06539
+│         Weight/Scale: 1.0134108488171056   Bias/Offset: 0.06159381154669232
+└ @ Main In[15]:15
+┌ Info:   Loss [1451]: 0.00399
+│         Avg displacement in data: 0.06318
+│         Weight/Scale: 1.0132445181483052   Bias/Offset: 0.06178230970201576
+└ @ Main In[15]:15
+┌ Info:   Loss [1501]: 0.00375
+│         Avg displacement in data: 0.06122
+│         Weight/Scale: 1.0131776018405887   Bias/Offset: 0.062025043165095266
+└ @ Main In[15]:15
+┌ Info: Run: 1/2  Epoch: 4/5
+└ @ Main In[27]:3
+┌ Info:   Loss [1551]: 0.00354
+│         Avg displacement in data: 0.05947
+│         Weight/Scale: 1.0131710033335706   Bias/Offset: 0.062306134823292655
+└ @ Main In[15]:15
+┌ Info:   Loss [1601]: 0.00335
+│         Avg displacement in data: 0.05786
+│         Weight/Scale: 1.0132024755679327   Bias/Offset: 0.06261319064256955
+└ @ Main In[15]:15
+┌ Info:   Loss [1651]: 0.00318
+│         Avg displacement in data: 0.05638
+│         Weight/Scale: 1.013260685107001   Bias/Offset: 0.06293832944092709
+└ @ Main In[15]:15
+┌ Info:   Loss [1701]: 0.00303
+│         Avg displacement in data: 0.05502
+│         Weight/Scale: 1.0133396705608375   Bias/Offset: 0.06327652852868175
+└ @ Main In[15]:15
+┌ Info:   Loss [1751]: 0.00289
+│         Avg displacement in data: 0.05375
+│         Weight/Scale: 1.0134358522567677   Bias/Offset: 0.0636243484149065
+└ @ Main In[15]:15
+┌ Info:   Loss [1801]: 0.00276
+│         Avg displacement in data: 0.05258
+│         Weight/Scale: 1.0135467571177528   Bias/Offset: 0.06397929890444008
+└ @ Main In[15]:15
+┌ Info:   Loss [1851]: 0.00265
+│         Avg displacement in data: 0.05149
+│         Weight/Scale: 1.013670516900537   Bias/Offset: 0.06433952955751007
+└ @ Main In[15]:15
+┌ Info:   Loss [1901]: 0.00255
+│         Avg displacement in data: 0.05046
+│         Weight/Scale: 1.0138056596433167   Bias/Offset: 0.0647036516197806
+└ @ Main In[15]:15
+┌ Info:   Loss [1951]: 0.00245
+│         Avg displacement in data: 0.04951
+│         Weight/Scale: 1.0139510057836334   Bias/Offset: 0.06507062834118049
+└ @ Main In[15]:15
+┌ Info:   Loss [2001]: 0.00236
+│         Avg displacement in data: 0.04861
+│         Weight/Scale: 1.0141055915661854   Bias/Offset: 0.06543967970994506
+└ @ Main In[15]:15
+┌ Info: Run: 1/2  Epoch: 5/5
+└ @ Main In[27]:3
+┌ Info:   Loss [2051]: 0.00228
+│         Avg displacement in data: 0.04776
+│         Weight/Scale: 1.0142686074193126   Bias/Offset: 0.06581023672978648
+└ @ Main In[15]:15
+┌ Info:   Loss [2101]: 0.00221
+│         Avg displacement in data: 0.04698
+│         Weight/Scale: 1.014447820077644   Bias/Offset: 0.06619614472538896
+└ @ Main In[15]:15
+┌ Info:   Loss [2151]: 0.00214
+│         Avg displacement in data: 0.04622
+│         Weight/Scale: 1.0146195124031292   Bias/Offset: 0.06656358400019907
+└ @ Main In[15]:15
+┌ Info:   Loss [2201]: 0.00207
+│         Avg displacement in data: 0.0455
+│         Weight/Scale: 1.0148042412420994   Bias/Offset: 0.06693688337331748
+└ @ Main In[15]:15
+┌ Info:   Loss [2251]: 0.00201
+│         Avg displacement in data: 0.04482
+│         Weight/Scale: 1.0149946664984544   Bias/Offset: 0.06730950022717663
+└ @ Main In[15]:15
+┌ Info:   Loss [2301]: 0.00195
+│         Avg displacement in data: 0.04417
+│         Weight/Scale: 1.0151905860411778   Bias/Offset: 0.06768173855181797
+└ @ Main In[15]:15
+┌ Info:   Loss [2351]: 0.0019
+│         Avg displacement in data: 0.04355
+│         Weight/Scale: 1.0153912809305963   Bias/Offset: 0.06805325518281151
+└ @ Main In[15]:15
+┌ Info:   Loss [2401]: 0.00185
+│         Avg displacement in data: 0.04297
+│         Weight/Scale: 1.0155961224151784   Bias/Offset: 0.06842376493363168
+└ @ Main In[15]:15
+┌ Info:   Loss [2451]: 0.0018
+│         Avg displacement in data: 0.04241
+│         Weight/Scale: 1.0158045051687399   Bias/Offset: 0.06879297485736173
+└ @ Main In[15]:15
+┌ Info:   Loss [2501]: 0.00175
+│         Avg displacement in data: 0.04188
+│         Weight/Scale: 1.0160158385445512   Bias/Offset: 0.0691605750753205
+└ @ Main In[15]:15
+
+
+3164.063564 seconds (7.76 G allocations: 476.333 GiB, 4.15% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_2.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_3.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_4.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_5.svg" alt="svg"/></p><pre><code class="language-none">┌ Info: Friction model 1 mse: 0.7541038092408717
+└ @ Main In[19]:29</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_7.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_8.svg" alt="svg"/></p><pre><code class="language-none">┌ Info: Run: 2/2  Epoch: 1/5
+└ @ Main In[27]:3
+┌ Info:   Loss [2551]: 0.00171
+│         Avg displacement in data: 0.04137
+│         Weight/Scale: 1.016229548801126   Bias/Offset: 0.06952624500869685
+└ @ Main In[15]:15
+┌ Info:   Loss [2601]: 0.00167
+│         Avg displacement in data: 0.04088
+│         Weight/Scale: 1.0164450811761696   Bias/Offset: 0.06988965411129339
+└ @ Main In[15]:15
+┌ Info:   Loss [2651]: 0.00163
+│         Avg displacement in data: 0.04042
+│         Weight/Scale: 1.0166619044860516   Bias/Offset: 0.07025046670690757
+└ @ Main In[15]:15
+┌ Info:   Loss [2701]: 0.0016
+│         Avg displacement in data: 0.03998
+│         Weight/Scale: 1.0168795146203686   Bias/Offset: 0.07060834433025422
+└ @ Main In[15]:15
+┌ Info:   Loss [2751]: 0.00156
+│         Avg displacement in data: 0.03955
+│         Weight/Scale: 1.0170974387940153   Bias/Offset: 0.07096295141121652
+└ @ Main In[15]:15
+┌ Info:   Loss [2801]: 0.00153
+│         Avg displacement in data: 0.03915
+│         Weight/Scale: 1.0173152335687383   Bias/Offset: 0.07131395463827797
+└ @ Main In[15]:15
+┌ Info:   Loss [2851]: 0.00151
+│         Avg displacement in data: 0.03881
+│         Weight/Scale: 1.0175129332462627   Bias/Offset: 0.07166247578110631
+└ @ Main In[15]:15
+┌ Info:   Loss [2901]: 0.00147
+│         Avg displacement in data: 0.0384
+│         Weight/Scale: 1.0176737837896552   Bias/Offset: 0.07198377152194411
+└ @ Main In[15]:15
+┌ Info:   Loss [2951]: 0.00145
+│         Avg displacement in data: 0.03805
+│         Weight/Scale: 1.0178463348529252   Bias/Offset: 0.0722931481446665
+└ @ Main In[15]:15
+┌ Info:   Loss [3001]: 0.00142
+│         Avg displacement in data: 0.03771
+│         Weight/Scale: 1.0180181098515222   Bias/Offset: 0.07259755977316348
+└ @ Main In[15]:15
+┌ Info: Run: 2/2  Epoch: 2/5
+└ @ Main In[27]:3
+┌ Info:   Loss [3051]: 0.0014
+│         Avg displacement in data: 0.03738
+│         Weight/Scale: 1.0181885812904008   Bias/Offset: 0.07289715852819231
+└ @ Main In[15]:15
+┌ Info:   Loss [3101]: 0.00137
+│         Avg displacement in data: 0.03707
+│         Weight/Scale: 1.018357766645548   Bias/Offset: 0.07319177404784898
+└ @ Main In[15]:15
+┌ Info:   Loss [3151]: 0.00135
+│         Avg displacement in data: 0.03677
+│         Weight/Scale: 1.0185255265576187   Bias/Offset: 0.07348121013093241
+└ @ Main In[15]:15
+┌ Info:   Loss [3201]: 0.00134
+│         Avg displacement in data: 0.03664
+│         Weight/Scale: 1.0186384410864069   Bias/Offset: 0.07375546910282832
+└ @ Main In[15]:15
+┌ Info:   Loss [3251]: 0.00131
+│         Avg displacement in data: 0.0362
+│         Weight/Scale: 1.0187702803549026   Bias/Offset: 0.0740192177800107
+└ @ Main In[15]:15
+┌ Info:   Loss [3301]: 0.00129
+│         Avg displacement in data: 0.03593
+│         Weight/Scale: 1.0188989023698134   Bias/Offset: 0.07426758729816377
+└ @ Main In[15]:15
+┌ Info:   Loss [3351]: 0.00127
+│         Avg displacement in data: 0.03567
+│         Weight/Scale: 1.0190236614619597   Bias/Offset: 0.07450872117620551
+└ @ Main In[15]:15
+┌ Info:   Loss [3401]: 0.00125
+│         Avg displacement in data: 0.03542
+│         Weight/Scale: 1.0191465831768112   Bias/Offset: 0.07474436265438232
+└ @ Main In[15]:15
+┌ Info:   Loss [3451]: 0.00124
+│         Avg displacement in data: 0.03517
+│         Weight/Scale: 1.0192677355297068   Bias/Offset: 0.0749743867108784
+└ @ Main In[15]:15
+┌ Info:   Loss [3501]: 0.00122
+│         Avg displacement in data: 0.03495
+│         Weight/Scale: 1.0193812473692951   Bias/Offset: 0.07519395643987335
+└ @ Main In[15]:15
+┌ Info: Run: 2/2  Epoch: 3/5
+└ @ Main In[27]:3
+┌ Info:   Loss [3551]: 0.00121
+│         Avg displacement in data: 0.03472
+│         Weight/Scale: 1.019422564973201   Bias/Offset: 0.07539694229469925
+└ @ Main In[15]:15
+┌ Info:   Loss [3601]: 0.00119
+│         Avg displacement in data: 0.03447
+│         Weight/Scale: 1.0195160436668147   Bias/Offset: 0.07559780044664313
+└ @ Main In[15]:15
+┌ Info:   Loss [3651]: 0.00117
+│         Avg displacement in data: 0.03426
+│         Weight/Scale: 1.0195969683940844   Bias/Offset: 0.07577955787811985
+└ @ Main In[15]:15
+┌ Info:   Loss [3701]: 0.00116
+│         Avg displacement in data: 0.03404
+│         Weight/Scale: 1.0196760008625247   Bias/Offset: 0.07595622675555126
+└ @ Main In[15]:15
+┌ Info:   Loss [3751]: 0.00114
+│         Avg displacement in data: 0.03383
+│         Weight/Scale: 1.0197531837969303   Bias/Offset: 0.07612745575775592
+└ @ Main In[15]:15
+┌ Info:   Loss [3801]: 0.00113
+│         Avg displacement in data: 0.03362
+│         Weight/Scale: 1.019828629356617   Bias/Offset: 0.07629319358816561
+└ @ Main In[15]:15
+┌ Info:   Loss [3851]: 0.00116
+│         Avg displacement in data: 0.03401
+│         Weight/Scale: 1.019816626062623   Bias/Offset: 0.07640549578331124
+└ @ Main In[15]:15
+┌ Info:   Loss [3901]: 0.0011
+│         Avg displacement in data: 0.03323
+│         Weight/Scale: 1.0198752279345842   Bias/Offset: 0.07658674166120087
+└ @ Main In[15]:15
+┌ Info:   Loss [3951]: 0.00109
+│         Avg displacement in data: 0.03304
+│         Weight/Scale: 1.0199207839653588   Bias/Offset: 0.0767172503081904
+└ @ Main In[15]:15
+┌ Info:   Loss [4001]: 0.00108
+│         Avg displacement in data: 0.03285
+│         Weight/Scale: 1.0199597058433785   Bias/Offset: 0.07683851508060009
+└ @ Main In[15]:15
+┌ Info: Run: 2/2  Epoch: 4/5
+└ @ Main In[27]:3
+┌ Info:   Loss [4051]: 0.00107
+│         Avg displacement in data: 0.03266
+│         Weight/Scale: 1.0199968911982995   Bias/Offset: 0.07695517518994958
+└ @ Main In[15]:15
+┌ Info:   Loss [4101]: 0.00105
+│         Avg displacement in data: 0.03248
+│         Weight/Scale: 1.020032467149272   Bias/Offset: 0.07706709946127448
+└ @ Main In[15]:15
+┌ Info:   Loss [4151]: 0.00104
+│         Avg displacement in data: 0.0323
+│         Weight/Scale: 1.0200654616983746   Bias/Offset: 0.07717347536342965
+└ @ Main In[15]:15
+┌ Info:   Loss [4201]: 0.00103
+│         Avg displacement in data: 0.03214
+│         Weight/Scale: 1.020010641353738   Bias/Offset: 0.0772656517477099
+└ @ Main In[15]:15
+┌ Info:   Loss [4251]: 0.00102
+│         Avg displacement in data: 0.03195
+│         Weight/Scale: 1.0200099098377153   Bias/Offset: 0.07734909864140466
+└ @ Main In[15]:15
+┌ Info:   Loss [4301]: 0.00101
+│         Avg displacement in data: 0.03178
+│         Weight/Scale: 1.0200111463586086   Bias/Offset: 0.07741977155652452
+└ @ Main In[15]:15
+┌ Info:   Loss [4351]: 0.001
+│         Avg displacement in data: 0.03161
+│         Weight/Scale: 1.0200114085786474   Bias/Offset: 0.07748793490454804
+└ @ Main In[15]:15
+┌ Info:   Loss [4401]: 0.00099
+│         Avg displacement in data: 0.03144
+│         Weight/Scale: 1.0200100185809562   Bias/Offset: 0.0775524808439198
+└ @ Main In[15]:15
+┌ Info:   Loss [4451]: 0.00098
+│         Avg displacement in data: 0.03127
+│         Weight/Scale: 1.0200070281665077   Bias/Offset: 0.07761338094958463
+└ @ Main In[15]:15
+┌ Info:   Loss [4501]: 0.00102
+│         Avg displacement in data: 0.03201
+│         Weight/Scale: 1.0199471604345323   Bias/Offset: 0.07762620102212063
+└ @ Main In[15]:15
+┌ Info: Run: 2/2  Epoch: 5/5
+└ @ Main In[27]:3
+┌ Info:   Loss [4551]: 0.00096
+│         Avg displacement in data: 0.03095
+│         Weight/Scale: 1.0198657900275487   Bias/Offset: 0.07769937232889036
+└ @ Main In[15]:15
+┌ Info:   Loss [4601]: 0.00095
+│         Avg displacement in data: 0.03079
+│         Weight/Scale: 1.019842886879103   Bias/Offset: 0.07774192990756451
+└ @ Main In[15]:15
+┌ Info:   Loss [4651]: 0.00094
+│         Avg displacement in data: 0.03063
+│         Weight/Scale: 1.019808929671946   Bias/Offset: 0.0777690163720817
+└ @ Main In[15]:15
+┌ Info:   Loss [4701]: 0.00093
+│         Avg displacement in data: 0.03047
+│         Weight/Scale: 1.0197720180347962   Bias/Offset: 0.0777931244870986
+└ @ Main In[15]:15
+┌ Info:   Loss [4751]: 0.00092
+│         Avg displacement in data: 0.03031
+│         Weight/Scale: 1.0197330579203314   Bias/Offset: 0.07781469421503724
+└ @ Main In[15]:15
+┌ Info:   Loss [4801]: 0.00091
+│         Avg displacement in data: 0.03015
+│         Weight/Scale: 1.0196920696171694   Bias/Offset: 0.07783379376725892
+└ @ Main In[15]:15
+┌ Info:   Loss [4851]: 0.00094
+│         Avg displacement in data: 0.03062
+│         Weight/Scale: 1.0196964319427353   Bias/Offset: 0.07789033139683764
+└ @ Main In[15]:15
+┌ Info:   Loss [4901]: 0.00089
+│         Avg displacement in data: 0.02985
+│         Weight/Scale: 1.0194643521872544   Bias/Offset: 0.07784603468403976
+└ @ Main In[15]:15
+┌ Info:   Loss [4951]: 0.00088
+│         Avg displacement in data: 0.02969
+│         Weight/Scale: 1.0193938823333755   Bias/Offset: 0.07784323586407052
+└ @ Main In[15]:15
+┌ Info:   Loss [5001]: 0.00087
+│         Avg displacement in data: 0.02953
+│         Weight/Scale: 1.0193205792837756   Bias/Offset: 0.07783135347576647
+└ @ Main In[15]:15
+
+
+3141.788865 seconds (7.75 G allocations: 476.097 GiB, 4.18% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_11.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_12.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_13.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_14.svg" alt="svg"/></p><pre><code class="language-none">┌ Info: Friction model 1 mse: 0.7541038092408717
+└ @ Main In[19]:29
+┌ Info: Friction model 2 mse: 0.7459716547805014
+└ @ Main In[19]:29</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_16.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_56_17.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia">fmiUnload(simpleFMU)</code></pre><h3 id="Summar"><a class="docs-heading-anchor" href="#Summar">Summar</a><a id="Summar-1"></a><a class="docs-heading-anchor-permalink" href="#Summar" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simple_hybrid_ME/">« Simple ME-NeuralFMU</a><a class="docs-footer-nextpage" href="../../library/overview/">Library Functions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 18 February 2022 13:09">Friday 18 February 2022</span>. Using Julia version 1.6.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
