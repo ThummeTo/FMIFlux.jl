@@ -48,9 +48,15 @@ end
 """
 Writes/Copies training parameters from `p_net` to `net` with data offset `c`.
 """
-function transferParams!(net, p_net, c=0)
-    numLayers = length(net.layers)
-    for l in 1:numLayers
+function transferParams!(net, p_net, c=0; netRange=nothing)
+    
+    if netRange == nothing
+        netRange = 1:length(net.layers)
+    end
+    for l in netRange
+        if !(l isa Dense)
+            continue
+        end
         ni = size(net.layers[l].weight,2)
         no = size(net.layers[l].weight,1)
 

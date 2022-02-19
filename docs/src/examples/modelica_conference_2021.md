@@ -639,7 +639,7 @@ numStates = fmiGetNumberOfStates(simpleFMU)
 net = Chain(Dense(numStates, numStates, identity; 
                   initW = (out, in) -> [[1.0, 0.0] [0.0, 1.0]], 
                   initb = out -> zeros(out)),
-            inputs -> fmi2DoStepME(simpleFMU, inputs),
+            inputs -> fmi2EvaluateME(simpleFMU, inputs),
             Dense(numStates, 8, identity),
             Dense(8, 8, tanh),
             Dense(8, numStates))

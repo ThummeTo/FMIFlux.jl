@@ -28,6 +28,3 @@ function fmiPlot(nfmu::CS_NeuralFMU)
     fig
 end
 
-# extends the existing plot-commands.
-FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
-Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)

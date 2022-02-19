@@ -66,9 +66,9 @@ fmus = []
 for i in 1:2 # how many FMUs do you want?
     fmu = fmiLoad(FMUPath)
     fmiInstantiate!(fmu; loggingOn=false)
-    fmiSetupExperiment(fmu, t_start, t_stop)
-    fmiEnterInitializationMode(fmu)
-    fmiExitInitializationMode(fmu)
+    #fmiSetupExperiment(fmu, t_start, t_stop)
+    #fmiEnterInitializationMode(fmu)
+    #fmiExitInitializationMode(fmu)
     push!(fmus, fmu)
 end
 
@@ -95,7 +95,7 @@ solutionBefore = problem(extForce, t_step)
 p_net = Flux.params(problem)
 
 optim = ADAM()
-Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb)
+Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
 
 # check results
 solutionAfter = problem(extForce, t_step)

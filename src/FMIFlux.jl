@@ -7,20 +7,38 @@ module FMIFlux
 
 @debug "Debugging messages enabled for FMIFlux ..."
 
-using FMI
+using Requires
+
+using FMIImport
+using FMIImport: fmi2ValueReference, FMU, FMU2, fmi2Component
+
+using FMIImport: fmi2SetupExperiment, fmi2EnterInitializationMode, fmi2ExitInitializationMode, fmi2Reset, fmi2Terminate
+using FMIImport: fmi2NewDiscreteStates, fmi2SetContinuousStates, fmi2GetContinuousStates, fmi2GetNominalsOfContinuousStates
+using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicators, fmi2GetDerivatives, fmi2GetReal
+using FMIImport: fmi2SampleDirectionalDerivative, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
+using FMIImport: fmi2True, fmi2False
+
 include("FMI_neural.jl")
-include("FMI_plot.jl")
-#include("FMI_cache.jl")
 include("misc.jl")
 
+function __init__()
+    @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
+        include("FMI_plot.jl")
+        Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+
+        @require FMI="14a09403-18e3-468f-ad8a-74f8dda2d9ac" begin 
+            FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+        end
+    end
+end
+
 # FMI2_neural.jl
-export fmi2DoStepME, fmi2DoStepCS
+export fmi2EvaluateME, fmi2DoStepCS
 export fmi2InputDoStepCSOutput
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMUInputLayer, NeuralFMUOutputLayer
-export fmi2GetJacobian, fmi2GetJacobian!, fmi2GetFullJacobian, fmi2GetFullJacobian!
 
 # FMI_neural.jl
-export fmiDoStepME, fmiDoStepCS
+export fmiEvaluateME, fmiDoStepCS
 export fmiInputDoStepCSOutput
 
 # misc.jl
