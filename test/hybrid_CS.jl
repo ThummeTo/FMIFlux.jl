@@ -14,23 +14,17 @@ FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.
 
 t_start = 0.0
 t_step = 0.01
-t_stop = 5.0
+t_stop = 1.0 # 5.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
 myFMU = fmiLoad(FMUPath)
 fmiInstantiate!(myFMU; loggingOn=false)
 fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiSetReal(myFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
+fmiSetReal(myFMU, "mass_s0", 1.3)  
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 success, realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
-
-# reset FMU for use as NeuralFMU
-fmiReset(myFMU)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
 
 # sine(t) as external force
 function extForce(t)
@@ -85,7 +79,7 @@ vals = collect(data[1] for data in solutionBefore)
 p_net = Flux.params(problem)
 
 optim = ADAM()
-Flux.train!(losssum, p_net, Iterators.repeated((), 300), optim; cb=callb)
+Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
 
 # check results
 solutionAfter = problem(extForce, t_step)
