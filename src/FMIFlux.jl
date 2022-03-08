@@ -23,10 +23,17 @@ include("misc.jl")
 
 function __init__()
     @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
-        include("FMI_plot.jl")
-        Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+        import .Plots
 
-        @require FMI="14a09403-18e3-468f-ad8a-74f8dda2d9ac" begin 
+        include("FMI_plot.jl")
+
+        Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+    end
+
+    @require FMI="14a09403-18e3-468f-ad8a-74f8dda2d9ac" begin 
+        @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
+            import .FMI 
+            
             FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
         end
     end

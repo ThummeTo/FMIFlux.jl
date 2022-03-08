@@ -43,8 +43,14 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     valueStack
 
     handleEvents::Bool
+    customCallbacks::Array
 
-    ME_NeuralFMU() = new()
+    dx::Array{Float64}
+
+    function ME_NeuralFMU()
+        inst = new()
+        return inst 
+    end
 end
 
 """
@@ -198,7 +204,7 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator)
 end
 
 # save FMU values 
-function saveValues(c::FMU2Component, recordValues, u, t, integrator)
+function saveValues(nfmu, c::FMU2Component, recordValues, x, t, integrator)
 
     if isa(t, ForwardDiff.Dual) 
         t = ForwardDiff.value(t)
@@ -212,7 +218,54 @@ function saveValues(c::FMU2Component, recordValues, u, t, integrator)
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
 
-    (fmiGetReal(c, recordValues)...,)
+    (fmi2GetReal(c, recordValues)...,)
+end
+
+function fx(nfmu,
+    dx,#::Array{<:Real},
+    x,#::Array{<:Real},
+    p::Array,
+    t::Real) 
+    
+    # if all(isa.(x, ForwardDiff.Dual))
+    #     x = collect(ForwardDiff.value(e) for e in x)
+    # end
+
+    Zygote.ignore() do
+        c = nfmu.fmu.components[end]
+
+        if isa(t, ForwardDiff.Dual) 
+            t = ForwardDiff.value(t)
+        end 
+
+        fmi2SetTime(c, t)
+    end 
+
+    dx[:] = nfmu.neuralODE.re(p)(x)
+    
+    return dx
+end
+
+function fx(nfmu,
+    x,#::Array{<:Real},
+    p::Array,
+    t::Real) 
+    
+    # if all(isa.(x, ForwardDiff.Dual))
+    #     x = collect(ForwardDiff.value(e) for e in x)
+    # end
+
+    Zygote.ignore() do
+        c = nfmu.fmu.components[end]
+
+        if isa(t, ForwardDiff.Dual) 
+            t = ForwardDiff.value(t)
+        end 
+        
+        fmi2SetTime(c, t)
+    end 
+
+    return nfmu.neuralODE.re(p)(x)
 end
 
 ##### EVENT HANDLING END
@@ -237,10 +290,12 @@ function ME_NeuralFMU(fmu::FMU2,
                       alg=nothing; 
                       saveat=[], 
                       recordFMUValues = nothing, 
+                      callbacks = [],
                       kwargs...)
 
     nfmu = ME_NeuralFMU()
     nfmu.fmu = fmu
+    nfmu.customCallbacks = callbacks
 
     ext_model = nothing
 
@@ -299,6 +354,7 @@ Evaluates the ME_NeuralFMU in the timespan given during construction or in a cus
     - `reset`, the FMU is reset every time evaluation is started (default=`true`).
     - `setup`, the FMU is set up every time evaluation is started (default=`true`).
     - `rootSearchInterpolationPoints`, the number of interpolation points during root search before event-handling (default=`100`). Try to increase this value, if event-handling fails with exception.
+    - `fds_chunk_size` the junk-size for ForwardDiffSensitivity (for event-handling FMUs only), see. https://juliadiff.org/ForwardDiff.jl/latest/user/advanced.html
 """
 function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing, 
                               t_start::Real = nfmu.tspan[1], 
@@ -306,9 +362,14 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               reset::Bool=true,
                               setup::Bool=true,
                               rootSearchInterpolationPoints::Integer=100,
+                              fds_chunk_size::Union{Integer, Nothing}=nothing,
                               kwargs...)
 
-    c = nfmu.fmu.components[end]
+    c = nothing 
+    Zygote.ignore() do
+        c = nfmu.fmu.components[end]
+    end 
+
     callbacks = []
     sense = nothing
     savedValues = nothing
@@ -354,6 +415,13 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     handleTimeEvents = false
 
     Zygote.ignore() do
+
+        nfmu.dx = zeros(length(x0))
+
+        for cb in nfmu.customCallbacks
+            push!(callbacks, cb)
+        end
+
         if nfmu.handleEvents && eventHandling
             eventInfo = fmi2NewDiscreteStates(c)
             handleTimeEvents = (eventInfo.nextEventTimeDefined == fmi2True)
@@ -374,8 +442,18 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         # Event handling only if there are event-indicators
         if nfmu.handleEvents && eventHandling
 
+            if fds_chunk_size == nothing # auto detect 
+                p_len = length(Flux.params(nfmu)[1])
+                fds_chunk_size = p_len
+                # limit to 256 because of RAM usage (about 5GB)
+                if fds_chunk_size > 256
+                    fds_chunk_size = 256
+                end
+                @info "`fds_chunk_size` = auto, detected $(p_len) parameters inside the NeuralFMU, setting `chunk_size`=$(fds_chunk_size). This is only a guess value. You should pick a value fitting your use-case."
+            end
+
             # Only ForwardDiffSensitivity supports differentiation and callbacks
-            sense = ForwardDiffSensitivity(;chunk_size=0,convert_tspan=true) 
+            sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size,convert_tspan=true) 
 
             eventCb = VectorContinuousCallback((out, x, t, integrator) -> condition(nfmu, out, x, t, integrator),
                                             (integrator, idx) -> affectFMU!(nfmu, integrator, idx),
@@ -406,7 +484,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         if saving 
             savedValues = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
 
-            savingCB = SavingCallback((u,t,integrator) -> saveValues(c, nfmu.recordValues, u, t, integrator), 
+            savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, c, nfmu.recordValues, x, t, integrator), 
                               savedValues, 
                               saveat=nfmu.saveat)
             push!(callbacks, savingCB)
@@ -414,10 +492,15 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     end
 
     p = nfmu.neuralODE.p
-    dudt_(u,p,t) = nfmu.neuralODE.re(p)(u)
-    ff = ODEFunction{false}(dudt_,tgrad=basic_tgrad)
-    prob = ODEProblem{false}(ff,x0,tspan,p)
+    # dudt_ = (x, p, t) -> fx(nfmu, x, p, t) # n.re(p)(x)
+    # ff = ODEFunction{false}(dudt_,tgrad=basic_tgrad)
+    # prob = ODEProblem{false}(ff,x0,tspan,p)
 
+    dudt_ = (dx, x, p, t) -> fx(nfmu, dx, x, p, t) 
+    ff = ODEFunction{true}(dudt_)#,tgrad=basic_tgrad)
+    prob = ODEProblem{true}(ff,x0,tspan,p)
+
+    
     #sense = ForwardDiffSensitivity() # (;chunk_size=0,convert_tspan=true) 
     #callbacks = []
 
