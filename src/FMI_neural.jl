@@ -17,6 +17,9 @@ import Optim
 
 import SciMLBase: RightRootFind
 
+using FMIImport: fmi2ComponentStateModelInitialized, fmi2ComponentStateModelSetableFMUstate, fmi2ComponentStateModelUnderEvaluation
+using FMIImport: fmi2Struct, FMU2, FMU2Component
+
 include("FMI2_neural.jl")
 
 """
@@ -49,7 +52,6 @@ Structure definition for a NeuralFMU, that runs in mode `Co-Simulation` (CS).
 """
 mutable struct CS_NeuralFMU{T} <: NeuralFMU
     model
-    #simulationResult::fmi2SimulationResult
     fmu::T
 
     tspan
@@ -62,7 +64,7 @@ end
 ##### EVENT HANDLING START
 
 # Read next time event from fmu and provide it to the integrator 
-function time_choice(c::fmi2Component, integrator)
+function time_choice(c::FMU2Component, integrator)
     eventInfo = fmi2NewDiscreteStates(c)
     fmi2EnterContinuousTimeMode(c)
     if eventInfo.nextEventTimeDefined == fmi2True
@@ -74,7 +76,7 @@ function time_choice(c::fmi2Component, integrator)
 end
 
 # Handles events and returns the values and nominals of the changed continuous states.
-function handleEvents(c::fmi2Component, enterEventMode::Bool, exitInContinuousMode::Bool)
+function handleEvents(c::FMU2Component, enterEventMode::Bool, exitInContinuousMode::Bool)
 
     if enterEventMode
         fmi2EnterEventMode(c)
@@ -115,13 +117,12 @@ function condition(nfmu::ME_NeuralFMU, out, x, t, integrator) # Event when event
     if isa(t, ForwardDiff.Dual) 
         t = ForwardDiff.value(t)
     end 
-    fmi2SetTime(nfmu.fmu, t)
 
     if all(isa.(x, ForwardDiff.Dual))
         x = collect(ForwardDiff.value(e) for e in x)
     end
 
-    fmiSetTime(nfmu.fmu, t)
+    fmi2SetTime(nfmu.fmu, t)
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
 
@@ -135,7 +136,7 @@ function f_optim(x, nfmu, right_x_fmu) # , idx, direction::Real)
     # propagete the new state-guess `x` through the NeuralFMU
     nfmu.neuralODE.model(x)
     indicators = fmi2GetEventIndicators(nfmu.fmu)
-    return Flux.Losses.mse(right_x_fmu, fmiGetContinuousStates(nfmu.fmu)) # - min(-direction*indicators[idx], 0.0)
+    return Flux.Losses.mse(right_x_fmu, fmi2GetContinuousStates(nfmu.fmu)) # - min(-direction*indicators[idx], 0.0)
 end
 
 # Handles the upcoming events.
@@ -152,7 +153,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
         x = collect(ForwardDiff.value(e) for e in x)
     end
 
-    left_x_fmu = fmiGetContinuousStates(nfmu.fmu)
+    left_x_fmu = fmi2GetContinuousStates(nfmu.fmu)
 
     continuousStatesChanged, nominalsChanged = handleEvents(nfmu.fmu.components[end], true, Bool(sign(idx)))
 
@@ -163,7 +164,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
         left_x = x
 
-        right_x_fmu = fmiGetContinuousStates(nfmu.fmu) # the new FMU state after handled events
+        right_x_fmu = fmi2GetContinuousStates(nfmu.fmu) # the new FMU state after handled events
 
         Zygote.@ignore @debug "affectFMU!(_, _, $idx): NeuralFMU state event from $(left_x) (fmu: $(left_x_fmu)). Indicator [$idx]: $(indicators[idx]). Optimizing new state ..."
 
@@ -197,18 +198,17 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator)
 end
 
 # save FMU values 
-function saveValues(c::fmi2Component, recordValues, u, t, integrator)
+function saveValues(c::FMU2Component, recordValues, u, t, integrator)
 
     if isa(t, ForwardDiff.Dual) 
         t = ForwardDiff.value(t)
     end 
-    fmi2SetTime(nfmu.fmu, t)
-
+    
     if all(isa.(x, ForwardDiff.Dual))
         x = collect(ForwardDiff.value(e) for e in x)
     end
 
-    fmiSetTime(nfmu.fmu, t)
+    fmi2SetTime(c, t)
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
 
@@ -220,18 +220,18 @@ end
 """
 Constructs a ME-NeuralFMU where the FMU is at an arbitrary location inside of the NN.
 
-Arguents:
+# Arguents
     - `fmu` the considered FMU inside the NN 
     - `model` the NN topology (e.g. Flux.chain)
     - `tspan` simulation time span
     - `alg` a numerical ODE solver
 
-Keyword arguments:
+# Keyword arguments
     - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
     - `fixstep` forces fixed step integration
     - `recordFMUValues` additionally records internal FMU variables (currently not supported because of open issues)
 """
-function ME_NeuralFMU(fmu, 
+function ME_NeuralFMU(fmu::FMU2, 
                       model, 
                       tspan, 
                       alg=nothing; 
@@ -253,7 +253,7 @@ function ME_NeuralFMU(fmu,
         @info "This ME-NeuralFMU has event indicators. Event-handling is in BETA-testing, so it is disabled by default. If you want to try event-handling during training for this discontinuous FMU, use the attribute `myNeuralFMU.handleEvents=true`."
     end
 
-    nfmu.recordValues = prepareValueReference(fmu.components[end], recordFMUValues)
+    nfmu.recordValues = prepareValueReference(fmu, recordFMUValues)
 
     nfmu.neuralODE = NeuralODE(ext_model, tspan, alg; saveat=saveat, kwargs...)
 
@@ -266,12 +266,12 @@ end
 """
 Constructs a CS-NeuralFMU where the FMU is at an arbitrary location inside of the NN.
 
-Arguents:
+# Arguents
     - `fmu` the considered FMU inside the NN 
     - `model` the NN topology (e.g. Flux.chain)
     - `tspan` simulation time span
 
-Keyword arguments:
+# Keyword arguments
     - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
 """
 function CS_NeuralFMU(fmu, 
@@ -293,11 +293,12 @@ function CS_NeuralFMU(fmu,
 end
 
 """
-Evaluates the ME_NeuralFMU in the timespan given during construction or in a custum timespan from `t_start` to `t_stop` for a given start state `x_start`.
+Evaluates the ME_NeuralFMU in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
 
-Via optional argument `reset`, the FMU is reset every time evaluation is started (default=`true`).
-Via optional argument `setup`, the FMU is set up every time evaluation is started (default=`true`).
-Via optional argument `rootSearchInterpolationPoints`, the number of interpolation points during root search before event-handling is controlled (default=`100`). Try to increase this value, if event-handling fails with exception.
+# Keyword arguments
+    - `reset`, the FMU is reset every time evaluation is started (default=`true`).
+    - `setup`, the FMU is set up every time evaluation is started (default=`true`).
+    - `rootSearchInterpolationPoints`, the number of interpolation points during root search before event-handling (default=`100`). Try to increase this value, if event-handling fails with exception.
 """
 function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing, 
                               t_start::Real = nfmu.tspan[1], 
@@ -308,20 +309,37 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               kwargs...)
 
     c = nfmu.fmu.components[end]
+    callbacks = []
+    sense = nothing
+    savedValues = nothing
+    x0 = nothing
 
     if reset
-        if c.state == fmi2ModelInitialized
-            fmiTerminate(c)
+        if c.state == fmi2ComponentStateModelInitialized
+            fmi2Terminate(c)
         end
-        if c.state == fmi2ModelSetableFMUstate
-            fmiReset(c)
+        if c.state == fmi2ComponentStateModelSetableFMUstate
+            fmi2Reset(c)
         end
     end
 
     if setup
-        fmiSetupExperiment(nfmu.fmu, t_start)
-        fmiEnterInitializationMode(nfmu.fmu)
-        fmiExitInitializationMode(nfmu.fmu)
+        fmi2SetupExperiment(nfmu.fmu, t_start, t_stop)
+        fmi2EnterInitializationMode(nfmu.fmu)
+
+        Zygote.ignore() do
+            # First evaluation of the FMU
+            if x_start == nothing
+                x0 = fmi2GetContinuousStates(c)
+            else 
+                x0 = x_start
+            end
+            x0_nom = fmi2GetNominalsOfContinuousStates(c)
+
+            fmi2SetContinuousStates(c, x0)
+        end 
+
+        fmi2ExitInitializationMode(nfmu.fmu)
     end
 
     tspan = getfield(nfmu.neuralODE,:tspan)
@@ -329,11 +347,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     t_stop = tspan[end]
 
     #################
-
-    callbacks = []
-    sense = nothing
-    savedValues = nothing
-    x0 = nothing
 
     saving = (length(nfmu.recordValues) > 0)
 
@@ -345,16 +358,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             eventInfo = fmi2NewDiscreteStates(c)
             handleTimeEvents = (eventInfo.nextEventTimeDefined == fmi2True)
         end
-
-        # First evaluation of the FMU
-        if x_start == nothing
-            x0 = fmi2GetContinuousStates(c)
-        else 
-            x0 = x_start
-        end
-        x0_nom = fmi2GetNominalsOfContinuousStates(c)
-
-        fmi2SetContinuousStates(c, x0)
         
         handleEvents(c, false, false)
 
@@ -452,24 +455,25 @@ function (nfmu::CS_NeuralFMU{T})(inputFct,
     c = nfmu.fmu.components[end]
     
     if reset
-        if c.state == fmi2ModelInitialized
-            fmiTerminate(c)
+        if c.state == fmi2ComponentStateModelInitialized 
+            fmi2Terminate(c)
         end
-        if c.state == fmi2ModelSetableFMUstate
-            fmiReset(c)
+        if c.state == fmi2ComponentStateModelSetableFMUstate
+            fmi2Reset(c)
         end
     end
 
     if setup
-        while fmiSetupExperiment(nfmu.fmu, t_start) != 0
+        while fmi2SetupExperiment(nfmu.fmu, t_start, t_stop) != 0
         end
-        while fmiEnterInitializationMode(nfmu.fmu) != 0
+        while fmi2EnterInitializationMode(nfmu.fmu) != 0
         end
-        while fmiExitInitializationMode(nfmu.fmu) != 0
+        while fmi2ExitInitializationMode(nfmu.fmu) != 0
         end
     end
 
     ts = t_start:t_step:t_stop
+    nfmu.fmu.components[end].skipNextDoStep = true # skip first fim2DoStep-call
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
     return valueStack
@@ -496,23 +500,25 @@ function (nfmu::CS_NeuralFMU{Vector{T}})(inputFct,
     if reset
         for fmu in nfmu.fmu 
             c = fmu.components[end]
-            if c.state == fmi2ModelInitialized
-                fmiTerminate(c)
+            if c.state == fmi2ComponentStateModelInitialized
+                fmi2Terminate(c)
             end
-            if c.state == fmi2ModelSetableFMUstate
-                fmiReset(c)
+            if c.state == fmi2ComponentStateModelSetableFMUstate
+                fmi2Reset(c)
             end
         end 
     end
 
     if setup
         for fmu in nfmu.fmu
-            while fmiSetupExperiment(fmu, t_start) != 0
+            while fmi2SetupExperiment(fmu, t_start, t_stop) != 0
             end
-            while fmiEnterInitializationMode(fmu) != 0
+            while fmi2EnterInitializationMode(fmu) != 0
             end
-            while fmiExitInitializationMode(fmu) != 0
+            while fmi2ExitInitializationMode(fmu) != 0
             end
+
+            fmu.components[end].skipNextDoStep = true # skip first fim2DoStep-call
         end
     end
 
@@ -546,15 +552,15 @@ end
 # FMI version independent dosteps
 
 """
-Wrapper. Call ```fmi2DoStepME``` for more information.
+Wrapper. Call ```fmi2EvaluateME``` for more information.
 """
-function fmiDoStepME(fmu::FMU2, 
+function fmiEvaluateME(str::fmi2Struct, 
                      x::Array{<:Real}, 
                      t::Real = -1.0, 
                      setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
                      setValues::Array{<:Real} = zeros(Real, 0),
                      getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
-    fmi2DoStepME(fmu, x, t,
+    fmi2EvaluateME(str, x, t,
                 setValueReferences,
                 setValues,
                 getValueReferences)
@@ -563,21 +569,21 @@ end
 """
 Wrapper. Call ```fmi2DoStepCS``` for more information.
 """
-function fmiDoStepCS(fmu::FMU2, 
+function fmiDoStepCS(str::fmi2Struct, 
                      dt::Real,
                      setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
                      setValues::Array{<:Real} = zeros(Real, 0),
                      getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
-    fmi2DoStepCS(fmu, dt, setValueReferences, setValues = setValues, getValueReferences)
+    fmi2DoStepCS(str, dt, setValueReferences, setValues, getValueReferences)
 end
 
 """
 Wrapper. Call ```fmi2InputDoStepCSOutput``` for more information.
 """
-function fmiInputDoStepCSOutput(fmu::FMU2, 
+function fmiInputDoStepCSOutput(str::fmi2Struct, 
                                 dt::Real, 
                                 u::Array{<:Real})
-    fmi2InputDoStepCSOutput(fmu, dt, u)
+    fmi2InputDoStepCSOutput(str, dt, u)
 end
 
 # define neutral gradients (=feed-trough) for ccall-functions (ToDo: Remove)
@@ -585,9 +591,9 @@ function neutralGradient(c̄)
     tuple(c̄,)
 end
 
-@adjoint fmiSetupExperiment(fmu, startTime, stopTime) = fmiSetupExperiment(fmu, startTime, stopTime), c̄ -> neutralGradient(c̄)
-@adjoint fmiEnterInitializationMode(fmu) = fmiEnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmiExitInitializationMode(fmu) = fmiExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmiReset(fmu) = fmiReset(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmiTerminate(fmu) = fmiTerminate(fmu), c̄ -> neutralGradient(c̄)
+@adjoint fmi2SetupExperiment(fmu, startTime, stopTime) = fmi2SetupExperiment(fmu, startTime, stopTime), c̄ -> neutralGradient(c̄)
+@adjoint fmi2EnterInitializationMode(fmu) = fmi2EnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
+@adjoint fmi2ExitInitializationMode(fmu) = fmi2ExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
+@adjoint fmi2Reset(fmu) = fmi2Reset(fmu), c̄ -> neutralGradient(c̄)
+@adjoint fmi2Terminate(fmu) = fmi2Terminate(fmu), c̄ -> neutralGradient(c̄)
 

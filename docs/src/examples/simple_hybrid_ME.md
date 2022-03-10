@@ -432,7 +432,7 @@ In the following, the topology of the NeuralFMU is constructed. It consists of a
 # NeuralFMU setup
 numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(inputs -> fmiDoStepME(simpleFMU, inputs),
+net = Chain(inputs -> fmiEvaluateME(simpleFMU, inputs),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))

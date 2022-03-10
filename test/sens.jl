@@ -10,6 +10,8 @@ using DifferentialEquations: Tsit5
 import ForwardDiff
 import Zygote
 
+using FMIFlux.FMIImport: fmi2SampleDirectionalDerivative, fmi2GetJacobian, fmi2SetContinuousStates
+
 FMUPaths = [joinpath(dirname(@__FILE__), "..", "model", "SpringFrictionPendulum1D.fmu"),
             joinpath(dirname(@__FILE__), "..", "model", "BouncingBall1D.fmu")]
 
@@ -20,18 +22,18 @@ tData = t_start:t_step:t_stop
 
 for FMUPath in FMUPaths
     myFMU = fmiLoad(FMUPath)
-    fmiInstantiate!(myFMU; loggingOn=false)
+    comp = fmiInstantiate!(myFMU; loggingOn=false)
     fmiSetupExperiment(myFMU, t_start, t_stop)
     fmiEnterInitializationMode(myFMU)
     fmiExitInitializationMode(myFMU)
 
-    x0 = fmi2GetContinuousStates(myFMU)
+    x0 = fmiGetContinuousStates(myFMU)
     numStates = length(x0)
 
     # Jacobians for x0
-    FD_jac = ForwardDiff.jacobian(x -> fmiDoStepME(myFMU, x, 0.0), x0)
-    ZG_jac = Zygote.jacobian(fmiDoStepME, myFMU, x0, 0.0)[2]
-    fmi2SetContinuousStates(myFMU, x0)
+    FD_jac = ForwardDiff.jacobian(x -> fmiEvaluateME(myFMU, x, 0.0), x0)
+    ZG_jac = Zygote.jacobian(fmiEvaluateME, myFMU, x0, 0.0)[2]
+    fmiSetContinuousStates(myFMU, x0)
     samp_jac = fmi2SampleDirectionalDerivative(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
     auto_jac = fmi2GetJacobian(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
 
@@ -41,8 +43,8 @@ for FMUPath in FMUPaths
 
     # Jacobians for random x0 
     x0 = x0 + rand(numStates)
-    FD_jac = ForwardDiff.jacobian(x -> fmiDoStepME(myFMU, x, 0.0), x0)
-    ZG_jac = Zygote.jacobian(fmiDoStepME, myFMU, x0, 0.0)[2]
+    FD_jac = ForwardDiff.jacobian(x -> fmiEvaluateME(myFMU, x, 0.0), x0)
+    ZG_jac = Zygote.jacobian(fmiEvaluateME, myFMU, x0, 0.0)[2]
     fmi2SetContinuousStates(myFMU, x0)
     samp_jac = fmi2SampleDirectionalDerivative(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
     auto_jac = fmi2GetJacobian(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)

@@ -6,6 +6,8 @@
 using FMIFlux
 using Test
 
+using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
+
 @testset "FMIFlux.jl" begin
     if Sys.iswindows()
         @info "Automated testing for Windows is supported."
