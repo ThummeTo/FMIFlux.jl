@@ -35,7 +35,7 @@ jobs:
 
      # Set up cache
       - name: "Set up cache"
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
           cache-name: cache-artifacts
         with:
@@ -48,7 +48,7 @@ jobs:
 
       # Build FMIFlux.jl package
       - name: "Build package"
-        uses: julia-actions/julia-buildpkg@latest
+        uses: julia-actions/julia-buildpkg@v1
 
       # Run the tests
       - name: "Run tests"
@@ -60,6 +60,6 @@ jobs:
 
       # Run codecov
       - name: "Run CodeCov"
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
         with:
           file: lcov.info
