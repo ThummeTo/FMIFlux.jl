@@ -60,7 +60,7 @@ end
 
 # ForwardDiff backend using the existing ChainRulesCore.frule
 # adapted from: https://discourse.julialang.org/t/chainrulescore-and-forwarddiff/61705/8
-function _fmi2EvaluateME_fd(TVNx, TVNu, comp, x, t, setValueReferences, setValues, getValueReferences) #where {T, V, N} #where {T} # <:ForwardDiff.Dual}
+function _fmi2EvaluateME_fd(TVNx, TVNu, comp, x, t, setValueReferences, setValues, getValueReferences) 
   
     Tx, Vx, Nx = TVNx
     Tu, Vu, Nu = TVNu
@@ -69,10 +69,10 @@ function _fmi2EvaluateME_fd(TVNx, TVNu, comp, x, t, setValueReferences, setValue
     args = [fmi2EvaluateME, comp, collect(ForwardDiff.value(e) for e in x), ForwardDiff.value(t), setValueReferences, collect(ForwardDiff.value(e) for e in setValues), getValueReferences]
 
     # ToDo: Find a good fix!
-    #Zygote.@ignore @debug "From $(typeof(args[6]))"
+    #ignore_derivatives() do @debug "From $(typeof(args[6]))"
     if typeof(args[6]) == Vector{Any}
         args[6] = convert(Vector{Float64}, args[6])
-        #Zygote.@ignore @debug "To $(typeof(args[6]))"
+        #ignore_derivatives do @debug "To $(typeof(args[6]))"
     end 
 
     ȧrgs = (ȧrgs...,)

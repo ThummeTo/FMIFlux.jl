@@ -10,7 +10,8 @@ module FMIFlux
 using Requires
 
 using FMIImport
-using FMIImport: fmi2ValueReference, FMU, FMU2, fmi2Component
+using FMIImport: FMU
+using FMIImport: fmi2ValueReference, FMU, FMU2, fmi2Struct, FMU2Component
 
 using FMIImport: fmi2SetupExperiment, fmi2EnterInitializationMode, fmi2ExitInitializationMode, fmi2Reset, fmi2Terminate
 using FMIImport: fmi2NewDiscreteStates, fmi2SetContinuousStates, fmi2GetContinuousStates, fmi2GetNominalsOfContinuousStates
@@ -18,6 +19,7 @@ using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicator
 using FMIImport: fmi2SampleDirectionalDerivative, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
+include("FMI2_neural.jl")
 include("FMI_neural.jl")
 include("misc.jl")
 
