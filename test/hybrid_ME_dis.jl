@@ -10,16 +10,13 @@ using DifferentialEquations: Tsit5
 import Random 
 Random.seed!(1234);
 
-modelFMUPath = joinpath(dirname(@__FILE__), "..", "model", "BouncingBall1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "..", "model", "BouncingBall1D.fmu")
-
 t_start = 0.0
 t_step = 0.1
 t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad(realFMUPath)
+realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 fmiInstantiate!(realFMU; loggingOn=false)
 fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)

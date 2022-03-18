@@ -495,7 +495,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 timeEventCb = IterativeCallback((integrator) -> time_choice(c, integrator),
                                                 (integrator) -> affectFMU!(nfmu, integrator, 0), 
                                                 Float64; 
-                                                initial_affect = false,
+                                                initial_affect=true,
                                                 save_positions=(false,false))
             
                 push!(callbacks, timeEventCb)

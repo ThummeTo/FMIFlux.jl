@@ -5,11 +5,18 @@
 
 using FMIFlux
 using Test
+using FMIZoo
 
 using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
 
-@testset "FMIFlux.jl" begin
-    if Sys.iswindows()
+exportingToolsWindows = [("Dymola", "2022x")]
+exportingToolsLinux = [("Dymola", "2022x")]
+
+function runtests(exportingTool)
+    ENV["EXPORTINGTOOL"] = exportingTool[1]
+    ENV["EXPORTINGVERSION"] = exportingTool[2]
+
+    @testset "Testing FMUs exported from $exportingTool" begin
         @info "Automated testing for Windows is supported."
         @testset "Sensitivities" begin
             include("sens.jl")
@@ -26,9 +33,21 @@ using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
         @testset "Multiple FMUs" begin
             include("multi.jl")
         end
+    end
+end
+
+@testset "FMIFlux.jl" begin
+    if Sys.iswindows()
+        @info "Automated testing is supported on Windows."
+        for exportingTool in exportingToolsWindows
+            runtests(exportingTool)
+        end
     elseif Sys.islinux()
-        @warn "Test-sets are using Windows-FMUs, automated testing for Linux is currently not supported."
+        @info "Automated testing is supported on Linux."
+        for exportingTool in exportingToolsLinux
+            runtests(exportingTool)
+        end
     elseif Sys.isapple()
-        @warn "Test-sets are using Windows-FMUs, automated testing for macOS is currently not supported."
+        @warn "Test-sets are currrently using Windows- and Linux-FMUs, automated testing for macOS is currently not supported."
     end
 end
