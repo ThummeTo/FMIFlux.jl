@@ -1,21 +1,17 @@
 # imports
 using FMI
 using FMIFlux
+using FMIZoo
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
-
-simpleFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
-println("SimpleFMU path: ", simpleFMUPath)
-println("RealFMU path: ", realFMUPath)
 
 tStart = 0.0
 tStep = 0.01
 tStop = 5.0
 tSave = collect(tStart:tStep:tStop)
 
-realFMU = fmiLoad(realFMUPath)
+realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInstantiate!(realFMU; loggingOn=false)
 fmiInfo(realFMU)
 
@@ -35,7 +31,7 @@ fmiUnload(realFMU)
 velReal = collect(data[2] for data in realSimData.saveval)
 posReal = collect(data[1] for data in realSimData.saveval)
 
-simpleFMU = fmiLoad(simpleFMUPath)
+simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
 
 fmiInstantiate!(simpleFMU; loggingOn=false)
 fmiInfo(simpleFMU)

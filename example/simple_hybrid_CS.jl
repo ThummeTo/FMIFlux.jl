@@ -1,19 +1,17 @@
 # imports
 using FMI
 using FMIFlux
+using FMIZoo
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
-
-pathFMU = joinpath(dirname(@__FILE__), "../model/SpringPendulumExtForce1D.fmu")
-println("FMU path: ", pathFMU)
 
 tStart = 0.0
 tStep = 0.01
 tStop = 5.0
 tSave = tStart:tStep:tStop
 
-referenceFMU = fmiLoad(pathFMU)
+referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
 fmiInstantiate!(referenceFMU; loggingOn=false)
 fmiInfo(referenceFMU)
 
