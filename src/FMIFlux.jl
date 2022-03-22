@@ -10,8 +10,10 @@ module FMIFlux
 using Requires
 
 using FMIImport
-using FMIImport: FMU
-using FMIImport: fmi2ValueReference, FMU, FMU2, fmi2Struct, FMU2Component
+using FMIImport: fmi2ValueReference, FMU, FMU2, FMU2Component
+
+# ToDo: this can not be imported correctly from FMIImport.jl
+fmi2Struct = Union{FMU2, FMU2Component}
 
 using FMIImport: fmi2SetupExperiment, fmi2EnterInitializationMode, fmi2ExitInitializationMode, fmi2Reset, fmi2Terminate
 using FMIImport: fmi2NewDiscreteStates, fmi2SetContinuousStates, fmi2GetContinuousStates, fmi2GetNominalsOfContinuousStates

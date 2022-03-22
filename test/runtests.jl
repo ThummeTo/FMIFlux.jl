@@ -16,7 +16,7 @@ function runtests(exportingTool)
     ENV["EXPORTINGTOOL"] = exportingTool[1]
     ENV["EXPORTINGVERSION"] = exportingTool[2]
 
-    @testset "Testing FMUs exported from $exportingTool" begin
+    @testset "Testing FMUs exported from $(ENV["EXPORTINGTOOL"]) ($(ENV["EXPORTINGVERSION"]))" begin
         @info "Automated testing for Windows is supported."
         @testset "Sensitivities" begin
             include("sens.jl")
