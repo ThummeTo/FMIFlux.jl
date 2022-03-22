@@ -132,7 +132,7 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
         net = nets[i]
         problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, rootSearchInterpolationPoints=1000)
-        problem.config.handleStateEvents = true
+        problem.trainingConfig.handleStateEvents = true
         @test problem != nothing
 
         solutionBefore = problem(x0)
