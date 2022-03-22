@@ -1,5 +1,5 @@
 [compat]
-FMI = "0.6.0"
+FMI = "^0.7.0"
 
 [deps]
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
