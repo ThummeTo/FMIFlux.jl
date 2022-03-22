@@ -32,7 +32,7 @@ FMIFlux.jl is a free-to-use software library for the Julia programming language,
 - ...
 
 ## What Platforms are supported?
-FMIFlux.jl is tested (and testing) under Julia versions *1.6.5 LTS* and *latest* on Windows (latest). Linux & Mac should work, but untested.
+FMIFlux.jl is tested (and testing) under Julia versions *1.6.5 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
 
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png "FMI.jl Family")
