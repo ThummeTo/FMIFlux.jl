@@ -84,15 +84,19 @@ for handleEvents in [true, false]
                         for freeInstance in [true, false]
                             @testset "freeInstance: $freeInstance" begin
                                 global problem, lastLoss, iterCB
+
+                                config = NeuralFMU_TrainingModeConfig()
+                                config.handleStateEvents = handleEvents
+                                config.handleTimeEvents = handleEvents
+                                config.instantiate = instantiate
+                                config.reset = reset 
+                                config.freeInstance = freeInstance
                             
                                 optim = ADAM(1e-4)
                                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
                                 @test problem != nothing
 
-                                problem.handleEvents = handleEvents
-                                problem.instantiate = instantiate
-                                problem.reset = reset
-                                problem. freeInstance = freeInstance
+                                problem.trainingConfig = config
                                 
                                 solutionBefore = problem(x0)
                                 @test length(solutionBefore.t) == length(tData)

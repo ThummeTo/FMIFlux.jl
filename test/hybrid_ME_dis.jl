@@ -52,7 +52,7 @@ function callb()
 
         # This test condition is weak, because when the FMU passes an event, the error might increase.  
         # ToDo: More intelligent testing condition.
-        @test loss < lastLoss*2.0   
+        @test (loss < lastLoss*2.0) && (loss != lastLoss)  
         lastLoss = loss
     end
 end
