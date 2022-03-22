@@ -140,6 +140,10 @@ function ChainRulesCore.rrule(::typeof(fmi2EvaluateME),
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
+    if comp.fmu.ẋ_interp !== nothing && t != -1.0
+        y = comp.fmu.ẋ_interp(t)
+    end
+    
     function fmi2EvaluateME_pullback(ȳ)
         setter = (length(setValueReferences) > 0)
         getter = (length(getValueReferences) > 0)
@@ -213,6 +217,10 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
+    if comp.fmu.ẋ_interp !== nothing && t != -1.0
+        y = comp.fmu.ẋ_interp(t)
+    end
+
     function fmi2EvaluateME_pullforward(Δx, ΔsetValues)
         setter = (length(setValueReferences) > 0)
         getter = (length(getValueReferences) > 0)
@@ -221,16 +229,17 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
             @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.frule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
 
-        if t >= 0.0 
-            fmi2SetTime(comp, t)
-        end
+        # already set!
+        # if t >= 0.0 
+        #     fmi2SetTime(comp, t)
+        # end
         
-        if all(isa.(x, ForwardDiff.Dual))
-            xf = collect(ForwardDiff.value(e) for e in x)
-            fmi2SetContinuousStates(comp, xf)
-        else
-            fmi2SetContinuousStates(comp, x)
-        end
+        # if all(isa.(x, ForwardDiff.Dual))
+        #     xf = collect(ForwardDiff.value(e) for e in x)
+        #     fmi2SetContinuousStates(comp, xf)
+        # else
+        #     fmi2SetContinuousStates(comp, x)
+        # end
        
         rdx = vcat(comp.fmu.modelDescription.derivativeValueReferences, getValueReferences) 
         rx = comp.fmu.modelDescription.stateValueReferences

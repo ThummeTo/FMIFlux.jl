@@ -33,6 +33,9 @@ function runtests(exportingTool)
         @testset "Multiple FMUs" begin
             include("multi.jl")
         end
+        @testset "Training modes" begin
+            include("train_modes.jl")
+        end
     end
 end
 

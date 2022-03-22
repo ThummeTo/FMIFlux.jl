@@ -9,6 +9,7 @@ using Zygote: @adjoint
 using Flux, DiffEqFlux
 using OrdinaryDiffEq
 using DiffEqCallbacks
+using Interpolations: interpolate, LinearInterpolation
 
 using DiffEqFlux: ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, InterpolatingAdjoint, solve
 
@@ -33,6 +34,8 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     solution::ODESolution
     fmu::FMU
 
+    currentComponent
+
     tspan
     saveat
     saved_values
@@ -43,10 +46,25 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     handleEvents::Bool
     customCallbacks::Array
 
-    dx::Array{Float64}
+    x0::Array{Float64}
+    firstRun::Bool
+
+    reset::Bool
+    instantiate::Bool
+    freeInstance::Bool
+
+    fds_chunk_size
 
     function ME_NeuralFMU()
         inst = new()
+        inst.currentComponent = nothing
+
+        inst.fds_chunk_size = nothing
+
+        inst.reset = true
+        inst.instantiate = false
+        inst.freeInstance = false
+
         return inst 
     end
 end
@@ -78,7 +96,7 @@ function time_choice(c::FMU2Component, integrator)
         return eventInfo.nextEventTime
     end
 
-    return Inf # ToDo: better `nothing`
+    return nothing
 end
 
 # Handles events and returns the values and nominals of the changed continuous states.
@@ -140,6 +158,30 @@ function condition(nfmu::ME_NeuralFMU, out, x, t, integrator) # Event when event
     end
 
     copy!(out, indicators)
+end
+function conditionSingle(nfmu::ME_NeuralFMU, index, x, t, integrator) 
+
+    # ToDo: set inputs here
+    #fmiSetReal(myFMU, InputRef, Value)
+
+    if isa(t, ForwardDiff.Dual) 
+        t = ForwardDiff.value(t)
+    end 
+
+    if all(isa.(x, ForwardDiff.Dual))
+        x = collect(ForwardDiff.value(e) for e in x)
+    end
+
+    fmi2SetTime(nfmu.fmu, t)
+    # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
+    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+
+    indicators = fmi2GetEventIndicators(nfmu.fmu)
+    ignore_derivatives() do 
+        @debug "condition(_, _, $(x), $(t), _): Event indicators=$(indicators)"
+    end
+
+    return indicators[index]
 end
 
 function f_optim(x, nfmu, right_x_fmu) # , idx, direction::Real)
@@ -211,6 +253,51 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator)
         # ToDo: set inputs here
         #fmiSetReal(myFMU, InputRef, Value)
     end
+
+    ignore_derivatives() do
+        
+        if isa(t, ForwardDiff.Dual) 
+            t = ForwardDiff.value(t)
+        end 
+
+        if t == nfmu.tspan[1] # FIRST STEP 
+            @debug "[FIRST STEP]"
+
+            if nfmu.instantiate
+                nfmu.currentComponent = fmi2Instantiate!(nfmu.fmu)
+                @debug "[NEW INST]"
+            else
+                nfmu.currentComponent = nfmu.fmu.components[end]
+            end
+
+            if nfmu.reset
+                if nfmu.currentComponent.state == fmi2ComponentStateModelInitialized
+                    fmi2Terminate(nfmu.currentComponent)
+                end
+                if nfmu.currentComponent.state == fmi2ComponentStateModelSetableFMUstate
+                    fmi2Reset(nfmu.currentComponent)
+                end
+            end
+            
+            fmi2SetupExperiment(nfmu.currentComponent, nfmu.tspan[1], nfmu.tspan[end])
+            fmi2EnterInitializationMode(nfmu.currentComponent)
+            fmi2SetContinuousStates(nfmu.currentComponent, nfmu.x0)
+            fmi2ExitInitializationMode(nfmu.currentComponent)
+        end
+        
+        if t == nfmu.tspan[end]
+            @debug "[LAST STEP]"
+
+            if nfmu.currentComponent != nothing
+                if nfmu.freeInstance
+                    fmi2FreeInstance!(nfmu.currentComponent)
+                end
+
+                nfmu.currentComponent = nothing
+            end
+
+        end
+    end
 end
 
 # save FMU values 
@@ -275,16 +362,36 @@ function fx(nfmu,
     # end
 
     ignore_derivatives() do
-        c = nfmu.fmu.components[end]
 
+        c = nfmu.fmu.components[end]
+        
         if isa(t, ForwardDiff.Dual) 
             t = ForwardDiff.value(t)
         end 
-        
+
         fmi2SetTime(c, t)
+
     end 
 
-    return nfmu.neuralODE.re(p)(x)
+    dx = nfmu.neuralODE.re(p)(x)
+
+    ignore_derivatives() do
+        if nfmu.firstRun
+            if t <= nfmu.tspan[end]
+                if length(nfmu.fmu.t_cache) == 0 || nfmu.fmu.t_cache[end] < t
+                    push!(nfmu.fmu.ẋ_cache, dx)
+                    push!(nfmu.fmu.t_cache, t)
+                end
+            end
+
+            if t >= nfmu.tspan[end]
+                nfmu.firstRun = false 
+                nfmu.fmu.ẋ_interp = LinearInterpolation(nfmu.fmu.t_cache, nfmu.fmu.ẋ_cache)
+            end
+        end
+    end 
+
+    return dx
 end
 
 ##### EVENT HANDLING END
@@ -384,99 +491,57 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               fds_chunk_size::Union{Integer, Nothing}=nothing,
                               inplace::Bool=true,
                               kwargs...)
-
-    c = nothing 
     ignore_derivatives() do
-        c = nfmu.fmu.components[end]
-    end 
+        @debug "ME_NeuralFMU..."
+    end
+
+    saving = (length(nfmu.recordValues) > 0)
+    eventHandling = (nfmu.fmu.modelDescription.numberOfEventIndicators > 0)
+    handleTimeEvents = false
+
+    nfmu.firstRun = true
+    nfmu.fmu.t_cache = [] 
+    nfmu.fmu.ẋ_cache = []
+
+    ########
 
     callbacks = []
     sense = nothing
     savedValues = nothing
-    x0 = nothing
-
-    if reset
-        if c.state == fmi2ComponentStateModelInitialized
-            fmi2Terminate(c)
-        end
-        if c.state == fmi2ComponentStateModelSetableFMUstate
-            fmi2Reset(c)
-        end
-    end
-
-    if setup
-        fmi2SetupExperiment(nfmu.fmu, t_start, t_stop)
-        fmi2EnterInitializationMode(nfmu.fmu)
-    end 
-
-    ignore_derivatives() do
-        # First evaluation of the FMU
-        if x_start == nothing
-            x0 = fmi2GetContinuousStates(c)
-        else 
-            x0 = x_start
-        end
-        x0_nom = fmi2GetNominalsOfContinuousStates(c)
-
-        fmi2SetContinuousStates(c, x0)
-    end
-
-    if setup
-        fmi2ExitInitializationMode(nfmu.fmu)
-    end
 
     tspan = getfield(nfmu.neuralODE,:tspan)
     t_start = tspan[1]
     t_stop = tspan[end]
+    
+    if x_start === nothing 
+        nfmu.x0 = fmi2GetContinuousStates(nfmu.fmu)
+    else
+        nfmu.x0 = x_start
+    end
 
     #################
 
-    saving = (length(nfmu.recordValues) > 0)
-
-    eventHandling = (nfmu.fmu.modelDescription.numberOfEventIndicators > 0)
-    handleTimeEvents = false
-
     ignore_derivatives() do
-
-        nfmu.dx = zeros(length(x0))
 
         for cb in nfmu.customCallbacks
             push!(callbacks, cb)
         end
 
         if nfmu.handleEvents && eventHandling
-            eventInfo = fmi2NewDiscreteStates(c)
+            eventInfo = fmi2NewDiscreteStates(nfmu.fmu.components[end])
             handleTimeEvents = (eventInfo.nextEventTimeDefined == fmi2True)
         end
-        
-        handleEvents(c, false, false)
-
-        # Get states of handling initial Events
-        x0 = fmi2GetContinuousStates(c)
-        x0_nom = fmi2GetNominalsOfContinuousStates(c)
-
-        fmi2EnterContinuousTimeMode(c)
-    end
-
-    ignore_derivatives() do 
+    
+        # event handling
         @debug "NeuralFMU experimental event handling: $(nfmu.handleEvents) stateEvents: $(eventHandling) timeEvents: $(handleTimeEvents)"
+
+        stepCb = FunctionCallingCallback((x, t, integrator) -> stepCompleted(nfmu, x, t, integrator);
+                                            func_everystep=true,
+                                            func_start=true)
+        push!(callbacks, stepCb)
 
         # Event handling only if there are event-indicators
         if nfmu.handleEvents && eventHandling
-
-            if fds_chunk_size == nothing # auto detect 
-                p_len = length(Flux.params(nfmu)[1])
-                fds_chunk_size = p_len
-                # limit to 256 because of RAM usage (about 5GB)
-                if fds_chunk_size > 256
-                    fds_chunk_size = 256
-                end
-                @info "`fds_chunk_size` = auto, detected $(p_len) parameters inside the NeuralFMU, setting `chunk_size`=$(fds_chunk_size). This is only a guess value. You should pick a value fitting your use-case."
-            end
-
-            # Only ForwardDiffSensitivity supports differentiation and callbacks
-            sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size,convert_tspan=true) 
-            #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
 
             eventCb = VectorContinuousCallback((out, x, t, integrator) -> condition(nfmu, out, x, t, integrator),
                                             (integrator, idx) -> affectFMU!(nfmu, integrator, idx),
@@ -486,20 +551,48 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                                             interp_points=rootSearchInterpolationPoints) 
             push!(callbacks, eventCb)
 
-            stepCb = FunctionCallingCallback((x, t, integrator) -> stepCompleted(nfmu, x, t, integrator);
-                                            func_everystep=true,
-                                            func_start=true)
-            push!(callbacks, stepCb)
+            # for idx in 1:nfmu.fmu.modelDescription.numberOfEventIndicators
+            #     eventCb = ContinuousCallback((x, t, integrator) -> conditionSingle(nfmu, idx, x, t, integrator),
+            #                                     (integrator) -> affectFMU!(nfmu, integrator, idx);
+            #                                     rootfind=RightRootFind,
+            #                                     save_positions=(false, false),
+            #                                     interp_points=rootSearchInterpolationPoints) 
+            #     push!(callbacks, eventCb)
+            # end
 
             if handleTimeEvents
-                timeEventCb = IterativeCallback((integrator) -> time_choice(c, integrator),
+                timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu.fmu.components[end], integrator),
                                                 (integrator) -> affectFMU!(nfmu, integrator, 0), 
                                                 Float64; 
-                                                initial_affect=true,
+                                                initial_affect=false, # true?
                                                 save_positions=(false,false))
             
                 push!(callbacks, timeEventCb)
             end
+        end
+
+        # currently, Callbacks only working with ForwardDiff
+        if length(callbacks) > 0 
+
+            if fds_chunk_size == nothing # auto detect 
+                if nfmu.fds_chunk_size == nothing
+                    p_len = length(Flux.params(nfmu)[1])
+                    nfmu.fds_chunk_size = p_len
+                    # limit to 256 because of RAM usage (about 5GB)
+                    if nfmu.fds_chunk_size > 256
+                        nfmu.fds_chunk_size = 256
+                    end
+                     
+                    @info "`fds_chunk_size` = auto, detected $(p_len) parameters inside the NeuralFMU, setting `chunk_size`=$(nfmu.fds_chunk_size). This is only a guess value. You should pick a value fitting your use-case."
+                end
+            else
+                nfmu.fds_chunk_size = fds_chunk_size
+            end
+
+            # Only ForwardDiffSensitivity supports differentiation and callbacks
+            sense = ForwardDiffSensitivity(;chunk_size=nfmu.fds_chunk_size,convert_tspan=true) 
+            #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
+       
         else
             sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
             inplace = false # Zygote only works for out-of-place
@@ -508,7 +601,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         if saving 
             savedValues = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
 
-            savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, c, nfmu.recordValues, x, t, integrator), 
+            savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator), 
                               savedValues, 
                               saveat=nfmu.saveat)
             push!(callbacks, savingCB)
@@ -521,22 +614,18 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     if inplace
         ff = ODEFunction{true}((dx, x, p, t) -> fx(nfmu, dx, x, p, t), 
                                tgrad=nothing)
-        prob = ODEProblem{true}(ff, x0, tspan, p)
+        prob = ODEProblem{true}(ff, nfmu.x0, tspan, p)
     else 
         ff = ODEFunction{false}((x, p, t) -> fx(nfmu, x, p, t), 
                                 tgrad=basic_tgrad)
-        prob = ODEProblem{false}(ff, x0, tspan, p)
+        prob = ODEProblem{false}(ff, nfmu.x0, tspan, p)
     end
 
-    # dudt_(u,p,t) = nfmu.neuralODE.re(p)(u)
-    # ff = ODEFunction{false}(dudt_,tgrad=basic_tgrad)
-    # prob = ODEProblem{false}(ff,x0,tspan,p)
-    
     if length(callbacks) > 0
-        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...)  
-    else
-        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)  
-    end
+        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...) 
+    else 
+        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
+    end  
 
     if saving
         return nfmu.solution, savedValues
