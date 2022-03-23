@@ -10,15 +10,13 @@ using DifferentialEquations: Tsit5
 import Random 
 Random.seed!(1234);
 
-FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.fmu")
-
 t_start = 0.0
 t_step = 0.01
 t_stop = 1.0 # 5.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad(FMUPath)
+myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 fmiInstantiate!(myFMU; loggingOn=false)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiSetReal(myFMU, "mass_s0", 1.3)  
@@ -72,17 +70,10 @@ net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
 
-solutionBefore = problem(extForce, t_step)
-vals = collect(data[1] for data in solutionBefore)
-
 # train it ...
 p_net = Flux.params(problem)
 
 optim = ADAM()
 Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
-
-# check results
-solutionAfter = problem(extForce, t_step)
-vals = collect(data[1] for data in solutionAfter)
 
 fmiUnload(myFMU)

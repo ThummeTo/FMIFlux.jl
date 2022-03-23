@@ -1,25 +1,20 @@
 # imports
 using FMI
 using FMIFlux
+using FMIZoo
 using Flux
 using DifferentialEquations: Tsit5
 import Plots
-
-simpleFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
-println("SimpleFMU path: ", simpleFMUPath)
-println("RealFMU path: ", realFMUPath)
 
 tStart = 0.0
 tStep = 0.01
 tStop = 4.0
 tSave = collect(tStart:tStep:tStop)
 
-realFMU = fmiLoad(realFMUPath)
+realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInstantiate!(realFMU; loggingOn=false)
 fmiInfo(realFMU)
 
-fmiReset(realFMU)
 fmiSetupExperiment(realFMU, tStart, tStop)
 states = ["s0", "v0"]
 x₀ = [0.5, 0.0]
@@ -59,7 +54,7 @@ fmiPlot(realFMU, vrs, realSimDataMod)
 
 fmiUnload(realFMU)
 
-simpleFMU = fmiLoad(simpleFMUPath)
+simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
 fmiInstantiate!(simpleFMU; loggingOn=false)
 fmiInfo(simpleFMU)
 
@@ -118,7 +113,7 @@ function plot_results(title, xLabel, yLabel, interval, realData, simpleData, neu
     
     fig = generate_figure(title, xLabel, yLabel)
     Plots.plot!(fig, interval, simpleData, label="SimpleFMU", linewidth=2)
-    Plots.plot!(fig, interval, realData, label="reference", linewidth=2)
+    Plots.plot!(fig, interval, realData, label="Reference", linewidth=2)
     for i in 1:length(neuralData)
         Plots.plot!(fig, neuralData[i][1], neuralData[i][2], label="NeuralFMU ($(i*2500))", 
                     linewidth=2, linestyle=linestyles[i], linecolor=:green)
