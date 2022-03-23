@@ -1,7 +1,7 @@
 authors = ["TT <tobias.thummerer@informatik.uni-augsburg.de>", "LM <lars.mikelsons@informatik.uni-augsburg.de>"]
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.5.0"
+version = "0.5.1"
 
 [compat]
 ChainRulesCore = "1.11.1"
