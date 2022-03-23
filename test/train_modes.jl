@@ -83,6 +83,13 @@ for handleEvents in [true, false]
                     @testset "reset: $reset" begin
                         for freeInstance in [true, false]
                             @testset "freeInstance: $freeInstance" begin
+
+                                if !instantiate && freeInstance
+                                    # Nothing is instantiated/allocated, but free it? 
+                                    # This doesn't make sense, so let's skip this one. 
+                                    continue
+                                end
+
                                 global problem, lastLoss, iterCB
 
                                 config = NeuralFMU_TrainingModeConfig()
@@ -115,14 +122,14 @@ for handleEvents in [true, false]
                                 if !freeInstance
                                     if instantiate
                                         @test (length(problem.fmu.components) - lastInstCount) >= 50 # more than 60 because forward diff multiple runs
-
-                                        # clean-up the dead components
-                                        while length(problem.fmu.components) > 1 
-                                            fmiFreeInstance!(problem.fmu)
-                                        end
                                     else
                                         @test (length(problem.fmu.components) == lastInstCount)
                                     end
+                                end
+
+                                # clean-up the dead components
+                                while length(problem.fmu.components) > 1 
+                                    fmiFreeInstance!(problem.fmu)
                                 end
 
                                 # check results
