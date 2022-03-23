@@ -108,7 +108,17 @@ for handleEvents in [true, false]
 
                                 iterCB = 0
                                 lastLoss = losssum()
-                                Flux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=callb)
+                                lastInstCount = length(problem.fmu.components)
+
+                                Flux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=callb)
+
+                                if !freeInstance
+                                    if instantiate
+                                        @test (length(problem.fmu.components) - lastInstCount) >= 60 # more than 60 because forward diff multiple runs
+                                    else
+                                        @test (length(problem.fmu.components) == lastInstCount)
+                                    end
+                                end
 
                                 # check results
                                 solutionAfter = problem(x0)

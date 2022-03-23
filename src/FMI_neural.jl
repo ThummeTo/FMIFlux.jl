@@ -310,6 +310,15 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator)
             @debug "[FIRST STEP]"
 
             if nfmu.trainingConfig.instantiate
+
+                # remove old one if we missed it (callback)
+                if nfmu.currentComponent != nothing
+                    if nfmu.trainingConfig.freeInstance
+                        fmi2FreeInstance!(nfmu.currentComponent)
+                    end
+                    nfmu.currentComponent = nothing
+                end
+
                 nfmu.currentComponent = fmi2Instantiate!(nfmu.fmu)
                 @debug "[NEW INST]"
             else
@@ -676,6 +685,13 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     else 
         nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
     end  
+
+    if nfmu.currentComponent != nothing
+        if nfmu.trainingConfig.freeInstance
+            fmi2FreeInstance!(nfmu.currentComponent)
+        end
+        nfmu.currentComponent = nothing
+    end
 
     if saving
         return nfmu.solution, savedValues
