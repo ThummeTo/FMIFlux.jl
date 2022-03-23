@@ -51,7 +51,7 @@ function callb()
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 30 == 0
+    if iterCB % 25 == 0
         loss = losssum()
         @info "Loss: $loss"
         @test loss < lastLoss  
@@ -110,11 +110,16 @@ for handleEvents in [true, false]
                                 lastLoss = losssum()
                                 lastInstCount = length(problem.fmu.components)
 
-                                Flux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=callb)
+                                Flux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=callb)
 
                                 if !freeInstance
                                     if instantiate
-                                        @test (length(problem.fmu.components) - lastInstCount) >= 60 # more than 60 because forward diff multiple runs
+                                        @test (length(problem.fmu.components) - lastInstCount) >= 50 # more than 60 because forward diff multiple runs
+
+                                        # clean-up the dead components
+                                        while length(problem.fmu.components) > 1 
+                                            fmiFreeInstance!(problem.fmu)
+                                        end
                                     else
                                         @test (length(problem.fmu.components) == lastInstCount)
                                     end
