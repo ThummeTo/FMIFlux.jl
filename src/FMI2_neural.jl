@@ -32,7 +32,7 @@ Setting the FMU time via argument `t` is optional, if not set, the current time 
 """
 function fmi2EvaluateME(comp::FMU2Component,
         x::Array{<:Real},
-        t = -1.0,#::Real,
+        t = comp.t,#::Real,
         setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
         setValues::Array{<:Real} = zeros(Real, 0), 
         getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0)) 
@@ -41,7 +41,7 @@ function fmi2EvaluateME(comp::FMU2Component,
 end
 function fmi2EvaluateME(comp::FMU2Component,
     x::Array{<:ForwardDiff.Dual{Tx, Vx, Nx}},
-    t = -1.0,#::Real,
+    t = comp.t,#::Real,
     setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
     setValues::Array{<:Real} = zeros(Real, 0),
     getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0) ) where {Tx, Vx, Nx}
@@ -134,13 +134,13 @@ end
 function ChainRulesCore.rrule(::typeof(fmi2EvaluateME), 
                               comp::FMU2Component,
                               x::Array{<:Real},
-                              t::Real = -1.0,
+                              t::Real = comp.t,
                               setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                               setValues::Array{<:Real} = zeros(Real, 0),
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
-    if comp.fmu.ẋ_interp !== nothing && t != -1.0
+    if comp.fmu.ẋ_interp !== nothing
         y = comp.fmu.ẋ_interp(t)
     end
     
@@ -211,13 +211,13 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
                               ::typeof(fmi2EvaluateME), 
                               comp, #::FMU2Component,
                               x,#::Array{<:Real},
-                              t,#::Real = -1.0,
+                              t,#::Real = comp.t,
                               setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                               setValues::Array{<:Real} = zeros(Real, 0),
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
-    if comp.fmu.ẋ_interp !== nothing && t != -1.0
+    if comp.fmu.ẋ_interp !== nothing 
         y = comp.fmu.ẋ_interp(t)
     end
 
@@ -379,7 +379,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(fmi2DoStepCS), 
                               comp::FMU2Component,
-                              dt::Real = -1.0,
+                              dt::Real = comp.t,
                               setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                               setValues::Array{<:Real} = zeros(Real, 0),
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
@@ -419,7 +419,7 @@ end
 function ChainRulesCore.frule((Δself, Δcomp, Δdt, ΔsetValueReferences, ΔsetValues, ΔgetValueReferences), 
                               ::typeof(fmi2DoStepCS), 
                               comp, #::FMU2,
-                              dt,#::Real = -1.0,
+                              dt,#::Real = comp.t,
                               setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                               setValues::Array{<:Real} = zeros(Real, 0),
                               getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))

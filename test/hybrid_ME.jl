@@ -107,7 +107,7 @@ push!(nets, net)
 # 6 # NeuralFMU with additional getter 
 getVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
 numGetVRs = length(getVRs)
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, fmi2ValueReference[], Real[], getVRs), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
@@ -116,14 +116,14 @@ push!(nets, net)
 # 7 # NeuralFMU with additional setter 
 setVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
 numSetVRs = length(setVRs)
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, setVRs, [1.1]), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, setVRs, [1.1]), 
             Dense(numStates, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
 # 8 # NeuralFMU with additional setter and getter
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, setVRs, [1.1], getVRs), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, setVRs, [1.1], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))

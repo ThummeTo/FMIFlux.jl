@@ -1,7 +1,7 @@
 authors = ["TT <tobias.thummerer@informatik.uni-augsburg.de>", "LM <lars.mikelsons@informatik.uni-augsburg.de>"]
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.5.1"
+version = "0.6.0"
 
 [compat]
 ChainRulesCore = "1.11.1"
@@ -9,7 +9,7 @@ DiffEqBase = "6.77.1"
 DiffEqCallbacks = "2.16.1"
 DiffEqFlux = "1.36.1"
 DifferentialEquations = "6.20.0, 7"
-FMIImport = "0.7.0"
+FMIImport = "0.8.0"
 Flux = "0.12.1"
 ForwardDiff = "0.10.23"
 Interpolations = "0.13.5"

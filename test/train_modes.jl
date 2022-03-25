@@ -92,7 +92,7 @@ for handleEvents in [true, false]
 
                                 global problem, lastLoss, iterCB
 
-                                config = NeuralFMU_TrainingModeConfig()
+                                config = FMU2ExecutionConfiguration()
                                 config.handleStateEvents = handleEvents
                                 config.handleTimeEvents = handleEvents
                                 config.instantiate = instantiate
