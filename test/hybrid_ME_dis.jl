@@ -52,7 +52,22 @@ function callb()
 
         # This test condition is weak, because when the FMU passes an event, the error might increase.  
         # ToDo: More intelligent testing condition.
-        @test (loss < lastLoss*2.0) && (loss != lastLoss)  
+        @test (loss < lastLoss*2.0) && (loss != lastLoss)
+        lastLoss = loss
+    end
+end
+
+function callbEqual()
+    global iterCB += 1
+    global lastLoss
+
+    if iterCB % 1 == 0
+        loss = losssum()
+        @info "Loss: $loss"
+
+        # This test condition is weak, because when the FMU passes an event, the error might increase.  
+        # ToDo: More intelligent testing condition.
+        @test (loss == lastLoss)
         lastLoss = loss
     end
 end
@@ -104,7 +119,7 @@ push!(nets, net)
 # 6 # NeuralFMU with additional getter 
 getVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
 numGetVRs = length(getVRs)
-net = Chain(states ->  fmiEvaluateME(realFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
+net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
@@ -113,17 +128,21 @@ push!(nets, net)
 # 7 # NeuralFMU with additional setter 
 setVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
 numSetVRs = length(setVRs)
-net = Chain(states ->  fmiEvaluateME(realFMU, states, myFMU.components[end].t, setVRs, [1.1]), 
+net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1]), 
             Dense(numStates, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
 # 8 # NeuralFMU with additional setter and getter
-net = Chain(states ->  fmiEvaluateME(realFMU, states, myFMU.components[end].t, setVRs, [1.1], getVRs), 
+net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
+push!(nets, net)
+
+# 9 # Empty NeuralFMU
+net = Chain(states ->  fmiEvaluateME(realFMU, states))
 push!(nets, net)
 
 optim = ADAM(1e-4)
@@ -132,7 +151,7 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
         net = nets[i]
         problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, rootSearchInterpolationPoints=1000)
-        problem.trainingConfig.handleStateEvents = true
+        
         @test problem != nothing
 
         solutionBefore = problem(x0)
@@ -146,7 +165,12 @@ for i in 1:length(nets)
         iterCB = 0
         lastLoss = losssum()
         @info "Start-Loss for net #$i: $lastLoss"
-        Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb)  #60
+
+        if i == 9
+            Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callbEqual)  
+        else 
+            Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb) 
+        end
 
         # check results
         solutionAfter = problem(x0)

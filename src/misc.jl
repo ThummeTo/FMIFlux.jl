@@ -48,13 +48,13 @@ end
 """
 Writes/Copies training parameters from `p_net` to `net` with data offset `c`.
 """
-function transferParams!(net, p_net, c=0; netRange=nothing)
+function transferParams!(net, p_net, c=1; netRange=nothing)
     
     if netRange == nothing
         netRange = 1:length(net.layers)
     end
     for l in netRange
-        if !(l isa Dense)
+        if !(net.layers[l] isa Dense)
             continue
         end
         ni = size(net.layers[l].weight,2)

@@ -111,15 +111,15 @@ function _fmi2EvaluateME(comp::FMU2Component,
         @assert length(setValueReferences) == length(setValues) ["fmi2EvaluateME(...): `setValueReferences` and `setValues` need to be the same length!"]
     end
 
-    if t >= 0.0 
-        fmi2SetTime(comp, t)
-    end
-
     if setter
         fmi2SetReal(comp, setValueReferences, setValues)
     end
 
     fmi2SetContinuousStates(comp, x)
+
+    # if t >= 0.0 
+    #     fmi2SetTime(comp, t)
+    # end
     
     y = []
     if getter
@@ -152,9 +152,9 @@ function ChainRulesCore.rrule(::typeof(fmi2EvaluateME),
             @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.rrule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
 
-        if t >= 0.0
-            fmi2SetTime(comp, t)
-        end
+        # if t >= 0.0
+        #     fmi2SetTime(comp, t)
+        # end
 
         fmi2SetContinuousStates(comp, x)
 

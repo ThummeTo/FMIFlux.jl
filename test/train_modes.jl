@@ -77,71 +77,46 @@ net = Chain(Dense(numStates, 16, leakyrelu),
 
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
-        for instantiate in [true, false]
-            @testset "instantiate: $instantiate" begin
-                for reset in [true, false]
-                    @testset "reset: $reset" begin
-                        for freeInstance in [true, false]
-                            @testset "freeInstance: $freeInstance" begin
+        for config in [FMU_EXECUTION_CONFIGURATION_RESET, FMU_EXECUTION_CONFIGURATION_NO_RESET, FMU_EXECUTION_CONFIGURATION_NO_FREEING]
+            @testset "config: $config" begin
+                
+                global problem, lastLoss, iterCB
 
-                                if !instantiate && freeInstance
-                                    # Nothing is instantiated/allocated, but free it? 
-                                    # This doesn't make sense, so let's skip this one. 
-                                    continue
-                                end
+                config.handleStateEvents = handleEvents
+                config.handleTimeEvents = handleEvents
+                
+                optim = ADAM(1e-4)
+                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
+                @test problem != nothing
 
-                                global problem, lastLoss, iterCB
+                myFMU.executionConfig = config
+                
+                solutionBefore = problem(x0)
+                @test length(solutionBefore.t) == length(tData)
+                @test solutionBefore.t[1] == t_start
+                @test solutionBefore.t[end] == t_stop
 
-                                config = FMU2ExecutionConfiguration()
-                                config.handleStateEvents = handleEvents
-                                config.handleTimeEvents = handleEvents
-                                config.instantiate = instantiate
-                                config.reset = reset 
-                                config.freeInstance = freeInstance
-                            
-                                optim = ADAM(1e-4)
-                                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
-                                @test problem != nothing
+                # train it ...
+                p_net = Flux.params(problem)
 
-                                problem.trainingConfig = config
-                                
-                                solutionBefore = problem(x0)
-                                @test length(solutionBefore.t) == length(tData)
-                                @test solutionBefore.t[1] == t_start
-                                @test solutionBefore.t[end] == t_stop
+                iterCB = 0
+                lastLoss = losssum()
+                lastInstCount = length(problem.fmu.components)
 
-                                # train it ...
-                                p_net = Flux.params(problem)
+                Flux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=callb)
 
-                                iterCB = 0
-                                lastLoss = losssum()
-                                lastInstCount = length(problem.fmu.components)
-
-                                Flux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=callb)
-
-                                if !freeInstance
-                                    if instantiate
-                                        @test (length(problem.fmu.components) - lastInstCount) >= 50 # more than 60 because forward diff multiple runs
-                                    else
-                                        @test (length(problem.fmu.components) == lastInstCount)
-                                    end
-                                end
-
-                                # clean-up the dead components
-                                while length(problem.fmu.components) > 1 
-                                    fmiFreeInstance!(problem.fmu)
-                                end
-
-                                # check results
-                                solutionAfter = problem(x0)
-                                @test length(solutionAfter.t) == length(tData)
-                                @test solutionAfter.t[1] == t_start
-                                @test solutionAfter.t[end] == t_stop
-                            end
-                        end
-                    end
+                # clean-up the dead components
+                while length(problem.fmu.components) > 1 
+                    fmiFreeInstance!(problem.fmu)
                 end
+
+                # check results
+                solutionAfter = problem(x0)
+                @test length(solutionAfter.t) == length(tData)
+                @test solutionAfter.t[1] == t_start
+                @test solutionAfter.t[end] == t_stop
             end
+              
         end
     end
 end
