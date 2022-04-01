@@ -22,13 +22,13 @@ fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiSetReal(myFMU, "mass_s0", 1.3)  
 fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
-success, realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
 
 # sine(t) as external force
 function extForce(t)
     return [sin(t)]
 end
-accData = collect(data[1] for data in realSimData.saveval)
+accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
 function losssum()

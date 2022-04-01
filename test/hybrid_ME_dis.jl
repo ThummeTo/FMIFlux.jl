@@ -22,19 +22,19 @@ fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)
 fmiExitInitializationMode(realFMU)
 x0 = fmiGetContinuousStates(realFMU)
-_, realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, saveat=tData)
 
 # setup traing data
-posData = collect(data[1] for data in realSimData.saveval)
-velData = collect(data[2] for data in realSimData.saveval)
+posData = fmi2GetSolutionValue(realSimData, "mass_s")
+velData = fmi2GetSolutionValue(realSimData, "mass_v")
 
 # loss function for training
 function losssum()
     global problem, x0, posData
     solution = problem(x0)
 
-    posNet = collect(data[1] for data in solution.u)
-    velNet = collect(data[2] for data in solution.u)
+    posNet = fmi2GetSolutionState(solution, "mass_s")
+    velNet = fmi2GetSolutionState(solution, "mass_v")
     
     Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
 end
@@ -155,9 +155,9 @@ for i in 1:length(nets)
         @test problem != nothing
 
         solutionBefore = problem(x0)
-        @test length(solutionBefore.t) == length(tData)
-        @test solutionBefore.t[1] == t_start
-        @test solutionBefore.t[end] == t_stop
+        @test length(solutionBefore.states.t) == length(tData)
+        @test solutionBefore.states.t[1] == t_start
+        @test solutionBefore.states.t[end] == t_stop
 
         # train it ...
         p_net = Flux.params(problem)
@@ -174,9 +174,9 @@ for i in 1:length(nets)
 
         # check results
         solutionAfter = problem(x0)
-        @test length(solutionAfter.t) == length(tData)
-        @test solutionAfter.t[1] == t_start
-        @test solutionAfter.t[end] == t_stop
+        @test length(solutionAfter.states.t) == length(tData)
+        @test solutionAfter.states.t[1] == t_start
+        @test solutionAfter.states.t[end] == t_stop
     end
 end
 

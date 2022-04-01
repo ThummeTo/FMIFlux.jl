@@ -22,7 +22,7 @@ import SciMLBase: RightRootFind
 using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
 import ChainRulesCore: ignore_derivatives
 
-using FMIImport: fmi2StatusOK
+using FMIImport: fmi2StatusOK, FMU2Solution
 
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
@@ -34,7 +34,6 @@ Structure definition for a NeuralFMU, that runs in mode `Model Exchange` (ME).
 """
 mutable struct ME_NeuralFMU <: NeuralFMU
     neuralODE::NeuralODE
-    solution::ODESolution
     fmu::FMU
 
     currentComponent
@@ -65,7 +64,7 @@ Structure definition for a NeuralFMU, that runs in mode `Co-Simulation` (CS).
 mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     model
     fmu::F
-    currentComponent::C
+    currentComponent::Union{C, Nothing}
 
     tspan
     saveat
@@ -73,6 +72,8 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
 
     function CS_NeuralFMU{F, C}() where {F, C} 
         inst = new{F, C}()
+
+        inst.currentComponent = nothing
 
         return inst
     end
@@ -555,6 +556,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     nfmu.fmu.ẋ_interp = nothing
     nfmu.firstRun = true
 
+    fmusol = FMU2Solution(nfmu.fmu)
+
     ########
 
     callbacks = []
@@ -632,7 +635,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         nfmu.fmu.hasTimeEvents = (nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True)
 
         if showProgress 
-            progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:black, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
+            progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
             ProgressMeter.update!(progressMeter, 0) # show it!
         end
 
@@ -718,10 +721,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         end
 
         if saving 
-            savedValues = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
+            fmusol.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
 
             savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator), 
-                              savedValues, 
+                              fmusol.values, 
                               saveat=nfmu.saveat)
             push!(callbacks, savingCB)
         end
@@ -743,10 +746,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     end
 
     if length(callbacks) > 0
-        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...) 
+        fmusol.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.neuralODE.kwargs...) 
     else 
-        nfmu.solution = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
+        fmusol.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
     end  
+    fmusol.success = (fmusol.states.retcode == :Success)
 
     # cleanup progress meter
 
@@ -763,11 +767,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         end
     end # ignore_derivatives
 
-    if saving
-        return nfmu.solution, savedValues
-    else 
-        return nfmu.solution
-    end
+    return fmusol
 end
 
 """

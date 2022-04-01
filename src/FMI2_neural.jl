@@ -7,6 +7,7 @@ using DifferentialEquations, DiffEqCallbacks
 
 using ChainRulesCore
 import ForwardDiff, Zygote
+using Interpolations: bounds
 
 # helper to collect variable IdSet
 function indiciesForValueReferences(fmu::FMU2, 
@@ -141,7 +142,10 @@ function ChainRulesCore.rrule(::typeof(fmi2EvaluateME),
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
     if comp.fmu.ẋ_interp !== nothing
-        y = comp.fmu.ẋ_interp(t)
+        b = bounds(comp.fmu.ẋ_interp.itp)[1]
+        if t >= b[1] && t <= b[2]
+            y = comp.fmu.ẋ_interp(t)
+        end
     end
     
     function fmi2EvaluateME_pullback(ȳ)
@@ -218,7 +222,10 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
 
     y = fmi2EvaluateME(comp, x, t, setValueReferences, setValues, getValueReferences)
     if comp.fmu.ẋ_interp !== nothing 
-        y = comp.fmu.ẋ_interp(t)
+        b = bounds(comp.fmu.ẋ_interp.itp)[1]
+        if t >= b[1] && t <= b[2]
+            y = comp.fmu.ẋ_interp(t)
+        end
     end
 
     function fmi2EvaluateME_pullforward(Δx, ΔsetValues)
