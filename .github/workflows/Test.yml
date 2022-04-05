@@ -18,7 +18,7 @@ jobs:
       matrix:
         julia-version: ['1.6', '1']
         julia-arch: [x64]
-        os: [windows-latest] # ubuntu-latest
+        os: [windows-latest, ubuntu-latest]
         experimental: [false] # true
 
     steps:

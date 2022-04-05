@@ -12,8 +12,8 @@ import Zygote
 
 using FMIFlux.FMIImport: fmi2SampleDirectionalDerivative, fmi2GetJacobian, fmi2SetContinuousStates
 
-FMUPaths = [joinpath(dirname(@__FILE__), "..", "model", "SpringFrictionPendulum1D.fmu"),
-            joinpath(dirname(@__FILE__), "..", "model", "BouncingBall1D.fmu")]
+FMUPaths = [get_model_filename("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]),
+            get_model_filename("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])]
 
 t_start = 0.0
 t_step = 0.01

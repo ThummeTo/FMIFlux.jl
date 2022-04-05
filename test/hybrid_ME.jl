@@ -10,16 +10,13 @@ using DifferentialEquations: Tsit5
 import Random 
 Random.seed!(1234);
 
-modelFMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulum1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringFrictionPendulum1D.fmu")
-
 t_start = 0.0
 t_step = 0.01
 t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad(realFMUPath)
+realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 fmiInstantiate!(realFMU; loggingOn=false)
 fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)
@@ -28,7 +25,7 @@ x0 = fmiGetContinuousStates(realFMU)
 _, realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, saveat=tData)
 
 # load FMU for NeuralFMU
-myFMU = fmiLoad(modelFMUPath)
+myFMU = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 fmiInstantiate!(myFMU; loggingOn=false)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiEnterInitializationMode(myFMU)

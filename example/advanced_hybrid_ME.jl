@@ -17,16 +17,14 @@ using Flux
 using DifferentialEquations: Tsit5
 import Plots
 using Zygote
-
-modelFMUPath = joinpath(dirname(@__FILE__), "../model/SpringPendulum1D.fmu")
-realFMUPath = joinpath(dirname(@__FILE__), "../model/SpringFrictionPendulum1D.fmu")
+using FMIZoo
 
 t_start = 0.0
 t_step = 0.1
 t_stop = 5.0
 tData = collect(t_start:t_step:t_stop)
 
-myFMU = fmiLoad(realFMUPath)
+myFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInstantiate!(myFMU; loggingOn=false)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 
@@ -41,7 +39,7 @@ fmiUnload(myFMU)
 
 fmiPlot(myFMU, vrs, realSimData)
 
-myFMU = fmiLoad(modelFMUPath)
+myFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
 
 fmiInstantiate!(myFMU; loggingOn=false)
 _, fmuSimData = fmiSimulate(myFMU, t_start, t_stop; saveat=tData, recordValues=["mass.s", "mass.v", "mass.a"])

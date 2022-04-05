@@ -10,15 +10,13 @@ using DifferentialEquations: Tsit5
 import Random 
 Random.seed!(1234);
 
-FMUPath = joinpath(dirname(@__FILE__), "..", "model", "SpringPendulumExtForce1D.fmu")
-
 t_start = 0.0
 t_step = 0.01
 t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad(FMUPath)
+myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 fmiInstantiate!(myFMU; loggingOn=false)
 fmiSetupExperiment(myFMU, t_start, t_stop)
 fmiSetReal(myFMU, "mass_s0", 1.3)   
@@ -64,7 +62,7 @@ end
 # Load FMUs
 fmus = []
 for i in 1:2 # how many FMUs do you want?
-    fmu = fmiLoad(FMUPath)
+    fmu = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
     fmiInstantiate!(fmu; loggingOn=false)
     #fmiSetupExperiment(fmu, t_start, t_stop)
     #fmiEnterInitializationMode(fmu)
