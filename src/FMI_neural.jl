@@ -19,6 +19,7 @@ import Optim
 import SciMLBase: RightRootFind
 
 using FMIImport: fmi2ComponentStateModelInitialized, fmi2ComponentStateModelSetableFMUstate, fmi2ComponentStateModelUnderEvaluation
+using FMIImport.FMICore: FMU2
 import ChainRulesCore: ignore_derivatives
 
 """
