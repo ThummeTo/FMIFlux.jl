@@ -24,8 +24,13 @@ jobs:
     - name: Install Packages if changed files
       if: ${{ steps.filter.outputs.example == 'true' }}
       run: |
-        pip install jupyter
-        pip install nbconvert
+        pip install jupyter==1.0.0
+        pip install nbconvert==6.4.3
+
+    - name: Execute changed files
+      if: ${{ steps.filter.outputs.example == 'true' }}
+      run: |
+        jupyter nbconvert --to notebook --inplace --execute ${{ steps.filter.outputs.example_files }}
  
     - name: Synch changed files
       if: ${{ steps.filter.outputs.example == 'true' }}
