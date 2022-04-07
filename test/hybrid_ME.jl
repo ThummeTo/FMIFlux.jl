@@ -39,7 +39,7 @@ function losssum()
     global problem, x0, posData
     solution = problem(x0)
 
-    posNet = fmi2GetSolutionState(solution, "mass.s")
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
     Flux.Losses.mse(posNet, posData)
 end

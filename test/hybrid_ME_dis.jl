@@ -8,7 +8,7 @@ using Flux
 using DifferentialEquations: Tsit5
 
 import Random 
-Random.seed!(1234);
+Random.seed!(5678);
 
 t_start = 0.0
 t_step = 0.1
@@ -33,8 +33,8 @@ function losssum()
     global problem, x0, posData
     solution = problem(x0)
 
-    posNet = fmi2GetSolutionState(solution, "mass_s")
-    velNet = fmi2GetSolutionState(solution, "mass_v")
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
     Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
 end
@@ -53,21 +53,6 @@ function callb()
         # This test condition is weak, because when the FMU passes an event, the error might increase.  
         # ToDo: More intelligent testing condition.
         @test (loss < lastLoss*2.0) && (loss != lastLoss)
-        lastLoss = loss
-    end
-end
-
-function callbEqual()
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB % 1 == 0
-        loss = losssum()
-        @info "Loss: $loss"
-
-        # This test condition is weak, because when the FMU passes an event, the error might increase.  
-        # ToDo: More intelligent testing condition.
-        @test (loss == lastLoss)
         lastLoss = loss
     end
 end
@@ -166,9 +151,7 @@ for i in 1:length(nets)
         lastLoss = losssum()
         @info "Start-Loss for net #$i: $lastLoss"
 
-        if i == 9
-            Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callbEqual)  
-        else 
+        if i != 9
             Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb) 
         end
 
