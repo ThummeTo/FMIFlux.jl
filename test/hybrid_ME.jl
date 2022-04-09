@@ -78,8 +78,8 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states),
 push!(nets, net)
 
 # 3 # default ME-NeuralFMU (learn states)
-net = Chain(Dense(numStates, 16, leakyrelu),
-            Dense(16, 16, leakyrelu),
+net = Chain(Dense(numStates, 16, identity),
+            Dense(16, 16, identity),
             Dense(16, numStates),
             states -> fmiEvaluateME(myFMU, states))
 push!(nets, net)
