@@ -169,6 +169,10 @@ function time_choice(nfmu, integrator)
         return nothing 
     end
 
+    if !nfmu.fmu.executionConfig.handleTimeEvents
+        return nothing
+    end
+
     if nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
         #@debug "time_choice(...): $(nfmu.currentComponent.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
         return nfmu.currentComponent.eventInfo.nextEventTime
@@ -974,7 +978,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
         # time event handling 
 
-        if nfmu.fmu.executionConfig.handleTimeEvents # && nfmu.fmu.hasTimeEvents
+        #if nfmu.fmu.executionConfig.handleTimeEvents # && nfmu.fmu.hasTimeEvents
             timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu, integrator),
                                             (integrator) -> affectFMU!(nfmu, integrator, 0), 
                                             Float64; 
@@ -982,14 +986,33 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                                             save_positions=(false,false))
         
             push!(nfmu.callbacks, timeEventCb)
+        #end
+
+        if saving 
+            nfmu.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
+
+            savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator), 
+                            nfmu.solution.values, 
+                              saveat=nfmu.saveat)
+            push!(nfmu.callbacks, savingCB)
         end
+
+        # custom callbacks
+        for cb in nfmu.customCallbacks
+            push!(nfmu.callbacks, cb)
+        end
+
+        # stoping cb
+        stopcb = FunctionCallingCallback((u, t, integrator) -> stopCallback(nfmu, t);
+                                    funcat=[nfmu.tspan[end]])
+        push!(nfmu.callbacks, stopcb)
         
         # auto pick sensealg 
 
         if sense === nothing
 
             # currently, Callbacks only working with ForwardDiff
-            if length(nfmu.callbacks) > 0 
+            if length(nfmu.callbacks) > 2 # only start and stop callback
                 p_len = 0 
                 fp = Flux.params(nfmu)
                 if length(fp) > 0
@@ -1016,24 +1039,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 end
             end
         end
-
-        if saving 
-            nfmu.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
-
-            savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator), 
-                            nfmu.solution.values, 
-                              saveat=nfmu.saveat)
-            push!(nfmu.callbacks, savingCB)
-        end
-
-        # custom callbacks
-        for cb in nfmu.customCallbacks
-            push!(nfmu.callbacks, cb)
-        end
-
-        stopcb = FunctionCallingCallback((u, t, integrator) -> stopCallback(nfmu, t);
-                                    funcat=[nfmu.tspan[end]])
-        push!(nfmu.callbacks, stopcb)
 
     end # ignore_derivatives
 

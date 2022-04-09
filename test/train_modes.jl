@@ -22,7 +22,7 @@ fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)
 fmiExitInitializationMode(realFMU)
 x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
 
 # load FMU for NeuralFMU
 myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
@@ -81,14 +81,13 @@ for handleEvents in [true, false]
                 
                 global problem, lastLoss, iterCB
 
-                config.handleStateEvents = handleEvents
-                config.handleTimeEvents = handleEvents
+                myFMU.executionConfig = config
+                myFMU.executionConfig.handleStateEvents = handleEvents
+                myFMU.executionConfig.handleTimeEvents = handleEvents
                 
                 optim = ADAM(1e-4)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
                 @test problem != nothing
-
-                myFMU.executionConfig = config
                 
                 solutionBefore = problem(x0)
                 if solutionBefore.success
