@@ -8,6 +8,7 @@ using Test
 using FMIZoo
 
 using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
+using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
 exportingToolsWindows = [("Dymola", "2022x")]
 exportingToolsLinux = [("Dymola", "2022x")]

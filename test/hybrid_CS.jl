@@ -17,31 +17,27 @@ tData = t_start:t_step:t_stop
 
 # generate traing data
 myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(myFMU; loggingOn=false)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiSetReal(myFMU, "mass_s0", 1.3)  
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
-success, realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
+parameters = Dict("mass_s0" => 1.3)
+realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], saveat=tData)
 
 # sine(t) as external force
 function extForce(t)
     return [sin(t)]
 end
-accData = collect(data[1] for data in realSimData.saveval)
+accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
 function losssum()
     solution = problem(extForce, t_step)
 
-    accNet = collect(data[1] for data in solution)
+    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
 
     Flux.Losses.mse(accNet, accData)
 end
 
 # callback function for training
-global iterCB = 0
-global lastLoss = 0.0
+iterCB = 0
+lastLoss = 0.0
 function callb()
     global iterCB += 1
     global lastLoss

@@ -22,7 +22,7 @@ fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)
 fmiExitInitializationMode(realFMU)
 x0 = fmiGetContinuousStates(realFMU)
-_, realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
 
 # load FMU for NeuralFMU
 myFMU = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
@@ -32,15 +32,14 @@ fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
 # setup traing data
-posData = collect(data[1] for data in realSimData.saveval)
-#velData = collect(data[2] for data in realSimData.saveval)
+posData = fmi2GetSolutionValue(realSimData, "mass.s")
 
 # loss function for training
 function losssum()
     global problem, x0, posData
     solution = problem(x0)
 
-    posNet = collect(data[2] for data in solution.u)
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
     Flux.Losses.mse(posNet, posData)
 end
@@ -59,8 +58,6 @@ function callb()
         lastLoss = loss
     end
 end
-
-vr = fmi2StringToValueReference(myFMU, "mass.m")
 
 numStates = fmiGetNumberOfStates(myFMU)
 
@@ -81,8 +78,8 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states),
 push!(nets, net)
 
 # 3 # default ME-NeuralFMU (learn states)
-net = Chain(Dense(numStates, 16, leakyrelu),
-            Dense(16, 16, leakyrelu),
+net = Chain(Dense(numStates, 16, identity),
+            Dense(16, 16, identity),
             Dense(16, numStates),
             states -> fmiEvaluateME(myFMU, states))
 push!(nets, net)
@@ -107,7 +104,7 @@ push!(nets, net)
 # 6 # NeuralFMU with additional getter 
 getVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
 numGetVRs = length(getVRs)
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, fmi2ValueReference[], Real[], getVRs), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
@@ -116,14 +113,14 @@ push!(nets, net)
 # 7 # NeuralFMU with additional setter 
 setVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
 numSetVRs = length(setVRs)
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, setVRs, [1.1]), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, setVRs, [1.1]), 
             Dense(numStates, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
 # 8 # NeuralFMU with additional setter and getter
-net = Chain(states ->  fmiEvaluateME(myFMU, states, -1.0, setVRs, [1.1], getVRs), 
+net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, setVRs, [1.1], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
@@ -138,9 +135,11 @@ for i in 1:length(nets)
         @test problem != nothing
 
         solutionBefore = problem(x0)
-        @test length(solutionBefore.t) == length(tData)
-        @test solutionBefore.t[1] == t_start
-        @test solutionBefore.t[end] == t_stop
+        if solutionBefore.success
+            @test length(solutionBefore.states.t) == length(tData)
+            @test solutionBefore.states.t[1] == t_start
+            @test solutionBefore.states.t[end] == t_stop
+        end
 
         # train it ...
         p_net = Flux.params(problem)
@@ -152,9 +151,11 @@ for i in 1:length(nets)
 
         # check results
         solutionAfter = problem(x0)
-        @test length(solutionAfter.t) == length(tData)
-        @test solutionAfter.t[1] == t_start
-        @test solutionAfter.t[end] == t_stop
+        if solutionAfter.success
+            @test length(solutionAfter.states.t) == length(tData)
+            @test solutionAfter.states.t[1] == t_start
+            @test solutionAfter.states.t[end] == t_stop
+        end
     end
 end
 
