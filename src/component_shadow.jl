@@ -94,11 +94,10 @@ function jacobianUpdate!(mat, comp::FMU2ComponentShadow, rdx, rx)
             @assert length(comp.jac_ẋy_x_interp) > 0 "empty interpolation polynominal"
 
             b = bounds(comp.jac_ẋy_x_interp.itp)[1]
-            if comp.t >= b[1] && comp.t <= b[2]
-                mat[:] = comp.jac_ẋy_x_interp(comp.t)
-            else
-                @assert false "evaluateJacobians for fmi2EvaluateME: Interpolation polynominal (jac state) out of bounds: t ∉ {$(b[1]), $(b[2])}" 
-            end
+            t = comp.t 
+            t = max(b[1], min(b[2], t))
+            mat[:] = comp.jac_ẋy_x_interp(t)
+            
         else
             comp.realComponent.jacobianUpdate!(mat, comp.realComponent, rdx, rx)
 
@@ -116,11 +115,10 @@ function jacobianUpdate!(mat, comp::FMU2ComponentShadow, rdx, rx)
             @assert length(comp.jac_ẋy_u_interp) > 0 "empty interpolation polynominal"
             
             b = bounds(comp.jac_ẋy_u_interp.itp)[1]
-            if comp.t >= b[1] && comp.t <= b[2]
-                mat[:] = comp.jac_ẋy_u_interp(comp.t)
-            else
-                @assert false "evaluateJacobians for fmi2EvaluateME: Interpolation polynominal (jac input) out of bounds: t ∉ {$(b[1]), $(b[2])}" 
-            end
+            t = comp.t 
+            t = max(b[1], min(b[2], t))
+            mat[:] = comp.jac_ẋy_u_interp(t) 
+        
         else
             comp.realComponent.jacobianUpdate!(mat, comp.realComponent, rdx, rx)
 
@@ -306,12 +304,10 @@ function fmi2GetReal(comp::FMU2ComponentShadow, getValueReferences)
     if (comp.y_interp !== nothing)
 
         b = bounds(comp.y_interp.itp)[1]
-        if comp.t >= b[1] && comp.t <= b[2]
-            y = comp.y_interp(comp.t)
-        else
-            @assert false "Interpolation polynominal (outputs) out of bounds: t ∉ {$(b[1]), $(b[2])}" 
-        end
-
+        t = comp.t 
+        t = max(b[1], min(b[2], t))
+        y = comp.y_interp(t)
+        
     else
 
         y = fmi2GetReal(comp.realComponent, getValueReferences)
@@ -334,12 +330,10 @@ function fmi2GetDerivatives(comp::FMU2ComponentShadow)
     if (comp.ẋ_interp !== nothing)
 
         b = bounds(comp.ẋ_interp.itp)[1]
-        if comp.t >= b[1] && comp.t <= b[2]
-            ẋ = comp.ẋ_interp(comp.t)
-        else
-            @assert false "Interpolation polynominal (derivatives) out of bounds: t ∉ {$(b[1]), $(b[2])}" 
-        end
-
+        t = comp.t 
+        t = max(b[1], min(b[2], t))
+        ẋ = comp.ẋ_interp(t)
+       
     else
 
         ẋ = fmi2GetDerivatives(comp.realComponent)
@@ -365,11 +359,9 @@ function fmi2GetContinuousStates(comp::FMU2ComponentShadow)
     if (comp.x_interp !== nothing)
 
         b = bounds(comp.x_interp.itp)[1]
-        if comp.t >= b[1] && comp.t <= b[2]
-            x = comp.x_interp(comp.t)
-        else
-            @assert false "Interpolation polynominal (derivatives) out of bounds: t ∉ {$(b[1]), $(b[2])}" 
-        end
+        t = comp.t 
+        t = max(b[1], min(b[2], t))
+        x = comp.x_interp(t)
 
     else
 

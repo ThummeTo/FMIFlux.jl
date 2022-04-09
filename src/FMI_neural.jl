@@ -502,10 +502,10 @@ function fx(nfmu,
 
     c = nfmu.currentComponent
 
-    # if c === nothing
-    #     # this should never happen!
-    #     return zeros(length(x))
-    # end 
+    if c === nothing
+        # this should never happen!
+        return zeros(length(x))
+    end 
 
     ignore_derivatives() do
         
