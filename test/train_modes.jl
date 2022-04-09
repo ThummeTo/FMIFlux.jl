@@ -91,9 +91,11 @@ for handleEvents in [true, false]
                 myFMU.executionConfig = config
                 
                 solutionBefore = problem(x0)
-                @test length(solutionBefore.states.t) == length(tData)
-                @test solutionBefore.states.t[1] == t_start
-                @test solutionBefore.states.t[end] == t_stop
+                if solutionBefore.success
+                    @test length(solutionBefore.states.t) == length(tData)
+                    @test solutionBefore.states.t[1] == t_start
+                    @test solutionBefore.states.t[end] == t_stop
+                end
 
                 # train it ...
                 p_net = Flux.params(problem)
@@ -106,9 +108,11 @@ for handleEvents in [true, false]
 
                 # check results
                 solutionAfter = problem(x0)
-                @test length(solutionAfter.states.t) == length(tData)
-                @test solutionAfter.states.t[1] == t_start
-                @test solutionAfter.states.t[end] == t_stop
+                if solutionAfter.success
+                    @test length(solutionAfter.states.t) == length(tData)
+                    @test solutionAfter.states.t[1] == t_start
+                    @test solutionAfter.states.t[end] == t_stop
+                end
 
                 # clean-up the dead components
                 while length(problem.fmu.components) > 1 
