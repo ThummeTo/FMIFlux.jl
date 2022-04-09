@@ -8,7 +8,7 @@ using Flux
 using DifferentialEquations: Tsit5
 
 import Random 
-Random.seed!(1234);
+Random.seed!(5678);
 
 t_start = 0.0
 t_step = 0.01
@@ -77,8 +77,7 @@ for handleEvents in [true, false]
                 myFMU.executionConfig.handleStateEvents = handleEvents
                 myFMU.executionConfig.handleTimeEvents = handleEvents
 
-                net = Chain(Dense(numStates, 16),
-                    Dense(16, numStates),
+                net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity),
                     states -> fmiEvaluateME(myFMU, states),
                     Dense(numStates, 16, tanh),
                     Dense(16, numStates))
