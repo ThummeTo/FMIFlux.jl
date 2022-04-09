@@ -65,7 +65,7 @@ numStates = fmiGetNumberOfStates(realFMU)
 nets = [] 
 
 1 # default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), tanh),
+net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity),
             states ->  fmiEvaluateME(realFMU, states), 
             Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity))
 push!(nets, net)
@@ -78,8 +78,8 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states),
 push!(nets, net)
 
 # 3 # default ME-NeuralFMU (learn states)
-net = Chain(Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
+net = Chain(Dense(numStates, 16, identity),
+            Dense(16, 16, identity),
             Dense(16, numStates),
             states -> fmiEvaluateME(realFMU, states))
 push!(nets, net)

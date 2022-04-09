@@ -66,14 +66,6 @@ numStates = fmiGetNumberOfStates(myFMU)
 # some NeuralFMU setups
 nets = [] 
 
-# net
-net = Chain(Dense(numStates, 16, tanh),
-            Dense(16, numStates),
-            states -> fmiEvaluateME(myFMU, states),
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numStates))
-
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
         for config in [FMU_EXECUTION_CONFIGURATION_RESET, FMU_EXECUTION_CONFIGURATION_NO_RESET, FMU_EXECUTION_CONFIGURATION_NO_FREEING]
@@ -84,6 +76,12 @@ for handleEvents in [true, false]
                 myFMU.executionConfig = config
                 myFMU.executionConfig.handleStateEvents = handleEvents
                 myFMU.executionConfig.handleTimeEvents = handleEvents
+
+                net = Chain(Dense(numStates, 16),
+                    Dense(16, numStates),
+                    states -> fmiEvaluateME(myFMU, states),
+                    Dense(numStates, 16, tanh),
+                    Dense(16, numStates))
                 
                 optim = ADAM(1e-4)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
