@@ -17,25 +17,21 @@ tData = t_start:t_step:t_stop
 
 # generate traing data
 myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(myFMU; loggingOn=false)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiSetReal(myFMU, "mass_s0", 1.3)   
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
-_, realSimData = fmiSimulateCS(myFMU, t_start, t_stop; recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
+parameters = Dict("mass_s0" => 1.3)
+realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
 fmiUnload(myFMU)
 
 # setup traing data
 function extForce(t)
     return [sin(t), cos(t)]
 end
-accData = collect(data[1] for data in realSimData.saveval)
+accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
 function losssum()
     solution = problem(extForce, t_step)
 
-    accNet = collect(data[1] for data in solution)
+    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
 
     Flux.Losses.mse(accNet, accData)
 end
@@ -60,13 +56,9 @@ function callb()
 end
 
 # Load FMUs
-fmus = []
+fmus = Vector{FMU2}()
 for i in 1:2 # how many FMUs do you want?
     fmu = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-    fmiInstantiate!(fmu; loggingOn=false)
-    #fmiSetupExperiment(fmu, t_start, t_stop)
-    #fmiEnterInitializationMode(fmu)
-    #fmiExitInitializationMode(fmu)
     push!(fmus, fmu)
 end
 
