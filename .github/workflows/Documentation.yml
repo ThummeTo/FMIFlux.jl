@@ -3,7 +3,7 @@ name: Documentation, Examples
 on:
   push:
     branches:
-      - '*'
+      - 'main'
     tags:
       - '*'
   pull_request:
@@ -66,6 +66,13 @@ jobs:
   build:
     needs: sync-jupyter
     runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        julia-version: ['1.6']
+        julia-arch: [x64]
+        os: [ubuntu-latest]
+        experimental: [false]
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v2
