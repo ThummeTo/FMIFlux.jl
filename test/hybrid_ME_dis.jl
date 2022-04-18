@@ -64,27 +64,27 @@ numStates = fmiGetNumberOfStates(realFMU)
 # some NeuralFMU setups
 nets = [] 
 
-1 # default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
+# 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity),
             states ->  fmiEvaluateME(realFMU, states), 
             Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity))
 push!(nets, net)
 
-# 2 # default ME-NeuralFMU (learn dynamics)
-net = Chain(states ->  fmiEvaluateME(realFMU, states), 
+# 2. default ME-NeuralFMU (learn dynamics)
+net = Chain(states ->  fmiEvaluateME(realFMU, states, t_step/10), 
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
-# 3 # default ME-NeuralFMU (learn states)
+# 3. default ME-NeuralFMU (learn states)
 net = Chain(Dense(numStates, 16, identity),
             Dense(16, 16, identity),
             Dense(16, numStates),
-            states -> fmiEvaluateME(realFMU, states))
+            states -> fmiEvaluateME(realFMU, states, t_step/10))
 push!(nets, net)
 
-# 4 # default ME-NeuralFMU (learn dynamics and states)
+# 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(Dense(numStates, 16, leakyrelu),
             Dense(16, 16, leakyrelu),
             Dense(16, numStates),
@@ -94,14 +94,14 @@ net = Chain(Dense(numStates, 16, leakyrelu),
             Dense(16, numStates))
 push!(nets, net)
 
-# 5 # NeuralFMU with hard setting time to 0.0
+# 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states ->  fmiEvaluateME(realFMU, states), # not supported by this FMU:   states ->  fmiEvaluateME(realFMU, states, 0.0), 
             Dense(numStates, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
-# 6 # NeuralFMU with additional getter 
+# 6. NeuralFMU with additional getter 
 getVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
 numGetVRs = length(getVRs)
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
@@ -110,7 +110,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t,
             Dense(16, numStates))
 push!(nets, net)
 
-# 7 # NeuralFMU with additional setter 
+# 7. NeuralFMU with additional setter 
 setVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
 numSetVRs = length(setVRs)
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1]), 
@@ -119,14 +119,14 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t,
             Dense(16, numStates))
 push!(nets, net)
 
-# 8 # NeuralFMU with additional setter and getter
+# 8. NeuralFMU with additional setter and getter
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
 push!(nets, net)
 
-# 9 # Empty NeuralFMU
+# 9. Empty NeuralFMU
 net = Chain(states ->  fmiEvaluateME(realFMU, states))
 push!(nets, net)
 
@@ -135,9 +135,9 @@ for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
         net = nets[i]
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, rootSearchInterpolationPoints=1000)
+        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
         
-        @test problem != nothing
+        @test problem !== nothing
 
         solutionBefore = problem(x0)
         if solutionBefore.success
@@ -153,7 +153,7 @@ for i in 1:length(nets)
         lastLoss = losssum()
         @info "Start-Loss for net #$i: $lastLoss"
 
-        # net #9 has no parameters -> skip it
+        # net 9 has no parameters -> skip it
         if i != 9 
             Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb) 
         end
