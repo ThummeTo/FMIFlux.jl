@@ -13,6 +13,7 @@ import Zygote
 using FMIFlux.FMIImport: fmi2SampleDirectionalDerivative, fmi2GetJacobian, fmi2SetContinuousStates
 
 FMUPaths = [get_model_filename("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]),
+            get_model_filename("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]),
             get_model_filename("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])]
 
 t_start = 0.0
@@ -36,6 +37,7 @@ for FMUPath in FMUPaths
     fmiSetContinuousStates(myFMU, x0)
     samp_jac = fmi2SampleDirectionalDerivative(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
     auto_jac = fmi2GetJacobian(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    @info auto_jac
 
     @test (abs.(auto_jac -   FD_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)
     @test (abs.(auto_jac -   ZG_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)
