@@ -134,8 +134,7 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
 
         net = nets[i]
-        # problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), solver; saveat=tData, force_dtmin=true, dtmin=1e-6, reltol=1e-6, abstol=1e-6)
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, force_dtmin=true, dtmin=1e-6, reltol=1e-6, abstol=1e-6)
+        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, force_dtmin=true, dtmin=1e-6, reltol=1e-4, abstol=1e-4)
         
         @test problem !== nothing
 
