@@ -17,12 +17,9 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(realFMU; loggingOn=false)
-fmiSetupExperiment(realFMU, t_start, t_stop)
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulate(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], saveat=tData)
+x0 = collect(realSimData.values.saveval[1])
+@test x0 == [1.0, 0.0]
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass_s")
@@ -127,15 +124,18 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t,
 push!(nets, net)
 
 # 9. Empty NeuralFMU
-net = Chain(states ->  fmiEvaluateME(realFMU, states))
+net = Chain(states ->  fmiEvaluateME(realFMU, states),
+            Dense(ones(numStates, numStates), false,  identity))
 push!(nets, net)
 
 optim = ADAM(1e-4)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
+
         net = nets[i]
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, force_dtmin=true, dtmin=1e-6)
+        # problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), solver; saveat=tData, force_dtmin=true, dtmin=1e-6, reltol=1e-6, abstol=1e-6)
+        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, force_dtmin=true, dtmin=1e-6, reltol=1e-6, abstol=1e-6)
         
         @test problem !== nothing
 
