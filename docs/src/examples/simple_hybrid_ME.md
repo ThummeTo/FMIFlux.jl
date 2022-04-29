@@ -7,9 +7,9 @@ Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
 Licensed under the MIT license. See [LICENSE](https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 ## Motivation
-The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the unmodeled physical effect. The final product is a simulation model including the orignially unmodeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characterisitic functionality of the simulation and only the missing effects are added.
+The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the not modeled physical effect. The final product is a simulation model including the originally not modeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characteristic functionality of the simulation and only the missing effects are added.
 
-NeuralFMUs need not to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
+NeuralFMUs do not need to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
 
 ![NeuralFMU.svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/NeuralFMU.svg?raw=true)
 
@@ -24,22 +24,22 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_ME.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_ME.md) corresponding to the notebook.  
+Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_ME.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_ME.md) corresponding to the notebook.  
 
 
 ## Getting started
 
 ### Installation prerequisites
-|    | Description                       | Command     |  Alternative  |   
-|:--- |:---                               |:---        |:---|
-|1.  | Enter Package Manager via         |     ]       |     |
-|2.  | Install FMI via                   |   add FMI   | add " https://github.com/ThummeTo/FMI.jl "   |
-|3.  | Install FMIFlux via               | add FMIFlux | add " https://github.com/ThummeTo/FMIFlux.jl " |
-|4.  | Install FMIZoo via                | add FMIZoo  | add " https://github.com/ThummeTo/FMIZoo.jl " |
-|5.  | Install Flux via                  |  add Flux   |     |
-|6.  | Install DifferentialEquations via | add DifferentialEquations |  |
-|7.  | Install Plots via                 | add Plots   |     |
-|8.  | Install Random via                | add Random  |     |
+|     | Description                       | Command                   | Alternative                                    |   
+|:----|:----------------------------------|:--------------------------|:-----------------------------------------------|
+| 1.  | Enter Package Manager via         | ]                         |                                                |
+| 2.  | Install FMI via                   | add FMI                   | add " https://github.com/ThummeTo/FMI.jl "     |
+| 3.  | Install FMIFlux via               | add FMIFlux               | add " https://github.com/ThummeTo/FMIFlux.jl " |
+| 4.  | Install FMIZoo via                | add FMIZoo                | add " https://github.com/ThummeTo/FMIZoo.jl "  |
+| 5.  | Install Flux via                  | add Flux                  |                                                |
+| 6.  | Install DifferentialEquations via | add DifferentialEquations |                                                |
+| 7.  | Install Plots via                 | add Plots                 |                                                |
+| 8.  | Install Random via                | add Random                |                                                |
 
 ## Code section
 
@@ -62,7 +62,7 @@ Random.seed!(42);
 
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
-The objec-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
+The object-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
 
 ![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulum1D.svg?raw=true)
 
@@ -115,18 +115,17 @@ tSave = collect(tStart:tStep:tStop)
 
 ### RealFMU
 
-In the next lines of code the FMU of the *realFMU* model from *FMIZoo.jl* is loaded and instantiated.  
+In the next lines of code the FMU of the *realFMU* model from *FMIZoo.jl* is loaded and the information about the FMU is shown.
 
 
 ```julia
 realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
-fmiInstantiate!(realFMU; loggingOn=false)
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 29 files at `/tmp/fmijl_MVfs2x/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 29 files at `/tmp/fmijl_ILBtqX/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:75
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_MVfs2x/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_ILBtqX/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:190
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:193
@@ -161,59 +160,34 @@ fmiInfo(realFMU)
     ##################### End information for FMU #####################
 
 
-Both the start and end time are set via the *fmiSetupExperiment()* function. The experiment is initialized to get the information of the continuous states. You can get all continuous states of a FMU by the function *fmiGetContinuousStates()* and this is also done for the *realFMU*. It has two states: The first state is the position of the mass, which is initilized with $0.5m$, the second state is the velocity, which is initialized with $0\frac{m}{s}$.   
+In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $0.5𝑚$. The second parameter is the initial velocity of the mass, which is initialized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *realFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
 
 
 ```julia
-fmiSetupExperiment(realFMU, tStart, tStop)
-
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-
-x₀ = fmiGetContinuousStates(realFMU)
-```
-
-
-
-
-    2-element Vector{Float64}:
-     0.5
-     0.0
-
-
-
-In the following code block the *realFMU* is simulated, still specifying which variables are included. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
-
-
-```julia
+initStates = ["s0", "v0"]
+x₀ = [0.5, 0.0]
+params = Dict(zip(initStates, x₀))
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
-solution = fmiSimulate(realFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+
+realSimData = fmiSimulate(realFMU, tStart, tStop; parameters=params, recordValues=vrs, saveat=tSave)
+fmiPlot(realSimData)
 ```
 
 
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_11_0.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_9_0.svg)
     
 
 
 
- After the plots are created, the FMU is unloaded.
+The data from the simulation of the *realFMU*, are divided into position and velocity data. These data will be needed later. 
 
 
 ```julia
-fmiUnload(realFMU)
-```
-
-The data from the simualtion of the *realFMU*, are divided into position and velocity data. These data will be needed later. 
-
-
-```julia
-realSimData = solution.values.saveval
-velReal = collect(data[2] for data in realSimData)
-posReal = collect(data[1] for data in realSimData)
+velReal = fmi2GetSolutionValue(realSimData, "mass.v")
+posReal = fmi2GetSolutionValue(realSimData, "mass.s")
 ```
 
 
@@ -249,20 +223,20 @@ posReal = collect(data[1] for data in realSimData)
 
 
 
+After extracting the data, the FMU is cleaned-up.
+fmiUnload(realFMU)
 ### SimpleFMU
 
-The following lines load, instantiate, simulate and plot the *simpleFMU* just like the *realFMU*. The differences between both systems can be clearly seen from the plots. In the plot for the *realFMU* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you would simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFMU* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
+The following lines load, simulate and plot the *simpleFMU* just like the *realFMU*. The differences between both systems can be clearly seen from the plots. In the plot for the *realFMU* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFMU* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
 
 
 ```julia
 simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
-
-fmiInstantiate!(simpleFMU; loggingOn=false)
 fmiInfo(simpleFMU)
 
 vrs = ["mass.s", "mass.v", "mass.a"]
-solution = fmiSimulate(simpleFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+simpleSimData = fmiSimulate(simpleFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
+fmiPlot(simpleSimData)
 ```
 
     #################### Begin information for FMU ####################
@@ -294,9 +268,9 @@ fmiPlot(solution)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 29 files at `/tmp/fmijl_8rncgw/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 29 files at `/tmp/fmijl_dJSLrX/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:75
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_8rncgw/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_dJSLrX/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:190
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:193
@@ -306,18 +280,17 @@ fmiPlot(solution)
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_17_2.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_15_2.svg)
     
 
 
 
-The data from the simualtion of the *simpleFMU*, are divided into position and velocity data. These data will be needed later to plot the results. 
+The data from the simulation of the *simpleFMU*, are divided into position and velocity data. These data will be needed later to plot the results. 
 
 
 ```julia
-simpleSimData = solution.values.saveval
-velSimple = collect(data[2] for data in simpleSimData)
-posSimple = collect(data[1] for data in simpleSimData)
+velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
+posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
 ```
 
 
@@ -359,7 +332,7 @@ posSimple = collect(data[1] for data in simpleSimData)
 
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
 
-The loss function in this implmentation consists of the mean squared error (mse) from the real position of the *realFMU* simulation (posReal) and the position data of the network (posNet).
+The loss function in this implementation consists of the mean squared error (mse) from the real position of the *realFMU* simulation (posReal) and the position data of the network (posNet).
 $$ mse = \frac{1}{n} \sum\limits_{i=0}^n (posReal[i] - posNet[i])^2 $$
 
 As it is indicated with the comments, one could also additionally consider the mse from the real velocity (velReal) and the velocity from the network (velNet). The error in this case would be calculated from the sum of both errors.
@@ -368,10 +341,11 @@ As it is indicated with the comments, one could also additionally consider the m
 ```julia
 # loss function for training
 function lossSum()
+    global posReal
     solution = neuralFMU(x₀, tStart)
 
-    posNet = collect(data[1] for data in solution.states.u)
-    #velNet = collect(data[2] for data in solution.states.u)
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    # velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
 
     Flux.Losses.mse(posReal, posNet) #+ Flux.Losses.mse(velReal, velNet)
 end
@@ -427,11 +401,11 @@ net = Chain(inputs -> fmiEvaluateME(simpleFMU, inputs),
 
 
     Chain(
-      var"#11#12"(),
-      Dense(2, 16, tanh),                   [90m# 48 parameters[39m
-      Dense(16, 16, tanh),                  [90m# 272 parameters[39m
-      Dense(16, 2),                         [90m# 34 parameters[39m
-    )[90m                   # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
+      var"#1#2"(),
+      Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
+      Dense(16 => 16, tanh),                [90m# 272 parameters[39m
+      Dense(16 => 2),                       [90m# 34 parameters[39m
+    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
 
 
 
@@ -446,7 +420,7 @@ neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave)
 
 #### Plot before training
 
-Here the state trajactory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the later plots, the effect of learning can be seen.
+Here the state trajectory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.
 
 
 ```julia
@@ -458,7 +432,7 @@ fmiPlot(solutionBefore)
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_29_0.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_27_0.svg)
     
 
 
@@ -477,35 +451,35 @@ Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 ```
 
     ┌ Info: Loss [1]: 0.7677   Avg displacement in data: 0.87618
-    └ @ Main In[11]:7
-    ┌ Info: Loss [21]: 0.06825   Avg displacement in data: 0.26124
-    └ @ Main In[11]:7
-    ┌ Info: Loss [41]: 0.05322   Avg displacement in data: 0.23069
-    └ @ Main In[11]:7
-    ┌ Info: Loss [61]: 0.04779   Avg displacement in data: 0.21861
-    └ @ Main In[11]:7
-    ┌ Info: Loss [81]: 0.04434   Avg displacement in data: 0.21057
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
+    ┌ Info: Loss [21]: 0.06826   Avg displacement in data: 0.26126
+    └ @ Main In[9]:7
+    ┌ Info: Loss [41]: 0.05322   Avg displacement in data: 0.2307
+    └ @ Main In[9]:7
+    ┌ Info: Loss [61]: 0.04779   Avg displacement in data: 0.21862
+    └ @ Main In[9]:7
+    ┌ Info: Loss [81]: 0.04434   Avg displacement in data: 0.21058
+    └ @ Main In[9]:7
     ┌ Info: Loss [101]: 0.04209   Avg displacement in data: 0.20517
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [121]: 0.04092   Avg displacement in data: 0.20229
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [141]: 0.04032   Avg displacement in data: 0.20079
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [161]: 0.0399   Avg displacement in data: 0.19974
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [181]: 0.03958   Avg displacement in data: 0.19894
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [201]: 0.03933   Avg displacement in data: 0.19832
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [221]: 0.03914   Avg displacement in data: 0.19785
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [241]: 0.03899   Avg displacement in data: 0.19746
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [261]: 0.03887   Avg displacement in data: 0.19715
-    └ @ Main In[11]:7
-    ┌ Info: Loss [281]: 0.03876   Avg displacement in data: 0.19689
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
+    ┌ Info: Loss [281]: 0.03877   Avg displacement in data: 0.19689
+    └ @ Main In[9]:7
 
 
 #### Comparison of the plots
@@ -522,7 +496,7 @@ fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-posNeuralFMU = collect(data[1] for data in solutionAfter.states.u)
+posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
 
 Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
 Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
@@ -534,102 +508,102 @@ fig
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_33_0.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_31_0.svg)
     
 
 
 
 #### Continue training and plotting
 
-As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFMU*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training is well recognizable, since the plot of the NeuralFMU had further converged. 
+As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFMU*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training can be recognized well, since the plot of the NeuralFMU had further converged. 
 
 
 ```julia
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=callb) 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀, tStart)
-posNeuralFMU = collect(data[1] for data in solutionAfter.states.u)
+posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
 Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth=2)
 fig 
 ```
 
     ┌ Info: Loss [301]: 0.03868   Avg displacement in data: 0.19666
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [321]: 0.0386   Avg displacement in data: 0.19646
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [341]: 0.03853   Avg displacement in data: 0.19628
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [361]: 0.03846   Avg displacement in data: 0.19611
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [381]: 0.03839   Avg displacement in data: 0.19594
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [401]: 0.03833   Avg displacement in data: 0.19578
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [421]: 0.03826   Avg displacement in data: 0.19561
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [441]: 0.0382   Avg displacement in data: 0.19545
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [461]: 0.03813   Avg displacement in data: 0.19527
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [481]: 0.03806   Avg displacement in data: 0.19509
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [501]: 0.03798   Avg displacement in data: 0.19489
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [521]: 0.0379   Avg displacement in data: 0.19468
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [541]: 0.03781   Avg displacement in data: 0.19446
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [561]: 0.03772   Avg displacement in data: 0.19421
-    └ @ Main In[11]:7
-    ┌ Info: Loss [581]: 0.03761   Avg displacement in data: 0.19394
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
+    ┌ Info: Loss [581]: 0.03761   Avg displacement in data: 0.19395
+    └ @ Main In[9]:7
     ┌ Info: Loss [601]: 0.0375   Avg displacement in data: 0.19365
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [621]: 0.03737   Avg displacement in data: 0.19332
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [641]: 0.03723   Avg displacement in data: 0.19295
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
     ┌ Info: Loss [661]: 0.03706   Avg displacement in data: 0.19252
-    └ @ Main In[11]:7
-    ┌ Info: Loss [681]: 0.03689   Avg displacement in data: 0.19206
-    └ @ Main In[11]:7
-    ┌ Info: Loss [701]: 0.03667   Avg displacement in data: 0.19149
-    └ @ Main In[11]:7
-    ┌ Info: Loss [721]: 0.03644   Avg displacement in data: 0.19088
-    └ @ Main In[11]:7
-    ┌ Info: Loss [741]: 0.03616   Avg displacement in data: 0.19015
-    └ @ Main In[11]:7
-    ┌ Info: Loss [761]: 0.03582   Avg displacement in data: 0.18926
-    └ @ Main In[11]:7
-    ┌ Info: Loss [781]: 0.03541   Avg displacement in data: 0.18818
-    └ @ Main In[11]:7
-    ┌ Info: Loss [801]: 0.03491   Avg displacement in data: 0.18685
-    └ @ Main In[11]:7
-    ┌ Info: Loss [821]: 0.03428   Avg displacement in data: 0.18516
-    └ @ Main In[11]:7
-    ┌ Info: Loss [841]: 0.03347   Avg displacement in data: 0.18294
-    └ @ Main In[11]:7
-    ┌ Info: Loss [861]: 0.03237   Avg displacement in data: 0.17992
-    └ @ Main In[11]:7
-    ┌ Info: Loss [881]: 0.03082   Avg displacement in data: 0.17556
-    └ @ Main In[11]:7
-    ┌ Info: Loss [901]: 0.02851   Avg displacement in data: 0.16884
-    └ @ Main In[11]:7
-    ┌ Info: Loss [921]: 0.02489   Avg displacement in data: 0.15776
-    └ @ Main In[11]:7
-    ┌ Info: Loss [941]: 0.01945   Avg displacement in data: 0.13948
-    └ @ Main In[11]:7
-    ┌ Info: Loss [961]: 0.01301   Avg displacement in data: 0.11407
-    └ @ Main In[11]:7
-    ┌ Info: Loss [981]: 0.00882   Avg displacement in data: 0.09392
-    └ @ Main In[11]:7
+    └ @ Main In[9]:7
+    ┌ Info: Loss [681]: 0.03689   Avg displacement in data: 0.19207
+    └ @ Main In[9]:7
+    ┌ Info: Loss [701]: 0.03667   Avg displacement in data: 0.1915
+    └ @ Main In[9]:7
+    ┌ Info: Loss [721]: 0.03644   Avg displacement in data: 0.19089
+    └ @ Main In[9]:7
+    ┌ Info: Loss [741]: 0.03616   Avg displacement in data: 0.19016
+    └ @ Main In[9]:7
+    ┌ Info: Loss [761]: 0.03582   Avg displacement in data: 0.18927
+    └ @ Main In[9]:7
+    ┌ Info: Loss [781]: 0.03542   Avg displacement in data: 0.18819
+    └ @ Main In[9]:7
+    ┌ Info: Loss [801]: 0.03492   Avg displacement in data: 0.18687
+    └ @ Main In[9]:7
+    ┌ Info: Loss [821]: 0.03429   Avg displacement in data: 0.18518
+    └ @ Main In[9]:7
+    ┌ Info: Loss [841]: 0.03348   Avg displacement in data: 0.18297
+    └ @ Main In[9]:7
+    ┌ Info: Loss [861]: 0.03238   Avg displacement in data: 0.17995
+    └ @ Main In[9]:7
+    ┌ Info: Loss [881]: 0.03084   Avg displacement in data: 0.17561
+    └ @ Main In[9]:7
+    ┌ Info: Loss [901]: 0.02854   Avg displacement in data: 0.16893
+    └ @ Main In[9]:7
+    ┌ Info: Loss [921]: 0.02493   Avg displacement in data: 0.1579
+    └ @ Main In[9]:7
+    ┌ Info: Loss [941]: 0.01952   Avg displacement in data: 0.13971
+    └ @ Main In[9]:7
+    ┌ Info: Loss [961]: 0.01307   Avg displacement in data: 0.11433
+    └ @ Main In[9]:7
+    ┌ Info: Loss [981]: 0.00884   Avg displacement in data: 0.09403
+    └ @ Main In[9]:7
 
 
 
 
 
     
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_35_1.svg)
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_33_1.svg)
     
 
 

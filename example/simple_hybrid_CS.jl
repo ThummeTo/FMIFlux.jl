@@ -16,43 +16,26 @@ tStop = 5.0
 tSave = tStart:tStep:tStop
 
 referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
-fmiInstantiate!(referenceFMU; loggingOn=false)
 fmiInfo(referenceFMU)
 
-fmiSetupExperiment(referenceFMU, tStart, tStop)
-fmiSetReal(referenceFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
-fmiEnterInitializationMode(referenceFMU)
-fmiExitInitializationMode(referenceFMU)
-
-x₀ = fmiGetContinuousStates(referenceFMU)
-
-parameter = Dict("mass_s0" => 1.3)
+param = Dict("mass_s0" => 1.3, "mass.v" => 0.0)   # increase amplitude, invert phase
 vrs = ["mass.s", "mass.v", "mass.a"]
-solution = fmiSimulate(referenceFMU, tStart, tStop; parameters=parameter, recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+referenceSimData = fmiSimulate(referenceFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+fmiPlot(referenceSimData)
 
-referenceSimData = solution.values.saveval
-posReference = collect(data[1] for data in referenceSimData)
-velReference = collect(data[2] for data in referenceSimData)
-accReference = collect(data[3] for data in referenceSimData)
+posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
+velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
+accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
 
-fmiTerminate(referenceFMU)
-fmiReset(referenceFMU)
 defaultFMU = referenceFMU
+param = Dict("mass_s0" => 0.5, "mass.v" => 0.0)
 
-fmiSetupExperiment(defaultFMU, tStart, tStop)
-fmiEnterInitializationMode(defaultFMU)
-fmiExitInitializationMode(defaultFMU)
+defaultSimData = fmiSimulate(defaultFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+fmiPlot(defaultSimData)
 
-x₀ = fmiGetContinuousStates(defaultFMU)
-
-solution = fmiSimulate(defaultFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
-
-defaultSimData = solution.values.saveval
-posDefault = collect(data[1] for data in defaultSimData)
-velDefault = collect(data[2] for data in defaultSimData)
-accDefault = collect(data[3] for data in defaultSimData)
+posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
+velDefault = fmi2GetSolutionValue(defaultSimData, vrs[2])
+accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])
 
 function extForce(t)
     return [0.0]
@@ -62,7 +45,7 @@ end
 function lossSum()
     solution = csNeuralFMU(extForce, tStep)
 
-    accNet = collect(data[1] for data in solution.values.saveval)
+    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
     Flux.Losses.mse(accReference, accNet)
 end
@@ -90,7 +73,8 @@ net = Chain(inputs -> fmiInputDoStepCSOutput(defaultFMU, tStep, inputs),
 csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);
 
 solutionBefore = csNeuralFMU(extForce, tStep)
-Plots.plot(tSave, collect(data[1] for data in solutionBefore.values.saveval), label="acc CS-NeuralFMU", linewidth=2)
+accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
+Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 
 # train
 paramsNet = Flux.params(csNeuralFMU)
@@ -106,7 +90,7 @@ fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m/s^2]", linewidth=2
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-accNeuralFMU = collect(data[1] for data in solutionAfter.values.saveval)
+accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 1; isIndex=true)
 
 Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
 Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)

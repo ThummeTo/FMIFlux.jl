@@ -7,9 +7,9 @@ Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
 Licensed under the MIT license. See [LICENSE](https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 ## Motivation
-The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the unmodeled physical effect. The final product is a simulation model including the orignially unmodeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characterisitic functionality of the simulation and only the missing effects are added.
+The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the not modeled physical effect. The final product is a simulation model including the originally not modeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characteristic functionality of the simulation and only the missing effects are added.
 
-NeuralFMUs need not to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
+NeuralFMUs do not need to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
 
 ![CS-NeuralFMU.svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/CSNeuralFMU.svg?raw=true)
 
@@ -24,22 +24,22 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_CS.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_CS.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_CS.md) corresponding to the notebook.  
+Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_CS.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/main/example/simple_hybrid_CS.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/simple_hybrid_CS.md) corresponding to the notebook.  
 
 
 ## Getting started
 
 ### Installation prerequisites
-|    | Description                       | Command     |  Alternative  |   
-|:--- |:---                               |:---        |:---|
-|1.  | Enter Package Manager via         |     ]       |     |
-|2.  | Install FMI via                   |   add FMI   | add " https://github.com/ThummeTo/FMI.jl "   |
-|3.  | Install FMIFlux via               | add FMIFlux | add " https://github.com/ThummeTo/FMIFlux.jl " |
-|4.  | Install FMIZoo via                | add FMIZoo  | add " https://github.com/ThummeTo/FMIZoo.jl " |
-|5.  | Install Flux via                  |  add Flux   |     |
-|6.  | Install DifferentialEquations via | add DifferentialEquations |  |
-|7.  | Install Plots via                 | add Plots   |     |
-|8.  | Install Random via                | add Random  |     |
+|     | Description                       | Command                   | Alternative                                    |   
+|:----|:----------------------------------|:--------------------------|:-----------------------------------------------|
+| 1.  | Enter Package Manager via         | ]                         |                                                |
+| 2.  | Install FMI via                   | add FMI                   | add " https://github.com/ThummeTo/FMI.jl "     |
+| 3.  | Install FMIFlux via               | add FMIFlux               | add " https://github.com/ThummeTo/FMIFlux.jl " |
+| 4.  | Install FMIZoo via                | add FMIZoo                | add " https://github.com/ThummeTo/FMIZoo.jl "  |
+| 5.  | Install Flux via                  | add Flux                  |                                                |
+| 6.  | Install DifferentialEquations via | add DifferentialEquations |                                                |
+| 7.  | Install Plots via                 | add Plots                 |                                                |
+| 8.  | Install Random via                | add Random                |                                                |
 
 ## Code section
 
@@ -85,18 +85,17 @@ tSave = tStart:tStep:tStop
 
 ### ReferenceFMU
 
-In the next lines of code the FMU of the *referenceFMU* model is loaded from *FMIZoo.jl* and instantiated.  
+In the next lines of code the FMU of the *referenceFMU* model is loaded from *FMIZoo.jl* and the information about the FMU is shown.  
 
 
 ```julia
 referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
-fmiInstantiate!(referenceFMU; loggingOn=false)
 fmiInfo(referenceFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_XJhn01/SpringPendulumExtForce1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_PtEpxX/SpringPendulumExtForce1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:75
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_XJhn01/SpringPendulumExtForce1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_PtEpxX/SpringPendulumExtForce1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:190
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/S8pFT/src/FMI2_ext.jl:193
@@ -134,54 +133,32 @@ fmiInfo(referenceFMU)
     ##################### End information for FMU #####################
 
 
-Both the start and end time are set via the *fmiSetupExperiment()* function. In addition, the initial position of the mass is set to a value of $1.3m$  The experiment is initialized to get the information of the continuous states. You can get all continuous states of a FMU by the function *fmiGetContinuousStates()* and this is also done for the *referenceFMU*. It has two states: The first state is the previously initialized position of the mass, the second state is the velocity, which is initialized with $0\frac{m}{s}$.   
+In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $1.3𝑚$. The second parameter is the initial velocity of the mass, which is initilized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *referenceFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *referenceFMU* can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.
 
 
 ```julia
-fmiSetupExperiment(referenceFMU, tStart, tStop)
-fmiSetReal(referenceFMU, "mass_s0", 1.3)   # increase amplitude, invert phase
-fmiEnterInitializationMode(referenceFMU)
-fmiExitInitializationMode(referenceFMU)
-
-x₀ = fmiGetContinuousStates(referenceFMU)
-```
-
-
-
-
-    2-element Vector{Float64}:
-     1.3
-     0.0
-
-
-
-In the following code block the *referenceFMU* is simulated, still specifying which variables are included. After the simulation is finished the result of the *referenceFMU* can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.
-
-
-```julia
-parameter = Dict("mass_s0" => 1.3)
+param = Dict("mass_s0" => 1.3, "mass.v" => 0.0)   # increase amplitude, invert phase
 vrs = ["mass.s", "mass.v", "mass.a"]
-solution = fmiSimulate(referenceFMU, tStart, tStop; parameters=parameter, recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+referenceSimData = fmiSimulate(referenceFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+fmiPlot(referenceSimData)
 ```
 
 
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_9_0.svg)
     
 
 
 
-The data from the simualtion of the *referenceFMU*, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. 
+The data from the simulation of the *referenceFMU*, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. 
 
 
 ```julia
-referenceSimData = solution.values.saveval
-posReference = collect(data[1] for data in referenceSimData)
-velReference = collect(data[2] for data in referenceSimData)
-accReference = collect(data[3] for data in referenceSimData)
+posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
+velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
+accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
 ```
 
 
@@ -219,27 +196,20 @@ accReference = collect(data[3] for data in referenceSimData)
 
 ### DefaultFMU
 
-The following is a reset for the *referenceFMU* and a renaming to *defaultFMU*. After the reset, the previous initial position of the mass is not set, so the default position of the *defaultFMU* is used. The first state indicates the position of the mass, which is initilized with $0.5𝑚$.
+The following is a renaming for the *referenceFMU* to *defaultFMU*. The previous initial position of the mass is now set to the default position of the *defaultFMU*. The initial position of the mass is initilized with $0.5𝑚$ and initial velocity of the mass is initialized with $0\frac{m}{s}$.
 
 
 ```julia
-fmiTerminate(referenceFMU)
-fmiReset(referenceFMU)
 defaultFMU = referenceFMU
-
-fmiSetupExperiment(defaultFMU, tStart, tStop)
-fmiEnterInitializationMode(defaultFMU)
-fmiExitInitializationMode(defaultFMU)
-
-x₀ = fmiGetContinuousStates(defaultFMU)
+param = Dict("mass_s0" => 0.5, "mass.v" => 0.0)
 ```
 
 
 
 
-    2-element Vector{Float64}:
-     0.5
-     0.0
+    Dict{String, Float64} with 2 entries:
+      "mass_s0" => 0.5
+      "mass.v"  => 0.0
 
 
 
@@ -247,15 +217,15 @@ The following simulate and plot the *defaultFMU* just like the *referenceFMU*. T
 
 
 ```julia
-solution = fmiSimulate(defaultFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+defaultSimData = fmiSimulate(defaultFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+fmiPlot(defaultSimData)
 ```
 
 
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_17_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_15_0.svg)
     
 
 
@@ -264,10 +234,9 @@ The data from the simualtion of the *defaultFMU*, are divided into position, vel
 
 
 ```julia
-defaultSimData = solution.values.saveval
-posDefault = collect(data[1] for data in defaultSimData)
-velDefault = collect(data[2] for data in defaultSimData)
-accDefault = collect(data[3] for data in defaultSimData)
+posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
+velDefault = fmi2GetSolutionValue(defaultSimData, vrs[2])
+accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])
 ```
 
 
@@ -328,7 +297,7 @@ end
 
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
 
-The loss function in this implmentation consists of the mean squared error (mse) from the acceleration data of the *referenceFMU* simulation (`accReference`) and the acceleration data of the network (`accNet`).
+The loss function in this implementation consists of the mean squared error (mse) from the acceleration data of the *referenceFMU* simulation (`accReference`) and the acceleration data of the network (`accNet`).
 $$ mse = \frac{1}{n} \sum\limits_{i=0}^n (accReference[i] - accNet[i])^2 $$
 
 
@@ -337,7 +306,7 @@ $$ mse = \frac{1}{n} \sum\limits_{i=0}^n (accReference[i] - accNet[i])^2 $$
 function lossSum()
     solution = csNeuralFMU(extForce, tStep)
 
-    accNet = collect(data[1] for data in solution.values.saveval)
+    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
     Flux.Losses.mse(accReference, accNet)
 end
@@ -395,11 +364,11 @@ net = Chain(inputs -> fmiInputDoStepCSOutput(defaultFMU, tStep, inputs),
 
 
     Chain(
-      var"#15#16"(),
-      Dense(2, 16, tanh),                   [90m# 48 parameters[39m
-      Dense(16, 16, tanh),                  [90m# 272 parameters[39m
-      Dense(16, 2),                         [90m# 34 parameters[39m
-    )[90m                   # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
+      var"#1#2"(),
+      Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
+      Dense(16 => 16, tanh),                [90m# 272 parameters[39m
+      Dense(16 => 2),                       [90m# 34 parameters[39m
+    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
 
 
 
@@ -414,19 +383,20 @@ csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);
 
 #### Plot before training
 
-Here the state trajactory of the *extForceFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the later plots, the effect of learning can be seen.
+Here the state trajectory of the *extForceFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.
 
 
 ```julia
 solutionBefore = csNeuralFMU(extForce, tStep)
-Plots.plot(tSave, collect(data[1] for data in solutionBefore.values.saveval), label="acc CS-NeuralFMU", linewidth=2)
+accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
+Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 ```
 
 
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_32_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_30_0.svg)
     
 
 
@@ -445,35 +415,35 @@ Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 ```
 
     ┌ Info: Loss [1]: 1.31473
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [21]: 0.13349
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [41]: 0.07489
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [61]: 0.04067
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [81]: 0.02535
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [101]: 0.01475
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [121]: 0.00847
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [141]: 0.00507
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [161]: 0.00335
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [181]: 0.00249
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [201]: 0.002
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [221]: 0.00168
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [241]: 0.00144
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [261]: 0.00124
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
     ┌ Info: Loss [281]: 0.00108
-    └ @ Main In[12]:8
+    └ @ Main In[11]:8
 
 
 #### Comparison of the plots
@@ -490,7 +460,7 @@ fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m/s^2]", linewidth=2
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-accNeuralFMU = collect(data[1] for data in solutionAfter.values.saveval)
+accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 1; isIndex=true)
 
 Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
 Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
@@ -502,7 +472,7 @@ fig
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_34_0.svg)
     
 
 

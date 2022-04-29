@@ -16,77 +16,63 @@ tStop = 4.0
 tSave = collect(tStart:tStep:tStop)
 
 realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
-fmiInstantiate!(realFMU; loggingOn=false)
 fmiInfo(realFMU)
 
-fmiSetupExperiment(realFMU, tStart, tStop)
-states = ["s0", "v0"]
+initStates = ["s0", "v0"]
 x₀ = [0.5, 0.0]
-
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU);
-
-params = Dict(zip(states, x₀))
+params = Dict(zip(initStates, x₀))
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
-solution = fmiSimulate(realFMU, tStart, tStop; parameters=params, recordValues=vrs, saveat=tSave, reset=false)
-realSimData = solution.values.saveval
-posReal = collect(data[1] for data in realSimData)
-velReal = collect(data[2] for data in realSimData)
-fmiPlot(solution)
 
-function simulate(FMU, states, x₀, variables, tStart, tStop, tSave)
-    # [2,3] => fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode
-    if Int(FMU.components[end].state) in [2, 3]
-        fmiTerminate(FMU)
-        fmiReset(FMU)
-    end
-    fmiSetupExperiment(FMU, tStart, tStop)
+realSimData = fmiSimulate(realFMU, tStart, tStop; parameters=params, recordValues=vrs, saveat=tSave)
+posReal = fmi2GetSolutionValue(realSimData, "mass.s")
+velReal = fmi2GetSolutionValue(realSimData, "mass.v")
+fmiPlot(realSimData)
 
-    fmiEnterInitializationMode(FMU)
-    fmiExitInitializationMode(FMU)
-
-    params = Dict(zip(states, x₀))
-    return fmiSimulate(FMU, tStart, tStop; parameters=params, recordValues=variables, saveat=tSave, reset=false)
+function simulate(FMU, initStates, x₀, variables, tStart, tStop, tSave)
+    params = Dict(zip(initStates, x₀))
+    return fmiSimulate(FMU, tStart, tStop; parameters=params, recordValues=variables, saveat=tSave)
 end
 
 function extractPosVel(simData)
-    posData = collect(data[1] for data in simData)
-    velData = collect(data[2] for data in simData)
+    if simData.states === nothing
+        posData = fmi2GetSolutionValue(simData, "mass.s")
+        velData = fmi2GetSolutionValue(simData, "mass.v")
+    else
+        posData = fmi2GetSolutionState(simData, 1; isIndex=true)
+        velData = fmi2GetSolutionState(simData, 2; isIndex=true)
+    end
+
     return posData, velData
 end
 
 xMod₀ = [1.0, -1.5]
-solution = simulate(realFMU, states, xMod₀, vrs, tStart, tStop, tSave)
-realSimDataMod = solution.values.saveval
-fmiPlot(solution)
+realSimDataMod = simulate(realFMU, initStates, xMod₀, vrs, tStart, tStop, tSave)
+fmiPlot(realSimDataMod)
 
 fmiUnload(realFMU)
 
 simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
-fmiInstantiate!(simpleFMU; loggingOn=false)
 fmiInfo(simpleFMU)
 
-states = ["mass_s0", "mass_v0", "fixed.s0"]
+initStates = ["mass_s0", "mass_v0", "fixed.s0"]
 displacement = 0.1
 xSimple₀ = vcat(x₀, displacement)
 vrs = vrs[1:end-1]
 
-solution = simulate(simpleFMU, states, xSimple₀, vrs, tStart, tStop, tSave)
-simpleSimData = solution.values.saveval
-fmiPlot(solution)
+simpleSimData = simulate(simpleFMU, initStates, xSimple₀, vrs, tStart, tStop, tSave)
+fmiPlot(simpleSimData)
 
 xSimpleMod₀ = vcat(xMod₀, displacement)
 
-solution = simulate(simpleFMU, states, xSimpleMod₀, vrs, tStart, tStop, tSave)
-simpleSimDataMod = solution.values.saveval
-fmiPlot(solution)
+simpleSimDataMod = simulate(simpleFMU, initStates, xSimpleMod₀, vrs, tStart, tStop, tSave)
+fmiPlot(simpleSimDataMod)
 
 # loss function for training
 function lossSum()
     global x₀
     solution = neuralFMU(x₀)
 
-    posNet, velNet = extractPosVel(solution.states.u)
+    posNet, velNet = extractPosVel(solution)
 
     (Flux.Losses.mse(posReal, posNet) + Flux.Losses.mse(velReal, velNet)) / 2.0
 end
@@ -144,13 +130,16 @@ function plot_all_results(realSimData, realSimDataMod, simpleSimData,
     posNeural, velNeural = [], []
     posNeuralMod, velNeuralMod = [], []
     for i in 1:run
-        dataNeural = extractPosVel(solutionAfter[i].states.u)
-        push!(posNeural, (solutionAfter[i].states.t, dataNeural[1]))
-        push!(velNeural, (solutionAfter[i].states.t, dataNeural[2]))
+        dataNeural = extractPosVel(solutionAfter[i])
+        time = fmi2GetSolutionTime(solutionAfter[i])
+
+        push!(posNeural, (time, dataNeural[1]))
+        push!(velNeural, (time, dataNeural[2]))
         
-        dataNeuralMod = extractPosVel(solutionAfterMod[i].states.u)
-        push!(posNeuralMod, (solutionAfterMod[i].states.t, dataNeuralMod[1]))
-        push!(velNeuralMod, (solutionAfterMod[i].states.t, dataNeuralMod[2]))
+        dataNeuralMod = extractPosVel(solutionAfterMod[i])
+        time = fmi2GetSolutionTime(solutionAfterMod[i])
+        push!(posNeuralMod, (time, dataNeuralMod[1]))
+        push!(velNeuralMod, (time, dataNeuralMod[2]))
     end
          
     # plot results s (default initial states)
@@ -176,8 +165,8 @@ end
 function plot_friction_model(realSimData, netBottom, forces)    
     linestyles = [:dot, :solid]
     
-    velReal = collect(data[2] for data in realSimData)
-    forceReal = collect(data[4] for data in realSimData)
+    velReal = fmi2GetSolutionValue(realSimData, "mass.v")
+    forceReal = fmi2GetSolutionValue(realSimData, "mass.f")
 
     push!(forces, zeros(length(velReal)))
     for i in 1:length(velReal)
@@ -213,7 +202,7 @@ end
 function plot_displacement_model(realSimData, netTop, displacements, tSave, displacement)
     linestyles = [:dot, :solid]
     
-    posReal = collect(data[1] for data in realSimData)
+    posReal = fmi2GetSolutionValue(realSimData, "mass.s")
     
     push!(displacements, zeros(length(posReal)))
     for i in 1:length(posReal)
@@ -237,9 +226,13 @@ end
 # NeuralFMU setup
 numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(Dense(numStates, numStates, identity; 
-                  initW = (out, in) -> [[1.0, 0.0] [0.0, 1.0]], 
-                  initb = out -> zeros(out)),
+# diagonal matrix 
+initW = zeros(numStates, numStates)
+for i in 1:numStates
+    initW[i,i] = 1
+end
+
+net = Chain(Dense(initW, zeros(numStates),  identity),
             inputs -> fmiEvaluateME(simpleFMU, inputs),
             Dense(numStates, 8, identity),
             Dense(8, 8, tanh),
@@ -271,7 +264,7 @@ numRuns = 2
 numEpochs= 5
 numIterations = 500;
 
-for run in 1:numRuns    
+for run in 1:numRuns
     @time for epoch in 1:numEpochs
         @info "Run: $(run)/$(numRuns)  Epoch: $(epoch)/$(numEpochs)"
         Flux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=callb)
