@@ -15,7 +15,7 @@ NeuralFMU
 
 ```@docs
 fmi2DoStepCS
-fmi2DoStepME
+fmi2EvaluateME
 fmi2InputDoStepCSOutput
 ```
 
@@ -23,7 +23,7 @@ fmi2InputDoStepCSOutput
 
 ```@docs
 fmiDoStepCS
-fmiDoStepME
+fmiEvaluateME
 fmiInputDoStepCSOutput
 ```
 
