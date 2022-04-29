@@ -152,8 +152,8 @@ function stopCallback(nfmu, t)
                 @debug "[$(nfmu.solveCycle)][PREPARED SHADOW]"
             end
             
-            #comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
-            #setComponent!(nfmu.currentComponent, comp)
+            comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
+            setComponent!(nfmu.currentComponent, comp)
         else
             nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, nfmu.freeInstance)
         end
@@ -176,7 +176,7 @@ function time_choice(nfmu, integrator, tStart, tStop)
     if nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
         #@debug "time_choice(...): $(nfmu.currentComponent.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
 
-        if nfmu.currentComponent.eventInfo.nextEventTime >= tStart || nfmu.currentComponent.eventInfo.nextEventTime <= tStop
+        if nfmu.currentComponent.eventInfo.nextEventTime >= tStart || nfmu.currentComponent.eventInfo.nextEventTime < tStop
             return nfmu.currentComponent.eventInfo.nextEventTime
         else
             # the time event is outside the simulation range!
