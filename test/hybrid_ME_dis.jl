@@ -134,7 +134,7 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
 
         net = nets[i]
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData, force_dtmin=true, dtmin=1e-6)
+        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
         
         @test problem !== nothing
 
@@ -151,11 +151,6 @@ for i in 1:length(nets)
         iterCB = 0
         lastLoss = losssum()
         @info "Start-Loss for net #$i: $lastLoss"
-
-        # net 9 has no parameters -> skip it
-        if i != 9 
-            Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb) 
-        end
 
         # check results
         solutionAfter = problem(x0)
