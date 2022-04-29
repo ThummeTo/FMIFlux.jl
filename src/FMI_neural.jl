@@ -116,7 +116,7 @@ function startCallback(nfmu, t)
 
             # real comp renew
             realComponent = nfmu.currentComponent.realComponent
-            realComponent, nfmu.x0 = prepareFMU(nfmu.fmu, realComponent, nfmu.instantiate, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, pushComponents=false)
+            realComponent, nfmu.x0 = prepareFMU(nfmu.fmu, realComponent, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, pushComponents=false)
             setComponent!(nfmu.currentComponent, realComponent)
 
             handleEvents(nfmu.currentComponent) 
@@ -125,7 +125,7 @@ function startCallback(nfmu, t)
             nfmu.currentComponent.log = (nfmu.solveCycle == 2)
 
         else
-            nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, nfmu.instantiate, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
+            nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
 
             handleEvents(nfmu.currentComponent) 
             #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
@@ -152,8 +152,8 @@ function stopCallback(nfmu, t)
                 @debug "[$(nfmu.solveCycle)][PREPARED SHADOW]"
             end
             
-            comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
-            setComponent!(nfmu.currentComponent, comp)
+            #comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
+            #setComponent!(nfmu.currentComponent, comp)
         else
             nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, nfmu.freeInstance)
         end
@@ -176,11 +176,11 @@ function time_choice(nfmu, integrator, tStart, tStop)
     if nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
         #@debug "time_choice(...): $(nfmu.currentComponent.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
 
-        if nfmu.currentComponent.eventInfo.nextEventTime >= tStart || nfmu.currentComponent.eventInfo.nextEventTime < tStop
+        if nfmu.currentComponent.eventInfo.nextEventTime >= tStart && nfmu.currentComponent.eventInfo.nextEventTime <= tStop
             return nfmu.currentComponent.eventInfo.nextEventTime
         else
             # the time event is outside the simulation range!
-            @debug "Next time event @$(nfmu.currentComponent.eventInfo.nextEventTime)s is outside simulation time range, skipping."
+            @debug "Next time event @$(nfmu.currentComponent.eventInfo.nextEventTime)s is outside simulation time range ($(tStart), $(tStop)), skipping."
             return nothing 
         end
     else
@@ -629,7 +629,7 @@ function CS_NeuralFMU(fmu::Union{FMU2, Vector{<:FMU2}},
     nfmu
 end
 
-function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
+function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
     x0::Union{Array{<:Real}, Nothing}=nothing, pushComponents::Bool=true)
 
     c = nothing
@@ -637,6 +637,10 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
     ignore_derivatives() do
         if instantiate === nothing 
             instantiate = fmu.executionConfig.instantiate
+        end
+
+        if freeInstance === nothing 
+            freeInstance = fmu.executionConfig.freeInstance
         end
 
         if terminate === nothing 
@@ -656,8 +660,10 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
 
             # remove old one if we missed it (callback)
             if c != nothing
-                fmi2FreeInstance!(c)
-                @debug "[AUTO-RELEASE INST]"
+                if freeInstance
+                    fmi2FreeInstance!(c)
+                    @debug "[AUTO-RELEASE INST]"
+                end
             end
 
             c = fmi2Instantiate!(fmu; pushComponents=pushComponents)
@@ -713,7 +719,7 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
     return c, x0
 end
 
-function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, instantiate::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
+function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
     x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing)
 
     ignore_derivatives() do
@@ -721,6 +727,10 @@ function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}},
 
             if instantiate === nothing 
                 instantiate = fmu[i].executionConfig.instantiate
+            end
+
+            if freeInstance === nothing 
+                freeInstance = fmu[i].executionConfig.freeInstance
             end
 
             if terminate === nothing 
@@ -739,8 +749,10 @@ function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}},
             if instantiate
                 # remove old one if we missed it (callback)
                 if c[i] != nothing
-                    fmi2FreeInstance!(c[i])
-                    @debug "[AUTO-RELEASE INST]"
+                    if freeInstance
+                        fmi2FreeInstance!(c[i])
+                        @debug "[AUTO-RELEASE INST]"
+                    end
                 end
 
                 c[i] = fmi2Instantiate!(fmu[i])
@@ -1098,7 +1110,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
 
     nfmu.solution = FMU2Solution(nfmu.fmu)
 
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
+    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
     ts = collect(t_start:t_step:t_stop)
     nfmu.currentComponent.skipNextDoStep = true # skip first fim2DoStep-call
@@ -1127,7 +1139,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
 
     nfmu.solution = FMU2Solution(nfmu.fmu)
     
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
+    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
     ts = collect(t_start:t_step:t_stop)
     model_input = inputFct.(ts)

@@ -251,7 +251,8 @@ function fmi2SetReal(comp::FMU2ComponentShadow, vrs, vals)
     #     # do nothing 
     #     return fmi2StatusOK
     # else
-        return fmi2SetReal(comp.realComponent, vrs, vals)
+    
+    return fmi2SetReal(comp.realComponent, vrs, vals)
     # end
 end
 
