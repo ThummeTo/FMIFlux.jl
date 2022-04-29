@@ -22,7 +22,7 @@ fmiSetupExperiment(realFMU, t_start, t_stop)
 fmiEnterInitializationMode(realFMU)
 fmiExitInitializationMode(realFMU)
 x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, instantiate=false, saveat=tData)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass_s")

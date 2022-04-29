@@ -120,7 +120,7 @@ function startCallback(nfmu, t)
             setComponent!(nfmu.currentComponent, realComponent)
 
             handleEvents(nfmu.currentComponent) 
-            fmi2EnterContinuousTimeMode(nfmu.currentComponent)
+            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
 
             nfmu.currentComponent.log = (nfmu.solveCycle == 2)
 
@@ -128,7 +128,7 @@ function startCallback(nfmu, t)
             nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, nfmu.instantiate, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
 
             handleEvents(nfmu.currentComponent) 
-            fmi2EnterContinuousTimeMode(nfmu.currentComponent)
+            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
         end
 
         # re-init every callback except #1 (the startCallback itself)
@@ -152,8 +152,8 @@ function stopCallback(nfmu, t)
                 @debug "[$(nfmu.solveCycle)][PREPARED SHADOW]"
             end
             
-            comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
-            setComponent!(nfmu.currentComponent, comp)
+            #comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
+            #setComponent!(nfmu.currentComponent, comp)
         else
             nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, nfmu.freeInstance)
         end
@@ -162,7 +162,7 @@ function stopCallback(nfmu, t)
 end
 
 # Read next time event from fmu and provide it to the integrator 
-function time_choice(nfmu, integrator)
+function time_choice(nfmu, integrator, tStart, tStop)
 
     # last call may be after simulation end
     if nfmu.currentComponent == nothing 
@@ -175,7 +175,14 @@ function time_choice(nfmu, integrator)
 
     if nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
         #@debug "time_choice(...): $(nfmu.currentComponent.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
-        return nfmu.currentComponent.eventInfo.nextEventTime
+
+        if nfmu.currentComponent.eventInfo.nextEventTime >= tStart || nfmu.currentComponent.eventInfo.nextEventTime <= tStop
+            return nfmu.currentComponent.eventInfo.nextEventTime
+        else
+            # the time event is outside the simulation range!
+            @debug "Next time event @$(nfmu.currentComponent.eventInfo.nextEventTime)s is outside simulation time range, skipping."
+            return nothing 
+        end
     else
         #@debug "time_choice(...): nothing at t=$(ForwardDiff.value(integrator.t))"
         return nothing
@@ -226,6 +233,8 @@ function handleEvents(c::Union{FMU2Component, FMU2ComponentShadow})
     c.eventInfo.nominalsOfContinuousStatesChanged = nominalsOfContinuousStatesChanged
     c.eventInfo.nextEventTimeDefined = nextEventTimeDefined
     c.eventInfo.nextEventTime = nextEventTime
+
+    @assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK "FMU is not in state continuous time after event handling."
 
     return nothing
 end
@@ -353,9 +362,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
     fmi2SetTime(c, t)
     # Todo set inputs 
 
-    fmi2EnterEventMode(c)
-
     # Event found - handle it
+    @assert fmi2EnterEventMode(c) == fmi2StatusOK
     handleEvents(c)
 
     # ignore_derivatives() do 
@@ -404,7 +412,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
         end
     end
 
-    fmi2EnterContinuousTimeMode(c)
+    #@assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK
 end
 
 # Does one step in the simulation.
@@ -417,7 +425,7 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator, tStart, tStop)
         ProgressMeter.update!(nfmu.progressMeter, floor(Integer, 1000.0*(t-tStart)/(tStop-tStart)) )
     end
 
-    if nfmu.currentComponent != nothing
+    if nfmu.currentComponent != nothing && (!nfmu.fmu.executionConfig.useComponentShadow || nfmu.currentComponent.realComponent != nothing)
         (status, enterEventMode, terminateSimulation) = fmi2CompletedIntegratorStep(nfmu.currentComponent, fmi2True)
 
         if enterEventMode == fmi2True
@@ -427,14 +435,6 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator, tStart, tStop)
             #fmiSetReal(myFMU, InputRef, Value)
         end
     end
-
-    # for shadowing, we need to evaluate the jacobians in the forward pass and cache them
-    # if nfmu.currentComponent.fmu.executionConfig.useComponentShadow
-    #     # if no interpolation data is ready, we log the jacobians
-    #     if !isPrepared(nfmu.componentShadow)
-    #         evaluateJacobians(nfmu.currentComponent.fmu, x, t, setValueReferences, setValues, getValueReferences)
-    #     end
-    # end
 
 end
 
@@ -511,6 +511,8 @@ function fx(nfmu,
         return zeros(length(x))
     end 
 
+    dx = nfmu.neuralODE.re(p)(x)
+
     ignore_derivatives() do
         
         if isa(t, ForwardDiff.Dual) 
@@ -528,8 +530,6 @@ function fx(nfmu,
         fmi2SetTime(c, t)
 
     end 
-
-    dx = nfmu.neuralODE.re(p)(x)
 
     # build up ẋ interpolation polynominal
     # ignore_derivatives() do
@@ -707,6 +707,8 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Exiting initialization mode failed with return code $(retcode)."
         end
     end # ignore_derivatives
+
+    @assert c.state == fmi2ComponentStateEventMode "After prepareFMU(...), FMU must be in event mode!"
 
     return c, x0
 end
@@ -979,7 +981,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         # time event handling 
 
         #if nfmu.fmu.executionConfig.handleTimeEvents # && nfmu.fmu.hasTimeEvents
-            timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu, integrator),
+            timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu, integrator, t_start, t_stop),
                                             (integrator) -> affectFMU!(nfmu, integrator, 0), 
                                             Float64; 
                                             initial_affect=false,

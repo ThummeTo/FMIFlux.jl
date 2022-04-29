@@ -1,6 +1,6 @@
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.6.0"
+version = "0.6.1"
 
 [compat]
 ChainRulesCore = "^1.13.0"
@@ -8,7 +8,7 @@ DiffEqBase = "^6.82.0"
 DiffEqCallbacks = "^2.21.0"
 DiffEqFlux = "1.45.1"
 DifferentialEquations = "7.1.0"
-FMIImport = "0.8.0"
+FMIImport = "0.8.0, 0.9.0"
 Flux = "0.12.1"
 ForwardDiff = "0.10.25"
 Interpolations = "0.13.5"
