@@ -17,12 +17,9 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(realFMU; loggingOn=false)
-fmiSetupExperiment(realFMU, t_start, t_stop)
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulate(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], saveat=tData)
+x0 = collect(realSimData.values.saveval[1])
+@test x0 == [1.0, 0.0]
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass_s")
@@ -71,7 +68,7 @@ net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(nu
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
-net = Chain(states ->  fmiEvaluateME(realFMU, states, t_step/10), 
+net = Chain(states ->  fmiEvaluateME(realFMU, states), 
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
@@ -81,7 +78,7 @@ push!(nets, net)
 net = Chain(Dense(numStates, 16, identity),
             Dense(16, 16, identity),
             Dense(16, numStates),
-            states -> fmiEvaluateME(realFMU, states, t_step/10))
+            states -> fmiEvaluateME(realFMU, states))
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
@@ -127,13 +124,15 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t,
 push!(nets, net)
 
 # 9. Empty NeuralFMU
-net = Chain(states ->  fmiEvaluateME(realFMU, states))
+net = Chain(states ->  fmiEvaluateME(realFMU, states),
+            Dense(ones(numStates, numStates), false,  identity))
 push!(nets, net)
 
 optim = ADAM(1e-4)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
+
         net = nets[i]
         problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
         
@@ -152,11 +151,6 @@ for i in 1:length(nets)
         iterCB = 0
         lastLoss = losssum()
         @info "Start-Loss for net #$i: $lastLoss"
-
-        # net 9 has no parameters -> skip it
-        if i != 9 
-            Flux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=callb) 
-        end
 
         # check results
         solutionAfter = problem(x0)
