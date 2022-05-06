@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import FMIImport: fmi2Real
+import FMIImport: fmi2Real, fmi2StatusOK, fmi2False
 
 import FMIImport: fmi2SetTime, fmi2SetContinuousStates, fmi2SetReal
 import FMIImport: fmi2CompletedIntegratorStep, fmi2NewDiscreteStates!, fmi2EventInfo, fmi2GetEventIndicators!
@@ -208,10 +208,10 @@ function fmi2SetTime(comp::FMU2ComponentShadow, t)
     #     comp.t = t
     #     return fmi2StatusOK
     # else
-        comp.t = t 
-        status = fmi2SetTime(comp.realComponent, t)
-        comp.state = comp.realComponent.state
-        return status
+    comp.t = t 
+    status = fmi2SetTime(comp.realComponent, t)
+    comp.state = comp.realComponent.state
+    return status
     # end
 end
 
@@ -220,9 +220,9 @@ function fmi2EnterContinuousTimeMode(comp::FMU2ComponentShadow)
     #     comp.state = fmi2ComponentStateContinuousTimeMode
     #     return fmi2StatusOK
     # else 
-        status = fmi2EnterContinuousTimeMode(comp.realComponent)
-        comp.state = comp.realComponent.state
-        return status
+    status = fmi2EnterContinuousTimeMode(comp.realComponent)
+    comp.state = comp.realComponent.state
+    return status
     # end 
 end
 
@@ -251,7 +251,8 @@ function fmi2SetReal(comp::FMU2ComponentShadow, vrs, vals)
     #     # do nothing 
     #     return fmi2StatusOK
     # else
-        return fmi2SetReal(comp.realComponent, vrs, vals)
+    
+    return fmi2SetReal(comp.realComponent, vrs, vals)
     # end
 end
 
@@ -262,10 +263,13 @@ function fmi2CompletedIntegratorStep(comp::FMU2ComponentShadow, val)
     #     terminateSimulation = fmi2False
     #     return (status, enterEventMode, terminateSimulation)
     # else
+    #if comp.realComponent !== nothing
         status = fmi2CompletedIntegratorStep(comp.realComponent, val)
         comp.state = comp.realComponent.state
         return status
     #end
+
+    #return (fmi2StatusOK, fmi2False, fmi2False)
 end
 
 function fmi2NewDiscreteStates!(comp::FMU2ComponentShadow, eventInfo)
