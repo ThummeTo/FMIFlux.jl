@@ -922,7 +922,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     sense = nfmu.fmu.executionConfig.sensealg
     inPlace = nfmu.fmu.executionConfig.inPlace
 
-    tspan = getfield(nfmu.neuralODE,:tspan)
+    tspan = getfield(nfmu.neuralODE, :tspan)
     if t_start === nothing
         t_start = tspan[1]
     end

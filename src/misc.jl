@@ -46,7 +46,7 @@ function lin_interp(t, x, t_sample)
 end
 
 """
-Writes/Copies training parameters from `p_net` to `net` with data offset `c`.
+Writes/Copies flatted (Flux.destructure) training parameters `p_net` to non-flat model `net` with data offset `c`.
 """
 function transferParams!(net, p_net, c=1; netRange=nothing)
     
