@@ -6,7 +6,7 @@
 using DifferentialEquations, DiffEqCallbacks
 
 using ChainRulesCore
-import ForwardDiff, Zygote
+import ForwardDiff
 using Interpolations: bounds
 
 # helper to collect variable IdSet

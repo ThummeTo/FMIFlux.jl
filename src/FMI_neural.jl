@@ -3,9 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import Zygote
-using Zygote: @adjoint
-
 using Flux, DiffEqFlux
 using OrdinaryDiffEq
 using DiffEqCallbacks
@@ -1201,14 +1198,17 @@ function fmiInputDoStepCSOutput(str::fmi2Struct,
     fmi2InputDoStepCSOutput(str, dt, u)
 end
 
-# define neutral gradients (=feed-trough) for ccall-functions (ToDo: Remove)
-function neutralGradient(c̄)
-    tuple(c̄,)
-end
+# function ChainRulesCore.rrule(f::Union{typeof(fmi2SetupExperiment), 
+#                                        typeof(fmi2EnterInitializationMode), 
+#                                        typeof(fmi2ExitInitializationMode),
+#                                        typeof(fmi2Reset),
+#                                        typeof(fmi2Terminate)}, args...)
 
-@adjoint fmi2SetupExperiment(fmu, startTime, stopTime) = fmi2SetupExperiment(fmu, startTime, stopTime), c̄ -> neutralGradient(c̄)
-@adjoint fmi2EnterInitializationMode(fmu) = fmi2EnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2ExitInitializationMode(fmu) = fmi2ExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2Reset(fmu) = fmi2Reset(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2Terminate(fmu) = fmi2Terminate(fmu), c̄ -> neutralGradient(c̄)
+#     y = f(args...)
 
+#     function pullback(ȳ)
+#         return collect(ZeroTangent() for arg in args)
+#     end
+
+#     return y, fmi2EvaluateME_pullback
+# end

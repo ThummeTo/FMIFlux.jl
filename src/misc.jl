@@ -48,7 +48,7 @@ end
 """
 Writes/Copies flatted (Flux.destructure) training parameters `p_net` to non-flat model `net` with data offset `c`.
 """
-function transferParams!(net, p_net, c=1; netRange=nothing)
+function transferFlatParams!(net, p_net, c=1; netRange=nothing)
     
     if netRange == nothing
         netRange = 1:length(net.layers)
@@ -79,5 +79,25 @@ function transferParams!(net, p_net, c=1; netRange=nothing)
 
         copy!(net.layers[l].weight, w)
         copy!(net.layers[l].bias, b)
+    end
+end
+
+function transferParams!(net, p_net, c=1; netRange=nothing)
+    
+    if netRange == nothing
+        netRange = 1:length(net.layers)
+    end
+    for l in netRange
+        if !(net.layers[l] isa Dense)
+            continue
+        end
+
+        for w in 1:length(net.layers[l].weight)
+            net.layers[l].weight[w] = p_net[1+(l-1)*2][w]
+        end
+        
+        for b in 1:length(net.layers[l].bias)
+            net.layers[l].bias[b] = p_net[l*2][b]
+        end
     end
 end
