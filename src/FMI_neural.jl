@@ -1094,7 +1094,9 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  freeInstance::Union{Bool, Nothing} = nothing,
                                  terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    nfmu.solution = FMU2Solution(nfmu.fmu)
+    ignore_derivatives() do
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+    end
 
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
@@ -1103,7 +1105,10 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
 
-    nfmu.solution.success = true
+    ignore_derivatives() do
+        nfmu.solution.success = true
+    end
+
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
     # this is not possible in CS, clean-up happens at the next call
@@ -1123,15 +1128,20 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          freeInstance::Union{Bool, Nothing} = nothing,
                                          terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    nfmu.solution = FMU2Solution(nfmu.fmu)
-    
+    ignore_derivatives() do
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+    end 
+
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
     ts = collect(t_start:t_step:t_stop)
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
 
-    nfmu.solution.success = true
+    ignore_derivatives() do
+        nfmu.solution.success = true
+    end 
+    
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
     # this is not possible in CS, clean-up happens at the next call
