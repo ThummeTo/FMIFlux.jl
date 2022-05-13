@@ -871,27 +871,42 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               freeInstance::Union{Bool, Nothing} = nothing,
                               terminate::Union{Bool, Nothing} = nothing,
                               kwargs...)
-    ignore_derivatives() do
-        @debug "ME_NeuralFMU..."
-    end
 
     saving = (length(nfmu.recordValues) > 0)
-
-    nfmu.firstRun = true
-
-    nfmu.solution = FMU2Solution(nfmu.fmu)
-
-    nfmu.tolerance = tolerance
-    nfmu.parameters = parameters
-    nfmu.setup = setup
-    nfmu.reset = reset
-    nfmu.instantiate = instantiate
-    nfmu.freeInstance = freeInstance
-    nfmu.terminate = terminate
-
-    nfmu.x0 = x_start
+    sense = nfmu.fmu.executionConfig.sensealg
+    inPlace = nfmu.fmu.executionConfig.inPlace
+    tspan = getfield(nfmu.neuralODE, :tspan)
 
     ignore_derivatives() do
+        @debug "ME_NeuralFMU..."
+
+        nfmu.firstRun = true
+
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+
+        nfmu.tolerance = tolerance
+        nfmu.parameters = parameters
+        nfmu.setup = setup
+        nfmu.reset = reset
+        nfmu.instantiate = instantiate
+        nfmu.freeInstance = freeInstance
+        nfmu.terminate = terminate
+        nfmu.currentComponent = nothing
+        nfmu.solveCycle = 0
+        nfmu.progressMeter = nothing
+        nfmu.callbacks = []
+
+        nfmu.x0 = x_start
+
+        # simulation tspan 
+        if t_start === nothing
+            t_start = tspan[1]
+        end
+        if t_stop === nothing
+            t_stop = tspan[end]
+        end
+        nfmu.tspan = (t_start, t_stop)
+    
         # remove last run's shadow
         if nfmu.fmu.executionConfig.useComponentShadow
             if length(nfmu.fmu.components) > 0 && nfmu.fmu.components[end] == nfmu.currentComponent
@@ -907,30 +922,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 ProgressMeter.finish!(nfmu.progressMeter)
             end
         end
-    end
-
-    nfmu.currentComponent = nothing
-    nfmu.solveCycle = 0
-    nfmu.progressMeter = nothing
-
-    ########
-
-    nfmu.callbacks = []
-    sense = nfmu.fmu.executionConfig.sensealg
-    inPlace = nfmu.fmu.executionConfig.inPlace
-
-    tspan = getfield(nfmu.neuralODE, :tspan)
-    if t_start === nothing
-        t_start = tspan[1]
-    end
-    if t_stop === nothing
-        t_stop = tspan[end]
-    end
-    nfmu.tspan = (t_start, t_stop)
-
-    #################
-
-    ignore_derivatives() do
 
         # from here on, we are in event mode, if `setup=false` this is the job of the user
         # @assert nfmu.currentComponent.state == fmi2ComponentStateEventMode "FMU needs to be in event mode after setup (end)."
@@ -1076,13 +1067,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
     end
 
-    nfmu.solution.success = (nfmu.solution.states.retcode == :Success)
-
-    # cleanup progress meter
-
+    # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
     ignore_derivatives() do
-
-        # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
+        
+        nfmu.solution.success = (nfmu.solution.states.retcode == :Success)
 
     end # ignore_derivatives
 
