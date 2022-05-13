@@ -54,7 +54,7 @@ export fmiEvaluateME, fmiDoStepCS
 export fmiInputDoStepCSOutput
 
 # misc.jl
-export mse_interpolate, transferParams!, lin_interp
+export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # debugging only 
 # export _build_jac_dx_x_slow

@@ -3,9 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import Zygote
-using Zygote: @adjoint
-
 using Flux, DiffEqFlux
 using OrdinaryDiffEq
 using DiffEqCallbacks
@@ -874,27 +871,42 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               freeInstance::Union{Bool, Nothing} = nothing,
                               terminate::Union{Bool, Nothing} = nothing,
                               kwargs...)
-    ignore_derivatives() do
-        @debug "ME_NeuralFMU..."
-    end
 
     saving = (length(nfmu.recordValues) > 0)
-
-    nfmu.firstRun = true
-
-    nfmu.solution = FMU2Solution(nfmu.fmu)
-
-    nfmu.tolerance = tolerance
-    nfmu.parameters = parameters
-    nfmu.setup = setup
-    nfmu.reset = reset
-    nfmu.instantiate = instantiate
-    nfmu.freeInstance = freeInstance
-    nfmu.terminate = terminate
-
-    nfmu.x0 = x_start
+    sense = nfmu.fmu.executionConfig.sensealg
+    inPlace = nfmu.fmu.executionConfig.inPlace
+    tspan = getfield(nfmu.neuralODE, :tspan)
 
     ignore_derivatives() do
+        @debug "ME_NeuralFMU..."
+
+        nfmu.firstRun = true
+
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+
+        nfmu.tolerance = tolerance
+        nfmu.parameters = parameters
+        nfmu.setup = setup
+        nfmu.reset = reset
+        nfmu.instantiate = instantiate
+        nfmu.freeInstance = freeInstance
+        nfmu.terminate = terminate
+        nfmu.currentComponent = nothing
+        nfmu.solveCycle = 0
+        nfmu.progressMeter = nothing
+        nfmu.callbacks = []
+
+        nfmu.x0 = x_start
+
+        # simulation tspan 
+        if t_start === nothing
+            t_start = tspan[1]
+        end
+        if t_stop === nothing
+            t_stop = tspan[end]
+        end
+        nfmu.tspan = (t_start, t_stop)
+    
         # remove last run's shadow
         if nfmu.fmu.executionConfig.useComponentShadow
             if length(nfmu.fmu.components) > 0 && nfmu.fmu.components[end] == nfmu.currentComponent
@@ -910,30 +922,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 ProgressMeter.finish!(nfmu.progressMeter)
             end
         end
-    end
-
-    nfmu.currentComponent = nothing
-    nfmu.solveCycle = 0
-    nfmu.progressMeter = nothing
-
-    ########
-
-    nfmu.callbacks = []
-    sense = nfmu.fmu.executionConfig.sensealg
-    inPlace = nfmu.fmu.executionConfig.inPlace
-
-    tspan = getfield(nfmu.neuralODE, :tspan)
-    if t_start === nothing
-        t_start = tspan[1]
-    end
-    if t_stop === nothing
-        t_stop = tspan[end]
-    end
-    nfmu.tspan = (t_start, t_stop)
-
-    #################
-
-    ignore_derivatives() do
 
         # from here on, we are in event mode, if `setup=false` this is the job of the user
         # @assert nfmu.currentComponent.state == fmi2ComponentStateEventMode "FMU needs to be in event mode after setup (end)."
@@ -1079,13 +1067,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
     end
 
-    nfmu.solution.success = (nfmu.solution.states.retcode == :Success)
-
-    # cleanup progress meter
-
+    # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
     ignore_derivatives() do
-
-        # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
+        
+        nfmu.solution.success = (nfmu.solution.states.retcode == :Success)
 
     end # ignore_derivatives
 
@@ -1109,7 +1094,9 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  freeInstance::Union{Bool, Nothing} = nothing,
                                  terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    nfmu.solution = FMU2Solution(nfmu.fmu)
+    ignore_derivatives() do
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+    end
 
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
@@ -1118,7 +1105,10 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
 
-    nfmu.solution.success = true
+    ignore_derivatives() do
+        nfmu.solution.success = true
+    end
+
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
     # this is not possible in CS, clean-up happens at the next call
@@ -1138,15 +1128,20 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          freeInstance::Union{Bool, Nothing} = nothing,
                                          terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    nfmu.solution = FMU2Solution(nfmu.fmu)
-    
+    ignore_derivatives() do
+        nfmu.solution = FMU2Solution(nfmu.fmu)
+    end 
+
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
     ts = collect(t_start:t_step:t_stop)
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
 
-    nfmu.solution.success = true
+    ignore_derivatives() do
+        nfmu.solution.success = true
+    end 
+    
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
     # this is not possible in CS, clean-up happens at the next call
@@ -1201,14 +1196,17 @@ function fmiInputDoStepCSOutput(str::fmi2Struct,
     fmi2InputDoStepCSOutput(str, dt, u)
 end
 
-# define neutral gradients (=feed-trough) for ccall-functions (ToDo: Remove)
-function neutralGradient(c̄)
-    tuple(c̄,)
-end
+# function ChainRulesCore.rrule(f::Union{typeof(fmi2SetupExperiment), 
+#                                        typeof(fmi2EnterInitializationMode), 
+#                                        typeof(fmi2ExitInitializationMode),
+#                                        typeof(fmi2Reset),
+#                                        typeof(fmi2Terminate)}, args...)
 
-@adjoint fmi2SetupExperiment(fmu, startTime, stopTime) = fmi2SetupExperiment(fmu, startTime, stopTime), c̄ -> neutralGradient(c̄)
-@adjoint fmi2EnterInitializationMode(fmu) = fmi2EnterInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2ExitInitializationMode(fmu) = fmi2ExitInitializationMode(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2Reset(fmu) = fmi2Reset(fmu), c̄ -> neutralGradient(c̄)
-@adjoint fmi2Terminate(fmu) = fmi2Terminate(fmu), c̄ -> neutralGradient(c̄)
+#     y = f(args...)
 
+#     function pullback(ȳ)
+#         return collect(ZeroTangent() for arg in args)
+#     end
+
+#     return y, fmi2EvaluateME_pullback
+# end
