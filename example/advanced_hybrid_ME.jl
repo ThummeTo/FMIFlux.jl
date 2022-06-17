@@ -21,7 +21,7 @@ using FMIFlux
 using FMIZoo
 using Flux
 using DifferentialEquations: Tsit5
-import Plots
+#import Plots
 
 # set seed
 import Random
@@ -43,7 +43,7 @@ x₀ = fmiGetContinuousStates(realFMU)
 
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
 solution = fmiSimulate(realFMU, tStart, tStop; recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(solution)
+#fmiPlot(solution)
 
 realSimData = solution.values.saveval
 posReal = collect(data[1] for data in realSimData)
@@ -111,9 +111,9 @@ net = Chain(inputs -> fmiEvaluateME(simpleFMU, inputs, -1.0, zeros(fmi2ValueRefe
             Dense(16, 16, tanh),
             Dense(16, numStates))
 
-neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave)
+neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave, convertParams=true)
 solutionBefore = neuralFMU(x₀, tStart)
-fmiPlot(solutionBefore)
+#fmiPlot(solutionBefore)
 
 # train it ...
 paramsNet = Flux.params(neuralFMU)

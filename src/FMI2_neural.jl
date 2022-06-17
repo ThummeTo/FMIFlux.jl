@@ -243,15 +243,28 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
             @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.frule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
 
-        evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)
         comp = fmu.components[end]
+
+        evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)
         
         n_dx_x = comp.jac_ẋy_x * Δx
-        n_dx_u = ZeroTangent()
-            
+        n_dx_u = ZeroTangent()  
         if setter
             n_dx_u = comp.jac_ẋy_u * ΔsetValues
         end
+        
+        # TEST START
+        # n_dx_x = NoTangent()
+        # n_dx_u = NoTangent()
+        # rdx = vcat(comp.fmu.modelDescription.derivativeValueReferences, getValueReferences) 
+        # rx = comp.fmu.modelDescription.stateValueReferences
+        # ru = setValueReferences
+        # n_dx_x = fmi2GetDirectionalDerivative(comp, rdx, rx, Δx)
+        # if setter
+        #     n_dx_u = fmi2GetDirectionalDerivative(comp, rdx, ru, ΔsetValues)
+        # end
+        # TEST END
+        
 
         f̄mu = ZeroTangent()
         x̄ = n_dx_x 
