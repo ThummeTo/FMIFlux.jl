@@ -198,7 +198,7 @@ function ChainRulesCore.rrule(::typeof(fmi2EvaluateME),
         getter = (length(getValueReferences) > 0)
 
         if setter
-            @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.frule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
+            @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.rrule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
         
         evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)

@@ -610,7 +610,7 @@ function ME_NeuralFMU(fmu::FMU2,
                     end
             
                     push!(layers, typ.name.wrapper(args...))
-                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `typ` to Float64."
+                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to Float64."
                 else
                     @warn "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`."
                 end
