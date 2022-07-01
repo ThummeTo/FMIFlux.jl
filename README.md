@@ -28,7 +28,7 @@
     julia> Pkg.test("FMIFlux")
     ```
 
-    Additionally, you can check the version of FMI.jl that you have installed with the ```status``` command.
+    Additionally, you can check the version of FMIFlux.jl that you have installed with the ```status``` command.
     ```julia
     julia> ]
     (@v1.6) pkg> status FMIFlux
