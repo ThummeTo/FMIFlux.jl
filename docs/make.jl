@@ -4,24 +4,37 @@
 #
 
 using Documenter, FMIFlux
+using Documenter: GitHubActions
 
 makedocs(sitename="FMIFlux.jl",
-         format = Documenter.HTML(
+        format = Documenter.HTML(
             collapselevel = 1,
-            sidebar_sitename = false
-         ),
-         pages= Any[
+            sidebar_sitename = false,
+            edit_link = nothing
+        ),
+        pages= Any[
             "Introduction" => "index.md"
             "Examples" => [
-                "Examples Overview" => "examples/overview.md"
-                "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
-                "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
-                "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
+                    "Overview" => "examples/overview.md"
+                    "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
+                    "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
+                    "Advanced ME-NeuralFMU" => "examples/advanced_hybrid_ME.md"
+                    "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
             ]
-            "Library Functions" => "library/overview.md"
+            "Library Functions" => "library.md"
             "Related Publication" => "related.md"
             "Contents" => "contents.md"
             ]
-         )
+        )
 
-deploydocs(repo = "github.com/ThummeTo/FMIFlux.jl.git", devbranch = "main")
+function deployConfig()
+    github_repository = get(ENV, "GITHUB_REPOSITORY", "")
+    github_event_name = get(ENV, "GITHUB_EVENT_NAME", "")
+    if github_event_name == "workflow_run"
+        github_event_name = "push"
+    end
+    github_ref = get(ENV, "GITHUB_REF", "")
+    return GitHubActions(github_repository, github_event_name, github_ref)
+end
+
+deploydocs(repo = "github.com/ThummeTo/FMIFlux.jl.git", devbranch = "main", deploy_config = deployConfig())
