@@ -68,7 +68,7 @@ nets = []
 
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
-        for config in [FMU_EXECUTION_CONFIGURATION_RESET, FMU_EXECUTION_CONFIGURATION_NO_RESET, FMU_EXECUTION_CONFIGURATION_NO_FREEING]
+        for config in [FMU2_EXECUTION_CONFIGURATION_RESET, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_NO_FREEING]
             @testset "config: $config" begin
                 
                 global problem, lastLoss, iterCB
