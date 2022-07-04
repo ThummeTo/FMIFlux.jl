@@ -93,9 +93,9 @@ referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
 fmiInfo(referenceFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_uvTzE6/SpringPendulumExtForce1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_c8YL1N/SpringPendulumExtForce1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_uvTzE6/SpringPendulumExtForce1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_c8YL1N/SpringPendulumExtForce1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -165,32 +165,32 @@ accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
 
 
     501-element Vector{Float64}:
-      6.0
-      5.996872980925033
-      5.987824566254761
-      5.9728274953129645
-      5.95187583433241
-      5.9249872805026715
-      5.892169834645022
-      5.853465119227542
-      5.808892969264781
-      5.75851573503067
-      5.702370188387734
-      5.640527685538739
-      5.573049035471661
+     -1.9999999999999996
+     -1.9988827275812904
+     -1.9958127258179004
+     -1.9907908533763607
+     -1.9837918439669844
+     -1.9748258342855118
+     -1.963890162864621
+     -1.9510089134488018
+     -1.9361810148909009
+     -1.9194099484303728
+     -1.9007374108186537
+     -1.8801634598739092
+     -1.8576990114645708
       ⋮
-     -5.842615646003006
-     -5.884869953422783
-     -5.921224800662572
-     -5.9516502108284985
-     -5.976144547672481
-     -5.994659284032171
-     -6.007174453690571
-     -6.013675684067705
-     -6.014154196220591
-     -6.008606804843264
-     -5.997055285530499
-     -5.979508813705998
+      1.9971927754348462
+      2.0126501310664713
+      2.026070116129912
+      2.037424725618772
+      2.0467236772128947
+      2.0541004250985972
+      2.0594240680173828
+      2.062679095787284
+      2.0638499982263325
+      2.0629212651525553
+      2.059877386383986
+      2.0548550901379925
 
 
 
@@ -414,35 +414,35 @@ optim = ADAM()
 Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 ```
 
-    ┌ Info: Loss [1]: 20.01165
+    ┌ Info: Loss [1]: 1.31473
     └ @ Main In[11]:8
-    ┌ Info: Loss [21]: 12.39226
+    ┌ Info: Loss [21]: 0.13349
     └ @ Main In[11]:8
-    ┌ Info: Loss [41]: 7.06782
+    ┌ Info: Loss [41]: 0.07489
     └ @ Main In[11]:8
-    ┌ Info: Loss [61]: 3.72226
+    ┌ Info: Loss [61]: 0.04067
     └ @ Main In[11]:8
-    ┌ Info: Loss [81]: 1.90173
+    ┌ Info: Loss [81]: 0.02535
     └ @ Main In[11]:8
-    ┌ Info: Loss [101]: 1.05143
+    ┌ Info: Loss [101]: 0.01475
     └ @ Main In[11]:8
-    ┌ Info: Loss [121]: 0.69362
+    ┌ Info: Loss [121]: 0.00847
     └ @ Main In[11]:8
-    ┌ Info: Loss [141]: 0.52608
+    ┌ Info: Loss [141]: 0.00507
     └ @ Main In[11]:8
-    ┌ Info: Loss [161]: 0.4174
+    ┌ Info: Loss [161]: 0.00335
     └ @ Main In[11]:8
-    ┌ Info: Loss [181]: 0.33036
+    ┌ Info: Loss [181]: 0.00249
     └ @ Main In[11]:8
-    ┌ Info: Loss [201]: 0.25795
+    ┌ Info: Loss [201]: 0.002
     └ @ Main In[11]:8
-    ┌ Info: Loss [221]: 0.19896
+    ┌ Info: Loss [221]: 0.00168
     └ @ Main In[11]:8
-    ┌ Info: Loss [241]: 0.15251
+    ┌ Info: Loss [241]: 0.00144
     └ @ Main In[11]:8
-    ┌ Info: Loss [261]: 0.11709
+    ┌ Info: Loss [261]: 0.00124
     └ @ Main In[11]:8
-    ┌ Info: Loss [281]: 0.09072
+    ┌ Info: Loss [281]: 0.00108
     └ @ Main In[11]:8
 
 
