@@ -101,6 +101,9 @@ function startCallback(nfmu, t)
         @debug "[$(nfmu.solveCycle)][FIRST STEP]"
 
         @assert ForwardDiff.value(t) == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
+        # if ForwardDiff.value(t) == nfmu.tspan[1]
+        #     @warn "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
+        # end
 
         # allocate component shadow for second run
         if nfmu.fmu.executionConfig.useComponentShadow
@@ -175,6 +178,7 @@ function time_choice(nfmu, integrator, tStart, tStop)
         #@debug "time_choice(...): $(nfmu.currentComponent.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
 
         if nfmu.currentComponent.eventInfo.nextEventTime >= tStart && nfmu.currentComponent.eventInfo.nextEventTime <= tStop
+            #@assert sizeof(integrator.t) == sizeof(nfmu.currentComponent.eventInfo.nextEventTime) "The NeuralFMU/solver are initialized in $(sizeof(integrator.t))-bit-mode, but FMU events are defined in $(sizeof(nfmu.currentComponent.eventInfo.nextEventTime))-bit. Please define your ANN in $(sizeof(nfmu.currentComponent.eventInfo.nextEventTime))-bit mode."
             return nfmu.currentComponent.eventInfo.nextEventTime
         else
             # the time event is outside the simulation range!
@@ -560,6 +564,7 @@ Constructs a ME-NeuralFMU where the FMU is at an arbitrary location inside of th
     - `model` the NN topology (e.g. Flux.chain)
     - `tspan` simulation time span
     - `alg` a numerical ODE solver
+    - `convertParams` automatically convert ANN parameters to Float64 if not already
 
 # Keyword arguments
     - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
@@ -573,9 +578,61 @@ function ME_NeuralFMU(fmu::FMU2,
                       saveat=[], 
                       recordFMUValues = nothing, 
                       callbacks = [],
+                      convertParams::Union{Nothing, Bool}=nothing,
                       kwargs...)
 
     nfmu = ME_NeuralFMU()
+
+    layers = []
+
+    if convertParams === nothing
+        convertParams = isa(model, Chain) 
+    end
+    
+    for layer in model 
+        typ = typeof(layer)
+        if hasfield(typ, :weight) && hasfield(typ, :bias)
+            bitsWeight = Int(sizeof(layer.weight)/length(layer.weight)*8)
+            bitsBias = Int(sizeof(layer.bias)/length(layer.bias)*8)
+            if bitsWeight != 64 || bitsBias != 64
+                if convertParams
+                    args = [] 
+                    # Dict{Symbol, Any}()
+                    for f in fieldnames(typ)
+                        key = f 
+                        value = getfield(layer, f)
+
+                        if key == :weight 
+                            value = Matrix{Float64}(value)
+                        elseif key == :bias
+                            value = Vector{Float64}(value)
+                        end
+
+                        push!(args, value)
+                        #args[key] = value
+                    end
+            
+                    newlayer = typ.name.wrapper(args...)
+                    push!(layers, newlayer)
+                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to `$(typeof(newlayer))`."
+                else
+                    @warn "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`."
+                end
+            end
+        else
+            if convertParams
+                push!(layers, layer)
+            end
+        end
+    end
+
+    if convertParams
+        model = Chain(layers...)
+        @info "ME_NeuralFMU(...): Succesfully converted model to Float64."
+    end
+
+    ######
+
     nfmu.fmu = fmu
     nfmu.customCallbacks = callbacks
 
@@ -588,6 +645,8 @@ function ME_NeuralFMU(fmu::FMU2,
     nfmu.tspan = tspan
     nfmu.saveat = saveat
 
+    ######
+    
     nfmu
 end
 
@@ -628,7 +687,7 @@ function CS_NeuralFMU(fmu::Union{FMU2, Vector{<:FMU2}},
 end
 
 function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{Array{<:Real}, Nothing}=nothing, pushComponents::Bool=true)
+    x0::Union{Array{<:Real}, Nothing}=nothing, pushComponents::Bool=true, initFct=nothing)
 
     c = nothing
 
@@ -705,6 +764,10 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
         end
 
+        if initFct !== nothing
+            initFct()
+        end
+
         # exit setup (hard)
         if setup
             retcode = fmi2ExitInitializationMode(c)
@@ -718,7 +781,7 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, instantiate::Un
 end
 
 function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing)
+    x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing, initFct=nothing)
 
     ignore_derivatives() do
         for i in 1:length(fmu)
@@ -798,6 +861,10 @@ function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}},
                 end
             end
 
+            if initFct !== nothing
+                initFct()
+            end
+
             # exit setup (hard)
             if setup
                 retcode = fmi2ExitInitializationMode(c[i])
@@ -870,6 +937,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               instantiate::Union{Bool, Nothing} = nothing,
                               freeInstance::Union{Bool, Nothing} = nothing,
                               terminate::Union{Bool, Nothing} = nothing,
+                              p=nothing,
                               kwargs...)
 
     saving = (length(nfmu.recordValues) > 0)
@@ -1046,7 +1114,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     end # ignore_derivatives
 
     # setup problem and parameters
-    p = nfmu.neuralODE.p
+    if p == nothing
+        p = nfmu.neuralODE.p
+    end
     prob = nothing
 
     if inPlace
@@ -1210,3 +1280,32 @@ end
 
 #     return y, fmi2EvaluateME_pullback
 # end
+
+"""
+ToDo 
+"""
+function train!(loss, params::Flux.Params, data, optim::Flux.Optimise.AbstractOptimiser; cb=nothing, chunk_size::Integer=64)
+
+    to_differentiate = p -> loss(p)
+
+    for i in 1:length(data)
+        for j in 1:length(params)
+            grad = ForwardDiff.gradient(
+                to_differentiate,
+                params[j],
+                ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+            );
+
+            params[j] .-= Flux.Optimise.apply!(optim, params[j], grad)
+        end    
+        
+        if cb != nothing 
+            cb()
+        end
+    end
+end
+
+function train!(loss, neuralFMU::ME_NeuralFMU, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
+    params = Flux.params(neuralFMU)
+    train!(loss, params, data, optim; kwargs...)
+end
