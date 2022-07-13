@@ -1284,7 +1284,7 @@ end
 """
 ToDo 
 """
-function train!(loss, params::Flux.Params, data, optim; cb=nothing, chunk_size=256)
+function train!(loss, params::Flux.Params, data, optim::Flux.Optimise.AbstractOptimiser; cb=nothing, chunk_size::Integer=64)
 
     to_differentiate = p -> loss(p)
 
@@ -1305,7 +1305,7 @@ function train!(loss, params::Flux.Params, data, optim; cb=nothing, chunk_size=2
     end
 end
 
-function train!(loss, neuralFMU::ME_NeuralFMU, data, optim; kwargs...)
+function train!(loss, neuralFMU::ME_NeuralFMU, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
     params = Flux.params(neuralFMU)
     train!(loss, params, data, optim; kwargs...)
 end
