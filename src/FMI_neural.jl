@@ -101,6 +101,9 @@ function startCallback(nfmu, t)
         @debug "[$(nfmu.solveCycle)][FIRST STEP]"
 
         @assert ForwardDiff.value(t) == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
+        # if ForwardDiff.value(t) == nfmu.tspan[1]
+        #     @warn "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
+        # end
 
         # allocate component shadow for second run
         if nfmu.fmu.executionConfig.useComponentShadow
@@ -609,8 +612,9 @@ function ME_NeuralFMU(fmu::FMU2,
                         #args[key] = value
                     end
             
-                    push!(layers, typ.name.wrapper(args...))
-                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to Float64."
+                    newlayer = typ.name.wrapper(args...)
+                    push!(layers, newlayer)
+                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to `$(typeof(newlayer))`."
                 else
                     @warn "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`."
                 end
@@ -933,6 +937,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                               instantiate::Union{Bool, Nothing} = nothing,
                               freeInstance::Union{Bool, Nothing} = nothing,
                               terminate::Union{Bool, Nothing} = nothing,
+                              p=nothing,
                               kwargs...)
 
     saving = (length(nfmu.recordValues) > 0)
@@ -1109,7 +1114,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     end # ignore_derivatives
 
     # setup problem and parameters
-    p = nfmu.neuralODE.p
+    if p == nothing
+        p = nfmu.neuralODE.p
+    end
     prob = nothing
 
     if inPlace
@@ -1273,3 +1280,32 @@ end
 
 #     return y, fmi2EvaluateME_pullback
 # end
+
+"""
+ToDo 
+"""
+function train!(loss, params::Flux.Params, data, optim; cb=nothing, chunk_size=256)
+
+    to_differentiate = p -> loss(p)
+
+    for i in 1:length(data)
+        for j in 1:length(params)
+            grad = ForwardDiff.gradient(
+                to_differentiate,
+                params[j],
+                ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+            );
+
+            params[j] .-= Flux.Optimise.apply!(optim, params[j], grad)
+        end    
+        
+        if cb != nothing 
+            cb()
+        end
+    end
+end
+
+function train!(loss, neuralFMU::ME_NeuralFMU, data, optim; kwargs...)
+    params = Flux.params(neuralFMU)
+    train!(loss, params, data, optim; kwargs...)
+end
