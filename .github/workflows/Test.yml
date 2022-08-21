@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'test/**'
       - '.github/**'
+      - 'Project.toml'
 
 jobs:
   test:
@@ -22,7 +23,7 @@ jobs:
         experimental: [false]
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # Checks-out your repository
       - name: Check out repository
         uses: actions/checkout@v3
 
@@ -46,7 +47,7 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
 
-      # Build FMI.jl package
+      # Build package
       - name: "Build package"
         uses: julia-actions/julia-buildpkg@v1
 
