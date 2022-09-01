@@ -26,9 +26,9 @@ posData = fmi2GetSolutionValue(realSimData, "mass_s")
 velData = fmi2GetSolutionValue(realSimData, "mass_v")
 
 # loss function for training
-function losssum()
+function losssum(p)
     global problem, x0, posData
-    solution = problem(x0)
+    solution = problem(x0; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
@@ -39,12 +39,12 @@ end
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-function callb()
+function callb(p)
     global iterCB += 1
     global lastLoss
 
     if iterCB % 1 == 0
-        loss = losssum()
+        loss = losssum(p[1])
         @info "Loss: $loss"
 
         # This test condition is weak, because when the FMU passes an event, the error might increase.  
@@ -128,7 +128,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states),
             Dense(ones(numStates, numStates), false,  identity))
 push!(nets, net)
 
-optim = ADAM(1e-4)
+optim = Adam(1e-4)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
@@ -149,8 +149,9 @@ for i in 1:length(nets)
         p_net = Flux.params(problem)
 
         iterCB = 0
-        lastLoss = losssum()
+        lastLoss = losssum(p_net[1])
         @info "Start-Loss for net #$i: $lastLoss"
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=()->callb(p_net))
 
         # check results
         solutionAfter = problem(x0)
