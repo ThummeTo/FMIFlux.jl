@@ -24,7 +24,7 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/main/example/modelica_conference_2021.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/main/example/modelica_conference_2021.jl) with the same name, which contains only the code cells. For the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/modelica_conference_2021.md) corresponding to the notebook.  
+Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.jl) with the same name, which contains only the code cells. For the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.md) corresponding to the notebook.  
 
 
 ## Getting started
@@ -123,9 +123,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_vlBFuR/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_fsgHe5/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_vlBFuR/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_fsgHe5/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -297,9 +297,9 @@ fmiInfo(simpleFMU)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_ZAKN5Q/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_06mmD7/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_ZAKN5Q/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_06mmD7/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -753,215 +753,215 @@ end
     └ @ Main In[25]:3
     ┌ Info:   Loss [51]: 0.27987
     │         Avg displacement in data: 0.52903
-    │         Weight/Scale: 1.0227796972484995   Bias/Offset: 0.02359101781398293
+    │         Weight/Scale: 1.022779697284623   Bias/Offset: 0.02359101792044668
     └ @ Main In[13]:15
     ┌ Info:   Loss [101]: 0.23462
     │         Avg displacement in data: 0.48438
-    │         Weight/Scale: 1.007235304135815   Bias/Offset: 0.012056601842674715
+    │         Weight/Scale: 1.0072353050582448   Bias/Offset: 0.012056602671214316
     └ @ Main In[13]:15
     ┌ Info:   Loss [151]: 0.07568
     │         Avg displacement in data: 0.27511
-    │         Weight/Scale: 1.025558013690243   Bias/Offset: 0.054126679913574706
+    │         Weight/Scale: 1.0255580120192322   Bias/Offset: 0.05412667957540138
     └ @ Main In[13]:15
     ┌ Info:   Loss [201]: 0.03432
     │         Avg displacement in data: 0.18527
-    │         Weight/Scale: 1.0514125925850004   Bias/Offset: 0.0836581766086249
+    │         Weight/Scale: 1.0514125944687294   Bias/Offset: 0.08365819560173457
     └ @ Main In[13]:15
     ┌ Info:   Loss [251]: 0.03042
     │         Avg displacement in data: 0.1744
-    │         Weight/Scale: 1.0527700657960908   Bias/Offset: 0.08237075469577392
+    │         Weight/Scale: 1.0527700778185933   Bias/Offset: 0.08237076689524142
     └ @ Main In[13]:15
-    ┌ Info:   Loss [301]: 0.02736
-    │         Avg displacement in data: 0.1654
-    │         Weight/Scale: 1.052739942802182   Bias/Offset: 0.0800787153236984
+    ┌ Info:   Loss [301]: 0.02737
+    │         Avg displacement in data: 0.16543
+    │         Weight/Scale: 1.052737425798989   Bias/Offset: 0.08007695212378325
     └ @ Main In[13]:15
     ┌ Info:   Loss [351]: 0.02485
-    │         Avg displacement in data: 0.15763
-    │         Weight/Scale: 1.0518631427268665   Bias/Offset: 0.07737129021651924
+    │         Avg displacement in data: 0.15764
+    │         Weight/Scale: 1.0518622719501225   Bias/Offset: 0.07737061538035035
     └ @ Main In[13]:15
     ┌ Info:   Loss [401]: 0.02285
-    │         Avg displacement in data: 0.15116
-    │         Weight/Scale: 1.0504819371354388   Bias/Offset: 0.07499401573025632
+    │         Avg displacement in data: 0.15117
+    │         Weight/Scale: 1.0504836227801908   Bias/Offset: 0.07499335400018167
     └ @ Main In[13]:15
-    ┌ Info:   Loss [451]: 0.02139
-    │         Avg displacement in data: 0.14626
-    │         Weight/Scale: 1.0485161632628934   Bias/Offset: 0.07266634553128398
+    ┌ Info:   Loss [451]: 0.02142
+    │         Avg displacement in data: 0.14634
+    │         Weight/Scale: 1.0485607453819945   Bias/Offset: 0.07270457252367053
     └ @ Main In[13]:15
-    ┌ Info:   Loss [501]: 0.0202
-    │         Avg displacement in data: 0.14212
-    │         Weight/Scale: 1.0465161927062194   Bias/Offset: 0.07103174526720096
+    ┌ Info:   Loss [501]: 0.02011
+    │         Avg displacement in data: 0.14181
+    │         Weight/Scale: 1.046494608921536   Bias/Offset: 0.07091271954224898
     └ @ Main In[13]:15
     ┌ Info: Run: 1/2  Epoch: 2/5
     └ @ Main In[25]:3
-    ┌ Info:   Loss [551]: 0.01926
-    │         Avg displacement in data: 0.13878
-    │         Weight/Scale: 1.044526487305734   Bias/Offset: 0.0696085156424645
+    ┌ Info:   Loss [551]: 0.0191
+    │         Avg displacement in data: 0.13819
+    │         Weight/Scale: 1.04437823945937   Bias/Offset: 0.06940294360224696
     └ @ Main In[13]:15
-    ┌ Info:   Loss [601]: 0.01837
-    │         Avg displacement in data: 0.13555
-    │         Weight/Scale: 1.0423604509663782   Bias/Offset: 0.06830160565203962
+    ┌ Info:   Loss [601]: 0.01823
+    │         Avg displacement in data: 0.13501
+    │         Weight/Scale: 1.0420006897942085   Bias/Offset: 0.06799275634414724
     └ @ Main In[13]:15
-    ┌ Info:   Loss [651]: 0.01757
-    │         Avg displacement in data: 0.13254
-    │         Weight/Scale: 1.0401544042429705   Bias/Offset: 0.06742281384546482
+    ┌ Info:   Loss [651]: 0.01734
+    │         Avg displacement in data: 0.13169
+    │         Weight/Scale: 1.0396628046500325   Bias/Offset: 0.06707172850331951
     └ @ Main In[13]:15
-    ┌ Info:   Loss [701]: 0.01687
-    │         Avg displacement in data: 0.12989
-    │         Weight/Scale: 1.0378657538835463   Bias/Offset: 0.06655857932091809
+    ┌ Info:   Loss [701]: 0.01659
+    │         Avg displacement in data: 0.12879
+    │         Weight/Scale: 1.037233638129626   Bias/Offset: 0.06617316794762193
     └ @ Main In[13]:15
-    ┌ Info:   Loss [751]: 0.01605
-    │         Avg displacement in data: 0.12669
-    │         Weight/Scale: 1.0356939934301541   Bias/Offset: 0.06596511697735462
+    ┌ Info:   Loss [751]: 0.01604
+    │         Avg displacement in data: 0.12666
+    │         Weight/Scale: 1.0349375108588967   Bias/Offset: 0.06568413227280896
     └ @ Main In[13]:15
-    ┌ Info:   Loss [801]: 0.01529
-    │         Avg displacement in data: 0.12365
-    │         Weight/Scale: 1.0334524191183936   Bias/Offset: 0.06555964738908121
+    ┌ Info:   Loss [801]: 0.01509
+    │         Avg displacement in data: 0.12284
+    │         Weight/Scale: 1.032682753275887   Bias/Offset: 0.0653509984317564
     └ @ Main In[13]:15
-    ┌ Info:   Loss [851]: 0.01444
-    │         Avg displacement in data: 0.12019
-    │         Weight/Scale: 1.0311602846871473   Bias/Offset: 0.06519152717886686
+    ┌ Info:   Loss [851]: 0.01426
+    │         Avg displacement in data: 0.11943
+    │         Weight/Scale: 1.0304021702729884   Bias/Offset: 0.06502358604423843
     └ @ Main In[13]:15
-    ┌ Info:   Loss [901]: 0.01353
-    │         Avg displacement in data: 0.11632
-    │         Weight/Scale: 1.028802105007811   Bias/Offset: 0.06472347619981693
+    ┌ Info:   Loss [901]: 0.01337
+    │         Avg displacement in data: 0.11561
+    │         Weight/Scale: 1.0280328408156676   Bias/Offset: 0.06453937847417446
     └ @ Main In[13]:15
-    ┌ Info:   Loss [951]: 0.0126
-    │         Avg displacement in data: 0.11227
-    │         Weight/Scale: 1.0264555403375735   Bias/Offset: 0.06404485810878471
+    ┌ Info:   Loss [951]: 0.01247
+    │         Avg displacement in data: 0.11167
+    │         Weight/Scale: 1.0257845489687998   Bias/Offset: 0.06402444718622612
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1001]: 0.01171
-    │         Avg displacement in data: 0.10823
-    │         Weight/Scale: 1.0244338972990028   Bias/Offset: 0.06356782644489042
+    ┌ Info:   Loss [1001]: 0.01159
+    │         Avg displacement in data: 0.10768
+    │         Weight/Scale: 1.0237404020446534   Bias/Offset: 0.06351019918379759
     └ @ Main In[13]:15
     ┌ Info: Run: 1/2  Epoch: 3/5
     └ @ Main In[25]:3
-    ┌ Info:   Loss [1051]: 0.01087
-    │         Avg displacement in data: 0.10425
-    │         Weight/Scale: 1.0226052761883384   Bias/Offset: 0.0631451807018007
+    ┌ Info:   Loss [1051]: 0.01077
+    │         Avg displacement in data: 0.10376
+    │         Weight/Scale: 1.0219502254586328   Bias/Offset: 0.06315216043330164
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1101]: 0.01008
-    │         Avg displacement in data: 0.10039
-    │         Weight/Scale: 1.0211340738544854   Bias/Offset: 0.06302604534753369
+    ┌ Info:   Loss [1101]: 0.00999
+    │         Avg displacement in data: 0.09997
+    │         Weight/Scale: 1.0204593391343655   Bias/Offset: 0.06300202166784759
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1151]: 0.00935
-    │         Avg displacement in data: 0.0967
-    │         Weight/Scale: 1.0198029416973389   Bias/Offset: 0.06295024095606516
+    ┌ Info:   Loss [1151]: 0.00928
+    │         Avg displacement in data: 0.09632
+    │         Weight/Scale: 1.01908716117491   Bias/Offset: 0.06287942672621541
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1201]: 0.00867
-    │         Avg displacement in data: 0.0931
-    │         Weight/Scale: 1.0185473991787677   Bias/Offset: 0.06288464728495828
+    ┌ Info:   Loss [1201]: 0.00859
+    │         Avg displacement in data: 0.09269
+    │         Weight/Scale: 1.0177819148148846   Bias/Offset: 0.06276356216009435
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1251]: 0.00801
-    │         Avg displacement in data: 0.08952
-    │         Weight/Scale: 1.017286168241178   Bias/Offset: 0.06276506687507463
+    ┌ Info:   Loss [1251]: 0.00792
+    │         Avg displacement in data: 0.08899
+    │         Weight/Scale: 1.016437826569848   Bias/Offset: 0.0625518790503612
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1301]: 0.00729
-    │         Avg displacement in data: 0.0854
-    │         Weight/Scale: 1.0159057817482948   Bias/Offset: 0.062432243830558926
+    ┌ Info:   Loss [1301]: 0.0072
+    │         Avg displacement in data: 0.08485
+    │         Weight/Scale: 1.0150392235034453   Bias/Offset: 0.06217107277554704
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1351]: 0.00655
-    │         Avg displacement in data: 0.08093
-    │         Weight/Scale: 1.0146956856856428   Bias/Offset: 0.062136078392318314
+    ┌ Info:   Loss [1351]: 0.00646
+    │         Avg displacement in data: 0.08039
+    │         Weight/Scale: 1.0137616569636536   Bias/Offset: 0.06170848883682959
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1401]: 0.00588
-    │         Avg displacement in data: 0.07665
-    │         Weight/Scale: 1.0134994843490717   Bias/Offset: 0.0614479564650401
+    ┌ Info:   Loss [1401]: 0.00583
+    │         Avg displacement in data: 0.07635
+    │         Weight/Scale: 1.01264973185929   Bias/Offset: 0.061049059219063465
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1451]: 0.00538
-    │         Avg displacement in data: 0.07336
-    │         Weight/Scale: 1.0126014399836643   Bias/Offset: 0.060789236747274565
+    ┌ Info:   Loss [1451]: 0.00536
+    │         Avg displacement in data: 0.07322
+    │         Weight/Scale: 1.0117686350441604   Bias/Offset: 0.060379014929978686
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1501]: 0.005
-    │         Avg displacement in data: 0.07071
-    │         Weight/Scale: 1.011897256968808   Bias/Offset: 0.0602251854840801
+    ┌ Info:   Loss [1501]: 0.00499
+    │         Avg displacement in data: 0.07064
+    │         Weight/Scale: 1.0110640560975732   Bias/Offset: 0.059815806997252564
     └ @ Main In[13]:15
     ┌ Info: Run: 1/2  Epoch: 4/5
     └ @ Main In[25]:3
-    ┌ Info:   Loss [1551]: 0.00468
-    │         Avg displacement in data: 0.06838
-    │         Weight/Scale: 1.0113079761138857   Bias/Offset: 0.05976182356133882
+    ┌ Info:   Loss [1551]: 0.00467
+    │         Avg displacement in data: 0.06835
+    │         Weight/Scale: 1.0104592673987645   Bias/Offset: 0.059339984302401776
     └ @ Main In[13]:15
     ┌ Info:   Loss [1601]: 0.00439
-    │         Avg displacement in data: 0.06626
-    │         Weight/Scale: 1.0107772861145496   Bias/Offset: 0.05934811678367015
+    │         Avg displacement in data: 0.06627
+    │         Weight/Scale: 1.0099091585330566   Bias/Offset: 0.058908290825086106
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1651]: 0.00414
-    │         Avg displacement in data: 0.06434
-    │         Weight/Scale: 1.0102864663334739   Bias/Offset: 0.0589636441017932
+    ┌ Info:   Loss [1651]: 0.00413
+    │         Avg displacement in data: 0.06428
+    │         Weight/Scale: 1.0093927456600722   Bias/Offset: 0.058495123456024346
     └ @ Main In[13]:15
     ┌ Info:   Loss [1701]: 0.0039
-    │         Avg displacement in data: 0.06249
-    │         Weight/Scale: 1.0098281047278808   Bias/Offset: 0.05860012703210355
+    │         Avg displacement in data: 0.06248
+    │         Weight/Scale: 1.0089248378327205   Bias/Offset: 0.058126054310056144
     └ @ Main In[13]:15
-    ┌ Info:   Loss [1751]: 0.00371
-    │         Avg displacement in data: 0.06088
-    │         Weight/Scale: 1.0094199153396044   Bias/Offset: 0.05828631837620575
+    ┌ Info:   Loss [1751]: 0.0037
+    │         Avg displacement in data: 0.06086
+    │         Weight/Scale: 1.0085033266188659   Bias/Offset: 0.05779962605767347
     └ @ Main In[13]:15
     ┌ Info:   Loss [1801]: 0.00352
     │         Avg displacement in data: 0.05931
-    │         Weight/Scale: 1.0090414444264393   Bias/Offset: 0.05799325827066244
+    │         Weight/Scale: 1.0080951454022984   Bias/Offset: 0.05747006962486286
     └ @ Main In[13]:15
     ┌ Info:   Loss [1851]: 0.00335
-    │         Avg displacement in data: 0.05787
-    │         Weight/Scale: 1.00865356350199   Bias/Offset: 0.05766959382290175
+    │         Avg displacement in data: 0.05788
+    │         Weight/Scale: 1.0076825338267172   Bias/Offset: 0.0571179906710397
     └ @ Main In[13]:15
     ┌ Info:   Loss [1901]: 0.0032
-    │         Avg displacement in data: 0.05653
-    │         Weight/Scale: 1.008273845259956   Bias/Offset: 0.057339985902657396
+    │         Avg displacement in data: 0.05654
+    │         Weight/Scale: 1.0072865693757205   Bias/Offset: 0.05677160539642778
     └ @ Main In[13]:15
     ┌ Info:   Loss [1951]: 0.00306
-    │         Avg displacement in data: 0.05529
-    │         Weight/Scale: 1.0079173630571645   Bias/Offset: 0.057026745844088136
+    │         Avg displacement in data: 0.0553
+    │         Weight/Scale: 1.0069158027102063   Bias/Offset: 0.05644398574911272
     └ @ Main In[13]:15
     ┌ Info:   Loss [2001]: 0.00293
-    │         Avg displacement in data: 0.05414
-    │         Weight/Scale: 1.0075836627207844   Bias/Offset: 0.05673195485611518
+    │         Avg displacement in data: 0.05415
+    │         Weight/Scale: 1.0065678875895239   Bias/Offset: 0.05613436590434876
     └ @ Main In[13]:15
     ┌ Info: Run: 1/2  Epoch: 5/5
     └ @ Main In[25]:3
     ┌ Info:   Loss [2051]: 0.00282
-    │         Avg displacement in data: 0.05306
-    │         Weight/Scale: 1.0072697334383847   Bias/Offset: 0.05645350581842648
+    │         Avg displacement in data: 0.05307
+    │         Weight/Scale: 1.00623985337901   Bias/Offset: 0.05584065676709338
     └ @ Main In[13]:15
     ┌ Info:   Loss [2101]: 0.00271
-    │         Avg displacement in data: 0.05205
-    │         Weight/Scale: 1.0069730034407365   Bias/Offset: 0.05618931211150019
+    │         Avg displacement in data: 0.05206
+    │         Weight/Scale: 1.0059291808177673   Bias/Offset: 0.05556087099379413
     └ @ Main In[13]:15
     ┌ Info:   Loss [2151]: 0.00261
-    │         Avg displacement in data: 0.05109
-    │         Weight/Scale: 1.0066920282308016   Bias/Offset: 0.0559385401371683
+    │         Avg displacement in data: 0.0511
+    │         Weight/Scale: 1.0056346766879918   Bias/Offset: 0.055294585554171244
     └ @ Main In[13]:15
     ┌ Info:   Loss [2201]: 0.00252
-    │         Avg displacement in data: 0.05019
-    │         Weight/Scale: 1.0064261392097056   Bias/Offset: 0.05570140397037317
+    │         Avg displacement in data: 0.0502
+    │         Weight/Scale: 1.0053556655128653   Bias/Offset: 0.05504210216883402
     └ @ Main In[13]:15
-    ┌ Info:   Loss [2251]: 0.00243
-    │         Avg displacement in data: 0.04934
-    │         Weight/Scale: 1.0061738368294062   Bias/Offset: 0.055476572151725925
+    ┌ Info:   Loss [2251]: 0.00244
+    │         Avg displacement in data: 0.04935
+    │         Weight/Scale: 1.0050905987347118   Bias/Offset: 0.05480215346371624
     └ @ Main In[13]:15
     ┌ Info:   Loss [2301]: 0.00236
-    │         Avg displacement in data: 0.04853
-    │         Weight/Scale: 1.00593327091279   Bias/Offset: 0.055261663260595055
+    │         Avg displacement in data: 0.04854
+    │         Weight/Scale: 1.0048376401665384   Bias/Offset: 0.054572470547144224
     └ @ Main In[13]:15
     ┌ Info:   Loss [2351]: 0.00228
-    │         Avg displacement in data: 0.04776
-    │         Weight/Scale: 1.005702899132193   Bias/Offset: 0.05505465426625899
+    │         Avg displacement in data: 0.04777
+    │         Weight/Scale: 1.0045953433572516   Bias/Offset: 0.05435117526259279
     └ @ Main In[13]:15
     ┌ Info:   Loss [2401]: 0.00221
-    │         Avg displacement in data: 0.04703
-    │         Weight/Scale: 1.0054818817969449   Bias/Offset: 0.05485471756699228
+    │         Avg displacement in data: 0.04704
+    │         Weight/Scale: 1.004362913728288   Bias/Offset: 0.054137374026090083
     └ @ Main In[13]:15
     ┌ Info:   Loss [2451]: 0.00215
-    │         Avg displacement in data: 0.04633
-    │         Weight/Scale: 1.0052696914341415   Bias/Offset: 0.05466166484597469
+    │         Avg displacement in data: 0.04635
+    │         Weight/Scale: 1.0041397200530493   Bias/Offset: 0.05393084846458077
     └ @ Main In[13]:15
     ┌ Info:   Loss [2501]: 0.00209
-    │         Avg displacement in data: 0.04566
-    │         Weight/Scale: 1.0050656974011385   Bias/Offset: 0.05447527099558027
+    │         Avg displacement in data: 0.04568
+    │         Weight/Scale: 1.003925150310206   Bias/Offset: 0.053731496699864
     └ @ Main In[13]:15
 
 
-    260.967495 seconds (307.16 M allocations: 121.417 GiB, 8.07% gc time)
+    176.936433 seconds (307.66 M allocations: 121.456 GiB, 10.31% gc time)
 
 
 
@@ -970,10 +970,24 @@ end
     
 
 
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_3.svg)
-    
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
 
 
 
@@ -982,20 +996,50 @@ end
     
 
 
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+
+
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_5.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_6.svg)
     
 
 
-    ┌ Info: Friction model 1 mse: 0.5841838178967346
-    └ @ Main In[17]:29
-
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_7.svg)
-    
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
 
 
 
@@ -1004,219 +1048,32 @@ end
     
 
 
-    ┌ Info: Run: 2/2  Epoch: 1/5
-    └ @ Main In[25]:3
-    ┌ Info:   Loss [2551]: 0.00203
-    │         Avg displacement in data: 0.04502
-    │         Weight/Scale: 1.0048691798921354   Bias/Offset: 0.054295074682339774
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2601]: 0.00197
-    │         Avg displacement in data: 0.04441
-    │         Weight/Scale: 1.0046797928811213   Bias/Offset: 0.054120864493847884
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2651]: 0.00192
-    │         Avg displacement in data: 0.04382
-    │         Weight/Scale: 1.0044971219024164   Bias/Offset: 0.05395227390510312
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2701]: 0.00187
-    │         Avg displacement in data: 0.04325
-    │         Weight/Scale: 1.0043205142799836   Bias/Offset: 0.0537885752852632
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2751]: 0.00182
-    │         Avg displacement in data: 0.0427
-    │         Weight/Scale: 1.0041495131775346   Bias/Offset: 0.05362928288258972
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2801]: 0.00178
-    │         Avg displacement in data: 0.04217
-    │         Weight/Scale: 1.0039836109760338   Bias/Offset: 0.05347366108733261
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2851]: 0.00174
-    │         Avg displacement in data: 0.04166
-    │         Weight/Scale: 1.0038223517091698   Bias/Offset: 0.05332106138776155
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2901]: 0.0017
-    │         Avg displacement in data: 0.04117
-    │         Weight/Scale: 1.0036641595719626   Bias/Offset: 0.05316979060838563
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [2951]: 0.00166
-    │         Avg displacement in data: 0.0407
-    │         Weight/Scale: 1.0034824771593116   Bias/Offset: 0.053023815200695865
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3001]: 0.00162
-    │         Avg displacement in data: 0.04024
-    │         Weight/Scale: 1.003302287232279   Bias/Offset: 0.05284652737193568
-    └ @ Main In[13]:15
-    ┌ Info: Run: 2/2  Epoch: 2/5
-    └ @ Main In[25]:3
-    ┌ Info:   Loss [3051]: 0.00158
-    │         Avg displacement in data: 0.0398
-    │         Weight/Scale: 1.0031327356622615   Bias/Offset: 0.05267427236442638
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3101]: 0.00156
-    │         Avg displacement in data: 0.03953
-    │         Weight/Scale: 1.0029500684407646   Bias/Offset: 0.05248895808613692
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3151]: 0.00152
-    │         Avg displacement in data: 0.03897
-    │         Weight/Scale: 1.0027515706381962   Bias/Offset: 0.05231557617707483
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3201]: 0.00149
-    │         Avg displacement in data: 0.03857
-    │         Weight/Scale: 1.0025671518586756   Bias/Offset: 0.05211843562441854
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3251]: 0.00146
-    │         Avg displacement in data: 0.03818
-    │         Weight/Scale: 1.0023819730626184   Bias/Offset: 0.05191540591786916
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3301]: 0.00144
-    │         Avg displacement in data: 0.03791
-    │         Weight/Scale: 1.0021632889377226   Bias/Offset: 0.05171860500099298
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3351]: 0.0014
-    │         Avg displacement in data: 0.03744
-    │         Weight/Scale: 1.0019411794517727   Bias/Offset: 0.05147520346434769
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3401]: 0.00138
-    │         Avg displacement in data: 0.03709
-    │         Weight/Scale: 1.0017329315033845   Bias/Offset: 0.0512361956105694
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3451]: 0.00135
-    │         Avg displacement in data: 0.03674
-    │         Weight/Scale: 1.0015212202792987   Bias/Offset: 0.050989154848838064
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3501]: 0.00133
-    │         Avg displacement in data: 0.03642
-    │         Weight/Scale: 1.0012557067126089   Bias/Offset: 0.0507363501769044
-    └ @ Main In[13]:15
-    ┌ Info: Run: 2/2  Epoch: 3/5
-    └ @ Main In[25]:3
-    ┌ Info:   Loss [3551]: 0.0013
-    │         Avg displacement in data: 0.03608
-    │         Weight/Scale: 1.00101407962594   Bias/Offset: 0.050454277227812774
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3601]: 0.00128
-    │         Avg displacement in data: 0.03576
-    │         Weight/Scale: 1.0007733249334747   Bias/Offset: 0.050161991984925096
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3651]: 0.00126
-    │         Avg displacement in data: 0.03545
-    │         Weight/Scale: 1.0005272517056891   Bias/Offset: 0.049859255147195664
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3701]: 0.00124
-    │         Avg displacement in data: 0.0352
-    │         Weight/Scale: 1.0002271224454813   Bias/Offset: 0.04955690861694724
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3751]: 0.00121
-    │         Avg displacement in data: 0.03485
-    │         Weight/Scale: 0.9999339221810825   Bias/Offset: 0.04920328312338153
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3801]: 0.00119
-    │         Avg displacement in data: 0.03456
-    │         Weight/Scale: 0.9996551008765587   Bias/Offset: 0.04884717631531261
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3851]: 0.00117
-    │         Avg displacement in data: 0.03428
-    │         Weight/Scale: 0.9993674736621564   Bias/Offset: 0.04847594692147291
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3901]: 0.00116
-    │         Avg displacement in data: 0.03405
-    │         Weight/Scale: 0.9990035565890562   Bias/Offset: 0.048085493708647266
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [3951]: 0.00114
-    │         Avg displacement in data: 0.03372
-    │         Weight/Scale: 0.9986868123334718   Bias/Offset: 0.04767576133969908
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4001]: 0.00112
-    │         Avg displacement in data: 0.03345
-    │         Weight/Scale: 0.9983607611565413   Bias/Offset: 0.047241400912823174
-    └ @ Main In[13]:15
-    ┌ Info: Run: 2/2  Epoch: 4/5
-    └ @ Main In[25]:3
-    ┌ Info:   Loss [4051]: 0.00111
-    │         Avg displacement in data: 0.03335
-    │         Weight/Scale: 0.9980437088605549   Bias/Offset: 0.046803904120799336
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4101]: 0.00108
-    │         Avg displacement in data: 0.03292
-    │         Weight/Scale: 0.9976115569702646   Bias/Offset: 0.046317907987247844
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4151]: 0.00107
-    │         Avg displacement in data: 0.03266
-    │         Weight/Scale: 0.9972363139527056   Bias/Offset: 0.04580947813192842
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4201]: 0.00105
-    │         Avg displacement in data: 0.0324
-    │         Weight/Scale: 0.9968563641088443   Bias/Offset: 0.045282006620128004
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4251]: 0.00105
-    │         Avg displacement in data: 0.03236
-    │         Weight/Scale: 0.9964605428921461   Bias/Offset: 0.044775633694189604
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4301]: 0.00102
-    │         Avg displacement in data: 0.0319
-    │         Weight/Scale: 0.9959804996736025   Bias/Offset: 0.04415144225670856
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4351]: 0.001
-    │         Avg displacement in data: 0.03165
-    │         Weight/Scale: 0.9955469063544566   Bias/Offset: 0.04353634708671823
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4401]: 0.00099
-    │         Avg displacement in data: 0.0314
-    │         Weight/Scale: 0.9950986697472873   Bias/Offset: 0.042893732718874505
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4451]: 0.00097
-    │         Avg displacement in data: 0.03122
-    │         Weight/Scale: 0.994563957898894   Bias/Offset: 0.04223954464266206
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4501]: 0.00096
-    │         Avg displacement in data: 0.03091
-    │         Weight/Scale: 0.9940501319202598   Bias/Offset: 0.04151719347053684
-    └ @ Main In[13]:15
-    ┌ Info: Run: 2/2  Epoch: 5/5
-    └ @ Main In[25]:3
-    ┌ Info:   Loss [4551]: 0.00094
-    │         Avg displacement in data: 0.03067
-    │         Weight/Scale: 0.9935450273992231   Bias/Offset: 0.04077214664070263
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4601]: 0.00093
-    │         Avg displacement in data: 0.03043
-    │         Weight/Scale: 0.993019980577346   Bias/Offset: 0.03999220242638018
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4651]: 0.00096
-    │         Avg displacement in data: 0.03094
-    │         Weight/Scale: 0.9924879797604587   Bias/Offset: 0.039197530860889805
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4701]: 0.0009
-    │         Avg displacement in data: 0.02995
-    │         Weight/Scale: 0.9918131259637384   Bias/Offset: 0.03832419443064244
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4751]: 0.00088
-    │         Avg displacement in data: 0.02971
-    │         Weight/Scale: 0.9912200146454442   Bias/Offset: 0.03742704315091618
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4801]: 0.00087
-    │         Avg displacement in data: 0.02948
-    │         Weight/Scale: 0.9906035857563007   Bias/Offset: 0.03648401090788386
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4851]: 0.00086
-    │         Avg displacement in data: 0.0293
-    │         Weight/Scale: 0.9899467513927472   Bias/Offset: 0.035483836954150375
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4901]: 0.00084
-    │         Avg displacement in data: 0.029
-    │         Weight/Scale: 0.9892036550465079   Bias/Offset: 0.034467675192321266
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [4951]: 0.00083
-    │         Avg displacement in data: 0.02876
-    │         Weight/Scale: 0.988508173693831   Bias/Offset: 0.03339060594234028
-    └ @ Main In[13]:15
-    ┌ Info:   Loss [5001]: 0.00081
-    │         Avg displacement in data: 0.02853
-    │         Weight/Scale: 0.987786770191395   Bias/Offset: 0.032256729968733
-    └ @ Main In[13]:15
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Info: Friction model 1 mse: 0.6262285600446067
+    └ @ Main In[17]:29
 
 
-    238.875974 seconds (283.52 M allocations: 112.745 GiB, 8.32% gc time)
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_10.svg)
+    
 
 
 
@@ -1225,16 +1082,237 @@ end
     
 
 
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Info: Run: 2/2  Epoch: 1/5
+    └ @ Main In[25]:3
+    ┌ Info:   Loss [2551]: 0.00203
+    │         Avg displacement in data: 0.04504
+    │         Weight/Scale: 1.0037186668122509   Bias/Offset: 0.053538999140937474
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2601]: 0.00197
+    │         Avg displacement in data: 0.04443
+    │         Weight/Scale: 1.0035197341051127   Bias/Offset: 0.05335311681177734
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2651]: 0.00192
+    │         Avg displacement in data: 0.04384
+    │         Weight/Scale: 1.0033279776030726   Bias/Offset: 0.05317346602135632
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2701]: 0.00187
+    │         Avg displacement in data: 0.04327
+    │         Weight/Scale: 1.003142812812645   Bias/Offset: 0.05299948232208313
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2751]: 0.00183
+    │         Avg displacement in data: 0.04273
+    │         Weight/Scale: 1.0029637049559896   Bias/Offset: 0.05283052466323941
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2801]: 0.00178
+    │         Avg displacement in data: 0.0422
+    │         Weight/Scale: 1.002790106448768   Bias/Offset: 0.052665895606741404
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2851]: 0.00174
+    │         Avg displacement in data: 0.04169
+    │         Weight/Scale: 1.0026215729412737   Bias/Offset: 0.052504872505070264
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2901]: 0.0017
+    │         Avg displacement in data: 0.0412
+    │         Weight/Scale: 1.0024574650306628   Bias/Offset: 0.052346546770078724
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [2951]: 0.00166
+    │         Avg displacement in data: 0.04073
+    │         Weight/Scale: 1.0022970600102459   Bias/Offset: 0.052190006279017175
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3001]: 0.00162
+    │         Avg displacement in data: 0.04028
+    │         Weight/Scale: 1.0021327973729572   Bias/Offset: 0.052052831988056436
+    └ @ Main In[13]:15
+    ┌ Info: Run: 2/2  Epoch: 2/5
+    └ @ Main In[25]:3
+    ┌ Info:   Loss [3051]: 0.00159
+    │         Avg displacement in data: 0.03983
+    │         Weight/Scale: 1.0019345304664056   Bias/Offset: 0.05185914703668214
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3101]: 0.00155
+    │         Avg displacement in data: 0.0394
+    │         Weight/Scale: 1.0017619788469314   Bias/Offset: 0.05168169726132153
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3151]: 0.00162
+    │         Avg displacement in data: 0.04026
+    │         Weight/Scale: 1.0016296703830894   Bias/Offset: 0.05153413247882868
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3201]: 0.00149
+    │         Avg displacement in data: 0.03859
+    │         Weight/Scale: 1.0013686984394816   Bias/Offset: 0.05130912514281167
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3251]: 0.00146
+    │         Avg displacement in data: 0.0382
+    │         Weight/Scale: 1.001177321427596   Bias/Offset: 0.0511013683579891
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3301]: 0.00143
+    │         Avg displacement in data: 0.03782
+    │         Weight/Scale: 1.0009861825908069   Bias/Offset: 0.050889261746084054
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3351]: 0.00141
+    │         Avg displacement in data: 0.03753
+    │         Weight/Scale: 1.0007627087351232   Bias/Offset: 0.05068218653064382
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3401]: 0.00138
+    │         Avg displacement in data: 0.0371
+    │         Weight/Scale: 1.0005349899583924   Bias/Offset: 0.05042993582952337
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3451]: 0.00135
+    │         Avg displacement in data: 0.03675
+    │         Weight/Scale: 1.0003217120251318   Bias/Offset: 0.05018238655595502
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3501]: 0.00134
+    │         Avg displacement in data: 0.03664
+    │         Weight/Scale: 1.0000845377688474   Bias/Offset: 0.04991099380023528
+    └ @ Main In[13]:15
+    ┌ Info: Run: 2/2  Epoch: 3/5
+    └ @ Main In[25]:3
+    ┌ Info:   Loss [3551]: 0.0013
+    │         Avg displacement in data: 0.0361
+    │         Weight/Scale: 0.9998194188972589   Bias/Offset: 0.04965383126546695
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3601]: 0.00128
+    │         Avg displacement in data: 0.03577
+    │         Weight/Scale: 0.9995763213659571   Bias/Offset: 0.04936204266468577
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3651]: 0.00126
+    │         Avg displacement in data: 0.03546
+    │         Weight/Scale: 0.9993288568750353   Bias/Offset: 0.04905838376453268
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3701]: 0.00124
+    │         Avg displacement in data: 0.03516
+    │         Weight/Scale: 0.9990801136644812   Bias/Offset: 0.04874710828044736
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3751]: 0.00122
+    │         Avg displacement in data: 0.03487
+    │         Weight/Scale: 0.9987156784400567   Bias/Offset: 0.04840950361010024
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3801]: 0.00119
+    │         Avg displacement in data: 0.03456
+    │         Weight/Scale: 0.9984204583340729   Bias/Offset: 0.04804486543329714
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3851]: 0.00117
+    │         Avg displacement in data: 0.03428
+    │         Weight/Scale: 0.9981227522385676   Bias/Offset: 0.04766257713266945
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3901]: 0.00116
+    │         Avg displacement in data: 0.034
+    │         Weight/Scale: 0.9978171522249286   Bias/Offset: 0.04726508062007946
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [3951]: 0.00114
+    │         Avg displacement in data: 0.03372
+    │         Weight/Scale: 0.9975028470244203   Bias/Offset: 0.04685173360100839
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4001]: 0.00113
+    │         Avg displacement in data: 0.03356
+    │         Weight/Scale: 0.9971245249194095   Bias/Offset: 0.046421230684507174
+    └ @ Main In[13]:15
+    ┌ Info: Run: 2/2  Epoch: 4/5
+    └ @ Main In[25]:3
+    ┌ Info:   Loss [4051]: 0.0011
+    │         Avg displacement in data: 0.03318
+    │         Weight/Scale: 0.9967308794405376   Bias/Offset: 0.045955323321175086
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4101]: 0.00108
+    │         Avg displacement in data: 0.03291
+    │         Weight/Scale: 0.996372026435943   Bias/Offset: 0.04546961974514397
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4151]: 0.00107
+    │         Avg displacement in data: 0.03265
+    │         Weight/Scale: 0.9959972818206619   Bias/Offset: 0.04495703265779214
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4201]: 0.00105
+    │         Avg displacement in data: 0.03239
+    │         Weight/Scale: 0.9956101964745232   Bias/Offset: 0.04442238053340015
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4251]: 0.00104
+    │         Avg displacement in data: 0.03228
+    │         Weight/Scale: 0.9951971468875733   Bias/Offset: 0.043914675174162573
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4301]: 0.00102
+    │         Avg displacement in data: 0.03188
+    │         Weight/Scale: 0.9946979169124356   Bias/Offset: 0.04327281688897021
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4351]: 0.001
+    │         Avg displacement in data: 0.03163
+    │         Weight/Scale: 0.9942532949094885   Bias/Offset: 0.04264469096745885
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4401]: 0.00098
+    │         Avg displacement in data: 0.03138
+    │         Weight/Scale: 0.9937950678052988   Bias/Offset: 0.041989315357372235
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4451]: 0.00107
+    │         Avg displacement in data: 0.03265
+    │         Weight/Scale: 0.9933600254942384   Bias/Offset: 0.04134330561282964
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4501]: 0.00095
+    │         Avg displacement in data: 0.03088
+    │         Weight/Scale: 0.9927299303231354   Bias/Offset: 0.04057831966635877
+    └ @ Main In[13]:15
+    ┌ Info: Run: 2/2  Epoch: 5/5
+    └ @ Main In[25]:3
+    ┌ Info:   Loss [4551]: 0.00094
+    │         Avg displacement in data: 0.03064
+    │         Weight/Scale: 0.9922130251051114   Bias/Offset: 0.03982251459436595
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4601]: 0.00092
+    │         Avg displacement in data: 0.03039
+    │         Weight/Scale: 0.9916723084256412   Bias/Offset: 0.03902388313425868
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4651]: 0.00091
+    │         Avg displacement in data: 0.0302
+    │         Weight/Scale: 0.99109511162088   Bias/Offset: 0.038175757169239335
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4701]: 0.0009
+    │         Avg displacement in data: 0.02993
+    │         Weight/Scale: 0.9904157713800947   Bias/Offset: 0.03730802636411343
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4751]: 0.00088
+    │         Avg displacement in data: 0.02966
+    │         Weight/Scale: 0.9898073521292846   Bias/Offset: 0.036392804885990455
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4801]: 0.00087
+    │         Avg displacement in data: 0.02942
+    │         Weight/Scale: 0.9891697409448782   Bias/Offset: 0.03542286870941927
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4851]: 0.00085
+    │         Avg displacement in data: 0.02918
+    │         Weight/Scale: 0.9885051335361306   Bias/Offset: 0.03440590176782293
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4901]: 0.00088
+    │         Avg displacement in data: 0.02969
+    │         Weight/Scale: 0.9877278380311985   Bias/Offset: 0.03330061916974685
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [4951]: 0.00082
+    │         Avg displacement in data: 0.0287
+    │         Weight/Scale: 0.9870086380861818   Bias/Offset: 0.03224120742421287
+    └ @ Main In[13]:15
+    ┌ Info:   Loss [5001]: 0.00081
+    │         Avg displacement in data: 0.02846
+    │         Weight/Scale: 0.9862548713851412   Bias/Offset: 0.031070984962267467
+    └ @ Main In[13]:15
 
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_12.svg)
-    
 
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_13.svg)
-    
+    164.995163 seconds (283.68 M allocations: 112.717 GiB, 10.41% gc time)
 
 
 
@@ -1243,10 +1321,24 @@ end
     
 
 
-    ┌ Info: Friction model 1 mse: 0.5841838178967346
-    └ @ Main In[17]:29
-    ┌ Info: Friction model 2 mse: 0.8024621143969841
-    └ @ Main In[17]:29
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
 
 
 
@@ -1255,10 +1347,112 @@ end
     
 
 
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+
+
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_17.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_18.svg)
     
+
+
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+
+
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_20.svg)
+    
+
+
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Info: Friction model 1 mse: 0.6262285600446067
+    └ @ Main In[17]:29
+    ┌ Info: Friction model 2 mse: 0.8626321389471135
+    └ @ Main In[17]:29
+
+
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_22.svg)
+    
+
+
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_23.svg)
+    
+
+
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/lW9ll/src/axes.jl:596
 
 
 Finally, the FMU is cleaned-up.
