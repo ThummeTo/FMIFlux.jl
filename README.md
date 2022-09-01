@@ -14,26 +14,20 @@
 
 ## How can I use FMIFlux.jl?
 
-1\. Open a Julia-REPL, activate your preferred environment.
+1\. Open a Julia-REPL, switch to package mode using `]`, activate your preferred environment.
 
-2\. Go to Package-Manager (if not already) and install [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
+2\. Install  [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-julia> ]
-
 (@v1.6) pkg> add FMIFlux
 ```
 
 (3)\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-julia> ]
-
 (@v1.6) pkg> test FMIFlux
 ```
 
 (4)\. Additionally, you can check the version of [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) that you have installed with the ```status``` command.
 ```julia-repl
-julia> ]
-
 (@v1.6) pkg> status FMIFlux
 ```
 
