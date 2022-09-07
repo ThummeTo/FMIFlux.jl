@@ -35,9 +35,9 @@ fmiExitInitializationMode(myFMU)
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
 
 # loss function for training
-function losssum()
+function losssum(p)
     global problem, x0, posData
-    solution = problem(x0)
+    solution = problem(x0; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
@@ -47,12 +47,12 @@ end
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-function callb()
+function callb(p)
     global iterCB += 1
     global lastLoss
 
     if iterCB % 25 == 0
-        loss = losssum()
+        loss = losssum(p[1])
         @info "Loss: $loss"
         @test loss < lastLoss  
         lastLoss = loss
@@ -82,7 +82,7 @@ for handleEvents in [true, false]
                     Dense(numStates, 16, tanh),
                     Dense(16, numStates))
                 
-                optim = ADAM(1e-4)
+                optim = Adam(1e-4)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
                 @test problem != nothing
                 
@@ -97,10 +97,10 @@ for handleEvents in [true, false]
                 p_net = Flux.params(problem)
 
                 iterCB = 0
-                lastLoss = losssum()
+                lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
 
-                Flux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=callb)
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)
