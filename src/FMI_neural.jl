@@ -1521,6 +1521,11 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
 
     ts = collect(t_start:t_step:t_stop)
+
+    for c in nfmu.currentComponent
+        c.skipNextDoStep = true
+    end
+    
     model_input = inputFct.(ts)
     valueStack = nfmu.model.(model_input)
 
