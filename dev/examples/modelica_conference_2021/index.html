@@ -39,9 +39,9 @@ tSave = collect(tStart:tStep:tStop)</code></pre><pre><code class="nohighlight hl
  3.98
  3.99
  4.0</code></pre><h3 id="RealFMU"><a class="docs-heading-anchor" href="#RealFMU">RealFMU</a><a id="RealFMU-1"></a><a class="docs-heading-anchor-permalink" href="#RealFMU" title="Permalink"></a></h3><p>In the next lines of code the FMU of the <em>realFMU</em> model from <em>FMIZoo.jl</em> is loaded and the information about the FMU is shown.  </p><pre><code class="language-julia hljs">realFMU = fmiLoad(&quot;SpringFrictionPendulum1D&quot;, &quot;Dymola&quot;, &quot;2022x&quot;)
-fmiInfo(realFMU)</code></pre><pre><code class="nohighlight hljs">┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_hqn46R/SpringFrictionPendulum1D`.
+fmiInfo(realFMU)</code></pre><pre><code class="nohighlight hljs">┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_DiTWBd/SpringFrictionPendulum1D`.
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_hqn46R/SpringFrictionPendulum1D/resources`
+┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_DiTWBd/SpringFrictionPendulum1D/resources`
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
 ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -126,9 +126,9 @@ fmiInfo(simpleFMU)</code></pre><pre><code class="nohighlight hljs">#############
 ##################### End information for FMU #####################
 
 
-┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_iz2bZR/SpringPendulum1D`.
+┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_yKx9lf/SpringPendulum1D`.
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_iz2bZR/SpringPendulum1D/resources`
+┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_yKx9lf/SpringPendulum1D/resources`
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
 ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
 └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195</code></pre><p>The differences between both systems can be clearly seen from the plots in the subchapters. In the plot for the <em>realFMU</em> it can be seen that the oscillation continues to decrease due to the effect of the friction. If you simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the <em>simpleFMU</em> behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     </p><p>In the following two subsections, the <em>simpleFMU</em> is simulated twice with different initial states to show what effect the choice of initial states has.</p><h4 id="Default-initial-states-2"><a class="docs-heading-anchor" href="#Default-initial-states-2">Default initial states</a><a class="docs-heading-anchor-permalink" href="#Default-initial-states-2" title="Permalink"></a></h4><p>Similar to the simulation of the <em>realFMU</em>, the <em>simpleFMU</em> is also simulated with the default values for the position and velocity of the mass and then plotted. There is one difference, however, as another state representing a fixed displacement is set. In addition, the last variable is also removed from the variables to be plotted.</p><pre><code class="language-julia hljs">initStates = [&quot;mass_s0&quot;, &quot;mass_v0&quot;, &quot;fixed.s0&quot;]
@@ -559,94 +559,94 @@ end</code></pre><pre><code class="nohighlight hljs">┌ Info: Run: 1/2  Epoch: 1
 └ @ Main In[13]:15
 
 
-125.281003 seconds (307.64 M allocations: 121.448 GiB, 11.81% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_2.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+124.478208 seconds (307.64 M allocations: 121.444 GiB, 11.40% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_2.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_4.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_4.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_6.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_6.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_8.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_8.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Info: Friction model 1 mse: 0.5841838178967346
 └ @ Main In[17]:29</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_10.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_11.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Info: Run: 2/2  Epoch: 1/5
 └ @ Main In[25]:3
 ┌ Info:   Loss [2551]: 0.00203
@@ -859,93 +859,93 @@ end</code></pre><pre><code class="nohighlight hljs">┌ Info: Run: 1/2  Epoch: 1
 └ @ Main In[13]:15
 
 
-116.437996 seconds (284.00 M allocations: 112.776 GiB, 12.02% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_14.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+115.690587 seconds (284.00 M allocations: 112.772 GiB, 11.62% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_14.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_16.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_16.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_18.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_18.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_20.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_20.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Info: Friction model 1 mse: 0.5841838178967346
 └ @ Main In[17]:29
 ┌ Info: Friction model 2 mse: 0.8024621143969841
 └ @ Main In[17]:29</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_22.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_53_23.svg" alt="svg"/></p><pre><code class="nohighlight hljs">┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
 ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
 │ xlims = auto
-└ @ Plots /home/runner/.julia/packages/Plots/nbICw/src/axes.jl:595</code></pre><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(simpleFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../advanced_hybrid_ME/">« Advanced ME-NeuralFMU</a><a class="docs-footer-nextpage" href="../../library/">Library Functions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 September 2022 22:20">Wednesday 28 September 2022</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+└ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595</code></pre><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(simpleFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../advanced_hybrid_ME/">« Advanced ME-NeuralFMU</a><a class="docs-footer-nextpage" href="../../library/">Library Functions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 30 September 2022 15:53">Friday 30 September 2022</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
