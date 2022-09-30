@@ -121,9 +121,13 @@ function _fmi2EvaluateME(fmu::FMU2,
 
     fmi2SetContinuousStates(comp, x)
 
-    if t >= 0.0 
-        fmi2SetTime(comp, t)
-    end
+    # if t >= 0.0
+    #     discrete = (comp.fmu.hasStateEvents || comp.fmu.hasTimeEvents)
+    #     if ( discrete && comp.state == fmi2ComponentStateEventMode && comp.eventInfo.newDiscreteStatesNeeded == fmi2False) ||
+    #        (!discrete && comp.state == fmi2ComponentStateContinuousTimeMode)
+    #         fmi2SetTime(comp, t)
+    #     end
+    # end
     
     y = []
     if getter
@@ -155,14 +159,14 @@ function evaluateJacobians(fmu::FMU2,
 
     comp = fmu.components[end]
 
-    stateBefore = comp.state
-    if comp.state != fmi2ComponentStateContinuousTimeMode
-        fmi2EnterContinuousTimeMode(comp)
-    end
-
-    # fmi2SetContinuousStates(comp, x)
+    fmi2SetContinuousStates(comp, x)
     # if t >= 0.0
     #     fmi2SetTime(comp, t)
+    # end
+
+    # stateBefore = comp.state
+    # if comp.state != fmi2ComponentStateContinuousTimeMode
+    #     fmi2EnterContinuousTimeMode(comp)
     # end
 
     rdx = vcat(fmu.modelDescription.derivativeValueReferences, getValueReferences) 
@@ -192,9 +196,9 @@ function evaluateJacobians(fmu::FMU2,
 
     end
 
-    if comp.state != stateBefore
-        fmi2EnterEventMode(comp)
-    end
+    # if comp.state != stateBefore
+    #     fmi2EnterEventMode(comp)
+    # end
 
 end
 

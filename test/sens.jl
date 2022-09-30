@@ -32,7 +32,7 @@ for FMUPath in FMUPaths
     numStates = length(x0)
 
     FMIFlux.handleEvents(comp)
- 
+
     # Jacobians for x0
     FD_jac = ForwardDiff.jacobian(x -> fmiEvaluateME(myFMU, x, 0.0), x0)
     ZG_jac = Zygote.jacobian(fmiEvaluateME, myFMU, x0, 0.0)[2]
