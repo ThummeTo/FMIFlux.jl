@@ -27,5 +27,3 @@ LocalPreferences.toml
 # custom
 tmp/
 .vscode/
-example/.ipynb_checkpoints/
-build/
