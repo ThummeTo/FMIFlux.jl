@@ -8,10 +8,17 @@ using Test
 using FMIZoo
 
 using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
+using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
 exportingToolsWindows = [("Dymola", "2022x")]
 exportingToolsLinux = [("Dymola", "2022x")]
+
+# enable assertions for warnings/errors for all default execution configurations 
+for exec in [FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET]
+    exec.assertOnError = true
+    #exec.assertOnWarning = true
+end
 
 function runtests(exportingTool)
     ENV["EXPORTINGTOOL"] = exportingTool[1]

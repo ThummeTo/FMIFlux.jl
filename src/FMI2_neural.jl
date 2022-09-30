@@ -137,13 +137,13 @@ end
 
 function evaluateJacobians(fmu::FMU2,
                             x::Array{<:Real},
-                            t::Real = comp.t,
+                            t::Real = fmu.components[end].t,
                             setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                             setValues::Array{<:Real} = zeros(Real, 0),
                             getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
 
-                            comp = fmu.components[end]
-                            rdx = vcat(fmu.modelDescription.derivativeValueReferences, getValueReferences) 
+    comp = fmu.components[end]
+    rdx = vcat(fmu.modelDescription.derivativeValueReferences, getValueReferences) 
     # rx = fmu.modelDescription.stateValueReferences
     # ru = setValueReferences
     # comp.jac_ẋy_x = zeros(length(rdx), length(rx))
