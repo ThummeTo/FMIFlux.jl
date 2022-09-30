@@ -123,9 +123,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_fIrpkM/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_gar4wG/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_fIrpkM/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_gar4wG/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -297,9 +297,9 @@ fmiInfo(simpleFMU)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_KIE9iO/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_qElXYC/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_KIE9iO/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_qElXYC/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -961,40 +961,12 @@ end
     └ @ Main In[13]:15
 
 
-    152.420428 seconds (307.70 M allocations: 121.459 GiB, 11.17% gc time)
-
-
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    186.341916 seconds (307.70 M allocations: 121.459 GiB, 10.86% gc time)
 
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_3.svg)
-    
-
-
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_5.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_2.svg)
     
 
 
@@ -1020,7 +992,7 @@ end
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_7.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_4.svg)
     
 
 
@@ -1046,7 +1018,33 @@ end
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_9.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_6.svg)
+    
+
+
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+
+
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_8.svg)
     
 
 
@@ -1074,13 +1072,13 @@ end
 
 
     
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_10.svg)
+    
+
+
+
+    
 ![svg](modelica_conference_2021_files/modelica_conference_2021_53_11.svg)
-    
-
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_12.svg)
     
 
 
@@ -1314,38 +1312,12 @@ end
     └ @ Main In[13]:15
 
 
-    143.128562 seconds (283.72 M allocations: 112.720 GiB, 11.35% gc time)
+    172.889734 seconds (283.72 M allocations: 112.720 GiB, 11.03% gc time)
 
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_15.svg)
-    
-
-
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
-    │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
-
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_17.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_14.svg)
     
 
 
@@ -1371,7 +1343,7 @@ end
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_19.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_16.svg)
     
 
 
@@ -1397,7 +1369,33 @@ end
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_21.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_18.svg)
+    
+
+
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
+    │ xlims = auto
+    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+
+
+
+    
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_20.svg)
     
 
 
@@ -1427,13 +1425,13 @@ end
 
 
     
+![svg](modelica_conference_2021_files/modelica_conference_2021_53_22.svg)
+    
+
+
+
+    
 ![svg](modelica_conference_2021_files/modelica_conference_2021_53_23.svg)
-    
-
-
-
-    
-![svg](modelica_conference_2021_files/modelica_conference_2021_53_24.svg)
     
 
 
