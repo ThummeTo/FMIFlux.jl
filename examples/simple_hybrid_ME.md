@@ -123,9 +123,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_xa6891/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_s1BNNH/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_xa6891/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_s1BNNH/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -273,9 +273,9 @@ fmiPlot(simpleSimData)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_5QmJL1/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_GRPcuI/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_5QmJL1/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_GRPcuI/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -457,31 +457,31 @@ Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 
     ┌ Info: Loss [1]: 0.7677   Avg displacement in data: 0.87618
     └ @ Main In[10]:7
-    ┌ Info: Loss [21]: 0.06826   Avg displacement in data: 0.26126
+    ┌ Info: Loss [21]: 0.06829   Avg displacement in data: 0.26132
     └ @ Main In[10]:7
-    ┌ Info: Loss [41]: 0.05322   Avg displacement in data: 0.2307
+    ┌ Info: Loss [41]: 0.05324   Avg displacement in data: 0.23074
     └ @ Main In[10]:7
-    ┌ Info: Loss [61]: 0.04779   Avg displacement in data: 0.21862
+    ┌ Info: Loss [61]: 0.0478   Avg displacement in data: 0.21864
     └ @ Main In[10]:7
-    ┌ Info: Loss [81]: 0.04434   Avg displacement in data: 0.21058
+    ┌ Info: Loss [81]: 0.04435   Avg displacement in data: 0.21059
     └ @ Main In[10]:7
-    ┌ Info: Loss [101]: 0.04209   Avg displacement in data: 0.20517
+    ┌ Info: Loss [101]: 0.0421   Avg displacement in data: 0.20519
     └ @ Main In[10]:7
-    ┌ Info: Loss [121]: 0.04092   Avg displacement in data: 0.20229
+    ┌ Info: Loss [121]: 0.04093   Avg displacement in data: 0.2023
     └ @ Main In[10]:7
-    ┌ Info: Loss [141]: 0.04032   Avg displacement in data: 0.20079
+    ┌ Info: Loss [141]: 0.04032   Avg displacement in data: 0.2008
     └ @ Main In[10]:7
-    ┌ Info: Loss [161]: 0.0399   Avg displacement in data: 0.19974
+    ┌ Info: Loss [161]: 0.0399   Avg displacement in data: 0.19975
     └ @ Main In[10]:7
-    ┌ Info: Loss [181]: 0.03958   Avg displacement in data: 0.19894
+    ┌ Info: Loss [181]: 0.03958   Avg displacement in data: 0.19895
     └ @ Main In[10]:7
     ┌ Info: Loss [201]: 0.03933   Avg displacement in data: 0.19832
     └ @ Main In[10]:7
-    ┌ Info: Loss [221]: 0.03914   Avg displacement in data: 0.19785
+    ┌ Info: Loss [221]: 0.03915   Avg displacement in data: 0.19785
     └ @ Main In[10]:7
-    ┌ Info: Loss [241]: 0.03899   Avg displacement in data: 0.19746
+    ┌ Info: Loss [241]: 0.03899   Avg displacement in data: 0.19747
     └ @ Main In[10]:7
-    ┌ Info: Loss [261]: 0.03887   Avg displacement in data: 0.19715
+    ┌ Info: Loss [261]: 0.03887   Avg displacement in data: 0.19716
     └ @ Main In[10]:7
     ┌ Info: Loss [281]: 0.03877   Avg displacement in data: 0.19689
     └ @ Main In[10]:7
@@ -532,75 +532,75 @@ Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth
 fig 
 ```
 
-    ┌ Info: Loss [301]: 0.03868   Avg displacement in data: 0.19666
+    ┌ Info: Loss [301]: 0.03868   Avg displacement in data: 0.19667
     └ @ Main In[10]:7
-    ┌ Info: Loss [321]: 0.0386   Avg displacement in data: 0.19646
+    ┌ Info: Loss [321]: 0.0386   Avg displacement in data: 0.19647
     └ @ Main In[10]:7
-    ┌ Info: Loss [341]: 0.03853   Avg displacement in data: 0.19628
+    ┌ Info: Loss [341]: 0.03853   Avg displacement in data: 0.19629
     └ @ Main In[10]:7
-    ┌ Info: Loss [361]: 0.03846   Avg displacement in data: 0.19611
+    ┌ Info: Loss [361]: 0.03846   Avg displacement in data: 0.19612
     └ @ Main In[10]:7
-    ┌ Info: Loss [381]: 0.03839   Avg displacement in data: 0.19594
+    ┌ Info: Loss [381]: 0.0384   Avg displacement in data: 0.19595
     └ @ Main In[10]:7
-    ┌ Info: Loss [401]: 0.03833   Avg displacement in data: 0.19578
+    ┌ Info: Loss [401]: 0.03833   Avg displacement in data: 0.19579
     └ @ Main In[10]:7
-    ┌ Info: Loss [421]: 0.03826   Avg displacement in data: 0.19561
+    ┌ Info: Loss [421]: 0.03827   Avg displacement in data: 0.19562
     └ @ Main In[10]:7
-    ┌ Info: Loss [441]: 0.0382   Avg displacement in data: 0.19545
+    ┌ Info: Loss [441]: 0.0382   Avg displacement in data: 0.19546
     └ @ Main In[10]:7
-    ┌ Info: Loss [461]: 0.03813   Avg displacement in data: 0.19527
+    ┌ Info: Loss [461]: 0.03814   Avg displacement in data: 0.19528
     └ @ Main In[10]:7
-    ┌ Info: Loss [481]: 0.03806   Avg displacement in data: 0.19509
+    ┌ Info: Loss [481]: 0.03806   Avg displacement in data: 0.1951
     └ @ Main In[10]:7
-    ┌ Info: Loss [501]: 0.03798   Avg displacement in data: 0.19489
+    ┌ Info: Loss [501]: 0.03799   Avg displacement in data: 0.19491
     └ @ Main In[10]:7
-    ┌ Info: Loss [521]: 0.0379   Avg displacement in data: 0.19468
+    ┌ Info: Loss [521]: 0.03791   Avg displacement in data: 0.1947
     └ @ Main In[10]:7
-    ┌ Info: Loss [541]: 0.03781   Avg displacement in data: 0.19446
+    ┌ Info: Loss [541]: 0.03782   Avg displacement in data: 0.19448
     └ @ Main In[10]:7
-    ┌ Info: Loss [561]: 0.03772   Avg displacement in data: 0.19421
+    ┌ Info: Loss [561]: 0.03773   Avg displacement in data: 0.19423
     └ @ Main In[10]:7
-    ┌ Info: Loss [581]: 0.03761   Avg displacement in data: 0.19395
+    ┌ Info: Loss [581]: 0.03762   Avg displacement in data: 0.19397
     └ @ Main In[10]:7
-    ┌ Info: Loss [601]: 0.0375   Avg displacement in data: 0.19365
+    ┌ Info: Loss [601]: 0.03751   Avg displacement in data: 0.19367
     └ @ Main In[10]:7
-    ┌ Info: Loss [621]: 0.03737   Avg displacement in data: 0.19332
+    ┌ Info: Loss [621]: 0.03738   Avg displacement in data: 0.19335
     └ @ Main In[10]:7
-    ┌ Info: Loss [641]: 0.03723   Avg displacement in data: 0.19295
+    ┌ Info: Loss [641]: 0.03724   Avg displacement in data: 0.19298
     └ @ Main In[10]:7
-    ┌ Info: Loss [661]: 0.03706   Avg displacement in data: 0.19252
+    ┌ Info: Loss [661]: 0.03705   Avg displacement in data: 0.19247
     └ @ Main In[10]:7
-    ┌ Info: Loss [681]: 0.03689   Avg displacement in data: 0.19207
+    ┌ Info: Loss [681]: 0.03691   Avg displacement in data: 0.19211
     └ @ Main In[10]:7
-    ┌ Info: Loss [701]: 0.03667   Avg displacement in data: 0.1915
+    ┌ Info: Loss [701]: 0.03669   Avg displacement in data: 0.19155
     └ @ Main In[10]:7
-    ┌ Info: Loss [721]: 0.03644   Avg displacement in data: 0.19089
+    ┌ Info: Loss [721]: 0.03646   Avg displacement in data: 0.19094
     └ @ Main In[10]:7
-    ┌ Info: Loss [741]: 0.03616   Avg displacement in data: 0.19016
+    ┌ Info: Loss [741]: 0.03618   Avg displacement in data: 0.19022
     └ @ Main In[10]:7
-    ┌ Info: Loss [761]: 0.03582   Avg displacement in data: 0.18927
+    ┌ Info: Loss [761]: 0.03585   Avg displacement in data: 0.18935
     └ @ Main In[10]:7
-    ┌ Info: Loss [781]: 0.03542   Avg displacement in data: 0.18819
+    ┌ Info: Loss [781]: 0.03545   Avg displacement in data: 0.18829
     └ @ Main In[10]:7
-    ┌ Info: Loss [801]: 0.03492   Avg displacement in data: 0.18687
+    ┌ Info: Loss [801]: 0.03496   Avg displacement in data: 0.18699
     └ @ Main In[10]:7
-    ┌ Info: Loss [821]: 0.03429   Avg displacement in data: 0.18518
+    ┌ Info: Loss [821]: 0.03435   Avg displacement in data: 0.18534
     └ @ Main In[10]:7
-    ┌ Info: Loss [841]: 0.03348   Avg displacement in data: 0.18297
+    ┌ Info: Loss [841]: 0.03355   Avg displacement in data: 0.18318
     └ @ Main In[10]:7
-    ┌ Info: Loss [861]: 0.03238   Avg displacement in data: 0.17995
+    ┌ Info: Loss [861]: 0.03249   Avg displacement in data: 0.18024
     └ @ Main In[10]:7
-    ┌ Info: Loss [881]: 0.03084   Avg displacement in data: 0.17561
+    ┌ Info: Loss [881]: 0.03099   Avg displacement in data: 0.17603
     └ @ Main In[10]:7
-    ┌ Info: Loss [901]: 0.02854   Avg displacement in data: 0.16893
+    ┌ Info: Loss [901]: 0.02876   Avg displacement in data: 0.16959
     └ @ Main In[10]:7
-    ┌ Info: Loss [921]: 0.02493   Avg displacement in data: 0.1579
+    ┌ Info: Loss [921]: 0.02528   Avg displacement in data: 0.15901
     └ @ Main In[10]:7
-    ┌ Info: Loss [941]: 0.01952   Avg displacement in data: 0.13971
+    ┌ Info: Loss [941]: 0.02001   Avg displacement in data: 0.14145
     └ @ Main In[10]:7
-    ┌ Info: Loss [961]: 0.01307   Avg displacement in data: 0.11433
+    ┌ Info: Loss [961]: 0.01354   Avg displacement in data: 0.11635
     └ @ Main In[10]:7
-    ┌ Info: Loss [981]: 0.00884   Avg displacement in data: 0.09403
+    ┌ Info: Loss [981]: 0.00906   Avg displacement in data: 0.09521
     └ @ Main In[10]:7
 
 
