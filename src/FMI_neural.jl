@@ -382,7 +382,7 @@ function startCallback(integrator, nfmu, t)
 
             handleEvents(nfmu.currentComponent) 
             #affectIntegrator(integrator, nfmu, -1, ForwardDiff.value(t))
-            #@debug @assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
+            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
 
             nfmu.currentComponent.log = (nfmu.solveCycle == 2)
 
@@ -396,7 +396,7 @@ function startCallback(integrator, nfmu, t)
                 @debug "No initial events ..."
             end
 
-            #@debug @assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
+            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
         end
 
         # re-init every callback except #1 (the startCallback itself)
@@ -511,7 +511,7 @@ function handleEvents(c::Union{FMU2Component, FMU2ComponentShadow})
     c.eventInfo.nextEventTimeDefined = nextEventTimeDefined
     c.eventInfo.nextEventTime = nextEventTime
 
-    @debug @assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK "FMU is not in state continuous time after event handling."
+    @assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK "FMU is not in state continuous time after event handling."
 
     return nothing
 end
@@ -705,7 +705,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
     # Todo set inputs
 
     # Event found - handle it
-    #@debug @assert fmi2EnterEventMode(c) == fmi2StatusOK
+    #@assert fmi2EnterEventMode(c) == fmi2StatusOK
     handleEvents(c)
 
     ignore_derivatives() do
@@ -844,7 +844,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
     @debug @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN when leaving in `u` @ $(integrator.t)."
 
-    #@debug @assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK
+    #@assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK
 end
 
 # Does one step in the simulation.
