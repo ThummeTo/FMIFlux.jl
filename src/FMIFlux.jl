@@ -12,6 +12,8 @@ using Requires
 using FMIImport
 using FMIImport: fmi2ValueReference, FMU, FMU2, FMU2Component
 
+#import FMIImport.PreallocationTools
+
 # ToDo: this can not be imported correctly from FMIImport.jl
 fmi2Struct = Union{FMU2, FMU2Component}
 
@@ -25,6 +27,7 @@ include("component_shadow.jl")
 include("FMI2_neural.jl")
 include("FMI_neural.jl")
 include("misc.jl")
+include("layers.jl")
 
 function __init__()
     @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 

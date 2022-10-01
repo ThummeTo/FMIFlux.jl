@@ -65,9 +65,9 @@ numStates = fmiGetNumberOfStates(myFMU)
 nets = [] 
 
 1 # default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), tanh),
+net = Chain(Dense(numStates, numStates, tanh; init=Flux.identity_init),
             states ->  fmiEvaluateME(myFMU, states), 
-            Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity))
+            Dense(numStates, numStates, identity; init=Flux.identity_init))
 push!(nets, net)
 
 # 2 # default ME-NeuralFMU (learn dynamics)
@@ -102,7 +102,7 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states), # not supported by this FMU
 push!(nets, net)
 
 # 6 # NeuralFMU with additional getter 
-getVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
+getVRs = [fmi2StringToValueReference(myFMU, "mass.s")]
 numGetVRs = length(getVRs)
 net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
@@ -124,7 +124,7 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, set
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
-push!(nets, net)
+#ToDo: push!(nets, net)
 
 optim = Adam(1e-4)
 for i in 1:length(nets)

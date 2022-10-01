@@ -26,10 +26,6 @@ realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "m
 
 # load FMU for NeuralFMU
 myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(myFMU; loggingOn=false)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
@@ -76,8 +72,31 @@ for handleEvents in [true, false]
                 myFMU.executionConfig = config
                 myFMU.executionConfig.handleStateEvents = handleEvents
                 myFMU.executionConfig.handleTimeEvents = handleEvents
+                myFMU.executionConfig.externalCallbacks = true
+                myFMU.executionConfig.loggingOn = true
+                myFMU.executionConfig.assertOnError = true
+                myFMU.executionConfig.assertOnWarning = true
 
-                net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity),
+                if myFMU.executionConfig.instantiate == false 
+                    @info "instantiate = false, instantiating..."
+
+                    comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
+                    FMI.fmi2SetupExperiment(comp, t_start, t_stop)
+                    FMI.fmi2EnterInitializationMode(comp)
+                    FMI.fmi2ExitInitializationMode(comp)
+
+                    FMIFlux.handleEvents(comp)
+
+                    FMI.fmi2Terminate(comp)
+                end
+
+                # if myFMU.executionConfig.setup == false
+                #     fmiSetupExperiment(myFMU, t_start, t_stop)
+                #     fmiEnterInitializationMode(myFMU)
+                #     fmiExitInitializationMode(myFMU)
+                # end
+
+                net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
                     states -> fmiEvaluateME(myFMU, states),
                     Dense(numStates, 16, tanh),
                     Dense(16, numStates))

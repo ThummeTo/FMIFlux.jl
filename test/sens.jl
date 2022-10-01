@@ -23,13 +23,15 @@ tData = t_start:t_step:t_stop
 
 for FMUPath in FMUPaths
     myFMU = fmiLoad(FMUPath)
-    comp = fmiInstantiate!(myFMU; loggingOn=false)
-    fmiSetupExperiment(myFMU, t_start, t_stop)
-    fmiEnterInitializationMode(myFMU)
-    fmiExitInitializationMode(myFMU)
+    comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
+    FMI.fmi2SetupExperiment(comp, t_start, t_stop)
+    FMI.fmi2EnterInitializationMode(comp)
+    FMI.fmi2ExitInitializationMode(comp)
 
-    x0 = fmiGetContinuousStates(myFMU)
+    x0 = FMI.fmi2GetContinuousStates(myFMU)
     numStates = length(x0)
+
+    FMIFlux.handleEvents(comp)
 
     # Jacobians for x0
     FD_jac = ForwardDiff.jacobian(x -> fmiEvaluateME(myFMU, x, 0.0), x0)
