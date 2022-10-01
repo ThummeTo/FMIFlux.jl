@@ -123,9 +123,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_gar4wG/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_zvQBFy/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_gar4wG/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_zvQBFy/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -297,9 +297,9 @@ fmiInfo(simpleFMU)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_qElXYC/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_MayZ3w/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_qElXYC/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_MayZ3w/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
@@ -961,7 +961,7 @@ end
     └ @ Main In[13]:15
 
 
-    186.341916 seconds (307.70 M allocations: 121.459 GiB, 10.86% gc time)
+    154.935506 seconds (307.70 M allocations: 121.459 GiB, 11.20% gc time)
 
 
 
@@ -972,22 +972,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -998,22 +998,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -1024,22 +1024,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -1050,22 +1050,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Info: Friction model 1 mse: 0.6262285600446067
     └ @ Main In[17]:29
 
@@ -1084,22 +1084,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Info: Run: 2/2  Epoch: 1/5
     └ @ Main In[25]:3
     ┌ Info:   Loss [2551]: 0.00203
@@ -1312,7 +1312,7 @@ end
     └ @ Main In[13]:15
 
 
-    172.889734 seconds (283.72 M allocations: 112.720 GiB, 11.03% gc time)
+    144.257930 seconds (283.72 M allocations: 112.720 GiB, 11.36% gc time)
 
 
 
@@ -1323,22 +1323,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -1349,22 +1349,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -1375,22 +1375,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 
@@ -1401,22 +1401,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Info: Friction model 1 mse: 0.6262285600446067
     └ @ Main In[17]:29
     ┌ Info: Friction model 2 mse: 0.8626321389471135
@@ -1437,22 +1437,22 @@ end
 
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
     ┌ Warning: Invalid limits for x axis. Limits should be a symbol, or a two-element tuple or vector of numbers.
     │ xlims = auto
-    └ @ Plots /home/runner/.julia/packages/Plots/530RA/src/axes.jl:595
+    └ @ Plots /home/runner/.julia/packages/Plots/W75kY/src/axes.jl:595
 
 
 Finally, the FMU is cleaned-up.
