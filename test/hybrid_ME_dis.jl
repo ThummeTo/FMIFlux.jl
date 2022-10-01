@@ -26,9 +26,9 @@ posData = fmi2GetSolutionValue(realSimData, "mass_s")
 velData = fmi2GetSolutionValue(realSimData, "mass_v")
 
 # loss function for training
-function losssum()
+function losssum(p)
     global problem, x0, posData
-    solution = problem(x0)
+    solution = problem(x0; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
@@ -39,17 +39,16 @@ end
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-function callb()
+function callb(p)
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 1 == 0
-        loss = losssum()
+    if iterCB % 10 == 0
+        loss = losssum(p[1])
         @info "Loss: $loss"
 
-        # This test condition is weak, because when the FMU passes an event, the error might increase.  
-        # ToDo: More intelligent testing condition.
-        @test (loss < lastLoss*2.0) && (loss != lastLoss)
+        # This test condition is not good, because when the FMU passes an event, the error might increase.  
+        @test (loss < lastLoss) && (loss != lastLoss)
         lastLoss = loss
     end
 end
@@ -62,13 +61,13 @@ numStates = fmiGetNumberOfStates(realFMU)
 nets = [] 
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity),
-            states ->  fmiEvaluateME(realFMU, states), 
-            Dense( [1.0 0.0; 0.0 1.0] + rand(numStates,numStates)*0.01, zeros(numStates), identity))
+net = Chain(Dense(numStates, numStates, tanh; init=Flux.identity_init),
+            states -> fmiEvaluateME(realFMU, states), 
+            Dense(numStates, numStates, identity; init=Flux.identity_init))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
-net = Chain(states ->  fmiEvaluateME(realFMU, states), 
+net = Chain(states -> fmiEvaluateME(realFMU, states), 
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
@@ -77,7 +76,7 @@ push!(nets, net)
 # 3. default ME-NeuralFMU (learn states)
 net = Chain(Dense(numStates, 16, identity),
             Dense(16, 16, identity),
-            Dense(16, numStates),
+            Dense(16, numStates, identity),
             states -> fmiEvaluateME(realFMU, states))
 push!(nets, net)
 
@@ -99,7 +98,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states), # not supported by this F
 push!(nets, net)
 
 # 6. NeuralFMU with additional getter 
-getVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
+getVRs = [fmi2StringToValueReference(realFMU, "mass_s")]
 numGetVRs = length(getVRs)
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
@@ -128,7 +127,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states),
             Dense(ones(numStates, numStates), false,  identity))
 push!(nets, net)
 
-optim = ADAM(1e-4)
+optim = Adam(1e-8)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
@@ -149,8 +148,9 @@ for i in 1:length(nets)
         p_net = Flux.params(problem)
 
         iterCB = 0
-        lastLoss = losssum()
+        lastLoss = losssum(p_net[1])
         @info "Start-Loss for net #$i: $lastLoss"
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=()->callb(p_net))
 
         # check results
         solutionAfter = problem(x0)

@@ -18,7 +18,7 @@ tData = t_start:t_step:t_stop
 # generate traing data
 myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
 parameters = Dict("mass_s0" => 1.3)
-realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], setup=false, reset=false, saveat=tData)
+realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], saveat=tData)
 fmiUnload(myFMU)
 
 # setup traing data
@@ -84,7 +84,7 @@ solutionBefore = problem(extForce, t_step)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = ADAM()
+optim = Adam()
 Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
 
 # check results

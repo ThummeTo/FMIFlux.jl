@@ -79,7 +79,7 @@ function _fmi2EvaluateME_fd(TVNx, TVNu, fmu, x, t, setValueReferences, setValues
     ȧrgs = (ȧrgs...,)
     args = (args...,)
 
-    @assert (typeof(args[3]) == Vector{Float64}) || (typeof(args[3]) == Vector{Float32}) "After conversion, `x` is still an invalid type `$(typeof(args[3]))`."
+    @assert typeof(args[3]) == Vector{Float64} "After conversion, `x` is still an invalid type `$(typeof(args[3]))`."
      
     y, _, dx, _, _, du, _ = ChainRulesCore.frule(ȧrgs, args...)
 
@@ -121,9 +121,13 @@ function _fmi2EvaluateME(fmu::FMU2,
 
     fmi2SetContinuousStates(comp, x)
 
-    # if t >= 0.0 
-    #     fmi2SetTime(comp, t)
-    # end
+    if t >= 0.0
+        # discrete = (comp.fmu.hasStateEvents || comp.fmu.hasTimeEvents)
+        # if ( discrete && comp.state == fmi2ComponentStateEventMode && comp.eventInfo.newDiscreteStatesNeeded == fmi2False) ||
+        #    (!discrete && comp.state == fmi2ComponentStateContinuousTimeMode)
+        # fmi2SetTime(comp, t)
+        # end
+    end
     
     y = []
     if getter
@@ -137,10 +141,18 @@ end
 
 function evaluateJacobians(fmu::FMU2,
                             x::Array{<:Real},
-                            t::Real = comp.t,
+                            t::Real = fmu.components[end].t,
                             setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
                             setValues::Array{<:Real} = zeros(Real, 0),
                             getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
+
+    comp = fmu.components[end]
+    rdx = vcat(fmu.modelDescription.derivativeValueReferences, getValueReferences) 
+    # rx = fmu.modelDescription.stateValueReferences
+    # ru = setValueReferences
+    # comp.jac_ẋy_x = zeros(length(rdx), length(rx))
+    # comp.jac_ẋy_u = zeros(length(rdx), length(ru))
+    # return nothing
 
     setter = (length(setValueReferences) > 0)
     getter = (length(getValueReferences) > 0)
@@ -148,10 +160,14 @@ function evaluateJacobians(fmu::FMU2,
     comp = fmu.components[end]
 
     fmi2SetContinuousStates(comp, x)
-
     # if t >= 0.0
     #     fmi2SetTime(comp, t)
     # end
+
+    stateBefore = comp.state
+    if comp.state != fmi2ComponentStateContinuousTimeMode
+        fmi2EnterContinuousTimeMode(comp)
+    end
 
     rdx = vcat(fmu.modelDescription.derivativeValueReferences, getValueReferences) 
     rx = fmu.modelDescription.stateValueReferences
@@ -180,6 +196,10 @@ function evaluateJacobians(fmu::FMU2,
 
     end
 
+    if comp.state != stateBefore
+        fmi2EnterEventMode(comp)
+    end
+
 end
 
 function ChainRulesCore.rrule(::typeof(fmi2EvaluateME), 
@@ -198,7 +218,7 @@ function ChainRulesCore.rrule(::typeof(fmi2EvaluateME),
         getter = (length(getValueReferences) > 0)
 
         if setter
-            @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.frule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
+            @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.rrule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
         
         evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)
@@ -243,15 +263,31 @@ function ChainRulesCore.frule((Δself, Δcomp, Δx, Δt, ΔsetValueReferences, �
             @assert length(setValueReferences) == length(setValues) ["ChainRulesCore.frule(fmi2EvaluateME, ...): `setValueReferences` and `setValues` need to be the same length!"]
         end
 
-        evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)
         comp = fmu.components[end]
+
+        # OLD Code START
+        evaluateJacobians(fmu, x, t, setValueReferences, setValues, getValueReferences)
         
         n_dx_x = comp.jac_ẋy_x * Δx
-        n_dx_u = ZeroTangent()
-            
+        n_dx_u = ZeroTangent()  
         if setter
             n_dx_u = comp.jac_ẋy_u * ΔsetValues
         end
+        # OLD Code END
+        
+        # TEST START
+        # global Δx, rx, rdx
+        # n_dx_x = NoTangent()
+        # n_dx_u = NoTangent()
+        # rdx = vcat(comp.fmu.modelDescription.derivativeValueReferences, getValueReferences) 
+        # rx = comp.fmu.modelDescription.stateValueReferences
+        # ru = setValueReferences
+        # n_dx_x = fmi2GetDirectionalDerivative(comp, rdx, rx, Δx)
+        # if setter
+        #     n_dx_u = fmi2GetDirectionalDerivative(comp, rdx, ru, ΔsetValues)
+        # end
+        # TEST END
+        
 
         f̄mu = ZeroTangent()
         x̄ = n_dx_x 

@@ -43,6 +43,17 @@
 ## What is currently BETA-supported in FMIFlux.jl?
 - training ME-NeuralFMUs with state- and time-event-handling 
 
+## What is under development in FMIFlux.jl?
+- performance optimizations
+- different modes for sensitivity estimation
+- improved documentation
+- explicitely time-dependent systems
+- more examples
+- ...
+
+## What Platforms are supported?
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6.5 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png?raw=true "FMI.jl Family")
 To keep dependencies nice and clean, the original package [*FMI.jl*](https://github.com/ThummeTo/FMI.jl) had been split into new packages:
@@ -54,15 +65,8 @@ To keep dependencies nice and clean, the original package [*FMI.jl*](https://git
 - [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl): Machine Learning with FMUs (differentiation over FMUs)
 - [*FMIZoo.jl*](https://github.com/ThummeTo/FMIZoo.jl): A collection of testing and example FMUs
 
-## What is under development in FMIFlux.jl?
-- performance optimizations
-- different modes for sensitivity estimation
-- improved documentation
-- more examples
-- ...
-
-## What Platforms are supported?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6.5 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+## Known limitations
+- Systems, that are explicitely time-dependent are currently not fully tested. This is on the ToDo-list.
 
 ## How to cite? Related publications?
 Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. **NeuralFMU: towards structural integration of FMUs into neural networks.** Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. [DOI: 10.3384/ecp21181297](https://doi.org/10.3384/ecp21181297)
