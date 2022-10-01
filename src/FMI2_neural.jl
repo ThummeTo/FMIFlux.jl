@@ -125,7 +125,7 @@ function _fmi2EvaluateME(fmu::FMU2,
         # discrete = (comp.fmu.hasStateEvents || comp.fmu.hasTimeEvents)
         # if ( discrete && comp.state == fmi2ComponentStateEventMode && comp.eventInfo.newDiscreteStatesNeeded == fmi2False) ||
         #    (!discrete && comp.state == fmi2ComponentStateContinuousTimeMode)
-        fmi2SetTime(comp, t)
+        # fmi2SetTime(comp, t)
         # end
     end
     
@@ -160,9 +160,9 @@ function evaluateJacobians(fmu::FMU2,
     comp = fmu.components[end]
 
     fmi2SetContinuousStates(comp, x)
-    if t >= 0.0
-        fmi2SetTime(comp, t)
-    end
+    # if t >= 0.0
+    #     fmi2SetTime(comp, t)
+    # end
 
     stateBefore = comp.state
     if comp.state != fmi2ComponentStateContinuousTimeMode
