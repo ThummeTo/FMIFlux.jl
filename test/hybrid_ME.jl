@@ -102,7 +102,7 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states), # not supported by this FMU
 push!(nets, net)
 
 # 6 # NeuralFMU with additional getter 
-getVRs = [fmi2StringToValueReference(myFMU, "mass.m")]
+getVRs = [fmi2StringToValueReference(myFMU, "mass_s")]
 numGetVRs = length(getVRs)
 net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
             Dense(numStates+numGetVRs, 8, tanh),
