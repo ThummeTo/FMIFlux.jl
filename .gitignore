@@ -26,4 +26,5 @@ LocalPreferences.toml
 
 # custom
 tmp/
+build/
 .vscode/

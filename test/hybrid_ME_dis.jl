@@ -47,9 +47,8 @@ function callb(p)
         loss = losssum(p[1])
         @info "Loss: $loss"
 
-        # This test condition is weak, because when the FMU passes an event, the error might increase.  
-        # ToDo: More intelligent testing condition.
-        @test (loss < lastLoss*2.0) && (loss != lastLoss)
+        # This test condition is not good, because when the FMU passes an event, the error might increase.  
+        @test (loss < lastLoss) && (loss != lastLoss)
         lastLoss = loss
     end
 end
@@ -128,7 +127,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states),
             Dense(ones(numStates, numStates), false,  identity))
 push!(nets, net)
 
-optim = Adam(1e-6)
+optim = Adam(1e-8)
 for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
