@@ -124,7 +124,7 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, set
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
-push!(nets, net)
+#ToDo: push!(nets, net)
 
 optim = Adam(1e-4)
 for i in 1:length(nets)

@@ -120,7 +120,7 @@ net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t,
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
-push!(nets, net)
+#ToDo: push!(nets, net)
 
 # 9. Empty NeuralFMU
 net = Chain(states ->  fmiEvaluateME(realFMU, states),
