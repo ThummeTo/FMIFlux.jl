@@ -13,27 +13,25 @@
 
 
 ## How can I use FMIFlux.jl?
-1. Open a Julia-REPL, activate your preferred environment.
-1. Goto Package-Manager (if not already), install FMIFlux.jl.
-    ```julia
-    julia> ]
 
-    (@v1.6) pkg> add FMIFlux
-    ```
+1\. Open a Julia-REPL, switch to package mode using `]`, activate your preferred environment.
 
-    If you want to check that everything works correctly, you can run the tests bundled with FMIFlux.jl:
-    ```julia
-    julia> using Pkg
+2\. Install  [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
+```julia-repl
+(@v1.6) pkg> add FMIFlux
+```
 
-    julia> Pkg.test("FMIFlux")
-    ```
+(3)\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
+```julia-repl
+(@v1.6) pkg> test FMIFlux
+```
 
-    Additionally, you can check the version of FMIFlux.jl that you have installed with the ```status``` command.
-    ```julia
-    julia> ]
-    (@v1.6) pkg> status FMIFlux
-    ```
-1. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
+(4)\. Additionally, you can check the version of [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) that you have installed with the ```status``` command.
+```julia-repl
+(@v1.6) pkg> status FMIFlux
+```
+
+5\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
 
 ## What is currently supported in FMIFlux.jl?
 - building and training ME-NeuralFMUs (event-handling is BETA) with the default Flux-Front-End
