@@ -1,3 +1,7 @@
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Licensed under the MIT license. 
+# See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+
 # imports
 using FMI
 using FMIFlux
@@ -68,9 +72,9 @@ simpleSimDataMod = simulate(simpleFMU, initStates, xSimpleMod₀, vrs, tStart, t
 fmiPlot(simpleSimDataMod)
 
 # loss function for training
-function lossSum()
+function lossSum(p)
     global x₀
-    solution = neuralFMU(x₀)
+    solution = neuralFMU(x₀; p=p)
 
     posNet, velNet = extractPosVel(solution)
 
@@ -79,25 +83,25 @@ end
 
 # callback function for training
 global counter = 0
-function callb()
-    global counter, paramsNet
+function callb(p)
+    global counter
     counter += 1
 
     # freeze first layer parameters (2,4,6) for velocity -> (static) direct feed trough for velocity
     # parameters for position (1,3,5) are learned
-    paramsNet[1][2] = 0.0
-    paramsNet[1][4] = 1.0
-    paramsNet[1][6] = 0.0
+    p[1][2] = 0.0
+    p[1][4] = 1.0
+    p[1][6] = 0.0
 
     if counter % 50 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "  Loss [$counter]: $(round(avgLoss, digits=5))
         Avg displacement in data: $(round(sqrt(avgLoss), digits=5))
         Weight/Scale: $(paramsNet[1][1])   Bias/Offset: $(paramsNet[1][5])"
     end
 end
 
-function generate_figure(title, xLabel, yLabel, xlim="auto")
+function generate_figure(title, xLabel, yLabel, xlim=:auto)
     Plots.plot(
         title=title, xlabel=xLabel, ylabel=yLabel, linewidth=2,
         xtickfontsize=12, ytickfontsize=12, xguidefontsize=12, yguidefontsize=12,
@@ -232,7 +236,8 @@ for i in 1:numStates
     initW[i,i] = 1
 end
 
-net = Chain(Dense(initW, zeros(numStates),  identity),
+net = Chain(# Dense(initW, zeros(numStates),  identity),
+            Dense(numStates, numStates,  identity),
             inputs -> fmiEvaluateME(simpleFMU, inputs),
             Dense(numStates, 8, identity),
             Dense(8, 8, tanh),
@@ -253,7 +258,7 @@ for i in 1:length(paramsNet[1])
 end
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=callb) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
 
 solutionAfter = []
 solutionAfterMod = []
@@ -267,7 +272,7 @@ numIterations = 500;
 for run in 1:numRuns
     @time for epoch in 1:numEpochs
         @info "Run: $(run)/$(numRuns)  Epoch: $(epoch)/$(numEpochs)"
-        Flux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=callb)
+        FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=()->callb(paramsNet))
     end
     flush(stderr)
     flush(stdout)

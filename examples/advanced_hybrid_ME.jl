@@ -1,3 +1,7 @@
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Licensed under the MIT license. 
+# See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+
 # imports
 using FMI
 using FMI.FMIImport: fmi2StringToValueReference, fmi2ValueReference, fmi2Real
