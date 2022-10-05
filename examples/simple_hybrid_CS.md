@@ -2,9 +2,13 @@
 Tutorial by Johannes Stoljar, Tobias Thummerer
 
 ## License
-Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
 
-Licensed under the MIT license. See [LICENSE](https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+
+```julia
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Licensed under the MIT license. 
+# See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+```
 
 ## Motivation
 The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the not modeled physical effect. The final product is a simulation model including the originally not modeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characteristic functionality of the simulation and only the missing effects are added.
@@ -93,12 +97,12 @@ referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
 fmiInfo(referenceFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_JFjQwt/SpringPendulumExtForce1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_JFjQwt/SpringPendulumExtForce1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_ECi1ND/SpringPendulumExtForce1D`.
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_ECi1ND/SpringPendulumExtForce1D/resources`
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
 
 
     #################### Begin information for FMU ####################
@@ -147,7 +151,7 @@ fmiPlot(referenceSimData)
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_9_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg)
     
 
 
@@ -225,7 +229,7 @@ fmiPlot(defaultSimData)
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_15_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_17_0.svg)
     
 
 
@@ -396,7 +400,7 @@ Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_30_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_32_0.svg)
     
 
 
@@ -415,35 +419,35 @@ Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
 ```
 
     ┌ Info: Loss [1]: 1.31473
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [21]: 0.13349
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [41]: 0.07489
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [61]: 0.04067
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [81]: 0.02535
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [101]: 0.01475
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [121]: 0.00847
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [141]: 0.00507
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [161]: 0.00335
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [181]: 0.00249
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [201]: 0.002
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [221]: 0.00168
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [241]: 0.00144
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [261]: 0.00124
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
     ┌ Info: Loss [281]: 0.00108
-    └ @ Main In[11]:8
+    └ @ Main In[12]:8
 
 
 #### Comparison of the plots
@@ -472,7 +476,7 @@ fig
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_34_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg)
     
 
 

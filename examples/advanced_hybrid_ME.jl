@@ -47,9 +47,9 @@ velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
 
 # loss function for training
 global horizon = 5
-function lossSum()
+function lossSum(p)
     global posReal, neuralFMU, horizon
-    solution = neuralFMU(x₀, tStart)
+    solution = neuralFMU(x₀, tStart; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
@@ -78,12 +78,12 @@ end
 
 # callback function for training
 global counter = 0
-function callb()
+function callb(p)
     global counter, horizon 
     counter += 1
    
     if counter % 20 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "   Loss [$counter] for horizon $horizon : $(round(avgLoss, digits=5))   
         Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
         
@@ -144,7 +144,7 @@ fmiPlot(solutionBefore)
 paramsNet = Flux.params(neuralFMU)
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=callb) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
 
 # plot results mass.s
 plotResults()

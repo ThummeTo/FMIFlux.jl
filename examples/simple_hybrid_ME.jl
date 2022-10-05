@@ -46,9 +46,9 @@ velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
 posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
 
 # loss function for training
-function lossSum()
+function lossSum(p)
     global posReal
-    solution = neuralFMU(x₀, tStart)
+    solution = neuralFMU(x₀, tStart; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     # velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
@@ -58,10 +58,10 @@ end
 
 # callback function for training
 global counter = 0
-function callb()
+function callb(p)
     global counter += 1
     if counter % 20 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
     end
 end
@@ -83,7 +83,7 @@ fmiPlot(solutionBefore)
 paramsNet = Flux.params(neuralFMU)
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀, tStart)
@@ -100,7 +100,7 @@ Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
 Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (300 epochs)", linewidth=2)
 fig 
 
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=callb) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=()->callb(paramsNet)) 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀, tStart)
 posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)

@@ -1,10 +1,15 @@
 # Creation and training of ME-NeuralFMUs
 Tutorial by Johannes Stoljar, Tobias Thummerer
 
-## License
-Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+## LICENSE
 
-Licensed under the MIT license. See [LICENSE](https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+
+
+```julia
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Licensed under the MIT license. 
+# See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
+```
 
 ## Motivation
 The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the not modeled physical effect. The final product is a simulation model including the originally not modeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characteristic functionality of the simulation and only the missing effects are added.
@@ -125,12 +130,12 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_QafLkl/SpringFrictionPendulum1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_QafLkl/SpringFrictionPendulum1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_E3av10/SpringFrictionPendulum1D`.
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_E3av10/SpringFrictionPendulum1D/resources`
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
 
 
     #################### Begin information for FMU ####################
@@ -175,7 +180,7 @@ fmiPlot(realSimData)
 
 
     
-![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_9_0.svg)
+![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_11_0.svg)
     
 
 
@@ -287,19 +292,19 @@ fmiPlot(simpleSimData)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_XdUAcj/SpringPendulum1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:76
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_XdUAcj/SpringPendulum1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:192
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_t8NWs2/SpringPendulum1D`.
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_t8NWs2/SpringPendulum1D/resources`
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/g4GUl/src/FMI2_ext.jl:195
+    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
 
 
 
 
 
     
-![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_17_2.svg)
+![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_19_2.svg)
     
 
 
@@ -359,9 +364,9 @@ A growing horizon is applied, whereby the horizon only goes over the first five 
 ```julia
 # loss function for training
 global horizon = 5
-function lossSum()
+function lossSum(p)
     global posReal, neuralFMU, horizon
-    solution = neuralFMU(x₀, tStart)
+    solution = neuralFMU(x₀, tStart; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
@@ -420,12 +425,12 @@ To output the loss in certain time intervals, a callback is implemented as a fun
 ```julia
 # callback function for training
 global counter = 0
-function callb()
+function callb(p)
     global counter, horizon 
     counter += 1
    
     if counter % 20 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "   Loss [$counter] for horizon $horizon : $(round(avgLoss, digits=5))   
         Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
         
@@ -545,6 +550,16 @@ The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (*simpleFM
 neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
 ```
 
+    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(tanh), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}`.
+    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
+    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(tanh), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}`.
+    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
+    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(identity), Matrix{Float64}, Vector{Float64}}`.
+    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
+    ┌ Info: ME_NeuralFMU(...): Succesfully converted model to Float64.
+    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1103
+
+
 #### Plot before training
 
 Here the state trajectory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.
@@ -555,11 +570,14 @@ solutionBefore = neuralFMU(x₀, tStart)
 fmiPlot(solutionBefore)
 ```
 
+    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:28[39m
+
+
 
 
 
     
-![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_35_0.svg)
+![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_37_1.svg)
     
 
 
@@ -574,159 +592,160 @@ For the training of the NeuralFMU the parameters are extracted. The known ADAM o
 paramsNet = Flux.params(neuralFMU)
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=callb) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
 ```
 
+    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:31[39m
     ┌ Info:    Loss [1] for horizon 5 : 0.06331   
     │         Avg displacement in data: 0.25162
-    └ @ Main In[12]:9
+    └ @ Main In[13]:9
     ┌ Info:    Loss [21] for horizon 5 : 0.00542   
     │         Avg displacement in data: 0.0736
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [41] for horizon 7 : 0.00256   
-    │         Avg displacement in data: 0.05062
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [61] for horizon 9 : 0.00296   
-    │         Avg displacement in data: 0.0544
-    └ @ Main In[12]:9
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [41] for horizon 7 : 0.00257   
+    │         Avg displacement in data: 0.05067
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [61] for horizon 9 : 0.00295   
+    │         Avg displacement in data: 0.05433
+    └ @ Main In[13]:9
     ┌ Info:    Loss [81] for horizon 11 : 0.00074   
-    │         Avg displacement in data: 0.02723
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [101] for horizon 13 : 0.00287   
-    │         Avg displacement in data: 0.05356
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [121] for horizon 15 : 0.00708   
-    │         Avg displacement in data: 0.08416
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [141] for horizon 17 : 0.01529   
-    │         Avg displacement in data: 0.12367
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [161] for horizon 17 : 0.0085   
-    │         Avg displacement in data: 0.09222
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [181] for horizon 19 : 0.01067   
-    │         Avg displacement in data: 0.1033
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [201] for horizon 19 : 0.00554   
-    │         Avg displacement in data: 0.07445
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [221] for horizon 21 : 0.0034   
-    │         Avg displacement in data: 0.0583
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [241] for horizon 23 : 0.00149   
-    │         Avg displacement in data: 0.0386
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [261] for horizon 25 : 0.00069   
-    │         Avg displacement in data: 0.0262
-    └ @ Main In[12]:9
+    │         Avg displacement in data: 0.02722
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [101] for horizon 13 : 0.00286   
+    │         Avg displacement in data: 0.0535
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [121] for horizon 15 : 0.00705   
+    │         Avg displacement in data: 0.08397
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [141] for horizon 17 : 0.01516   
+    │         Avg displacement in data: 0.12313
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [161] for horizon 17 : 0.00837   
+    │         Avg displacement in data: 0.0915
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [181] for horizon 19 : 0.01059   
+    │         Avg displacement in data: 0.10291
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [201] for horizon 19 : 0.00551   
+    │         Avg displacement in data: 0.07425
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [221] for horizon 21 : 0.00338   
+    │         Avg displacement in data: 0.05816
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [241] for horizon 23 : 0.00146   
+    │         Avg displacement in data: 0.03818
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [261] for horizon 25 : 0.00067   
+    │         Avg displacement in data: 0.02579
+    └ @ Main In[13]:9
     ┌ Info:    Loss [281] for horizon 27 : 0.00045   
-    │         Avg displacement in data: 0.02132
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [301] for horizon 29 : 0.00042   
-    │         Avg displacement in data: 0.02054
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [321] for horizon 31 : 0.00047   
-    │         Avg displacement in data: 0.02177
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [341] for horizon 33 : 0.00061   
-    │         Avg displacement in data: 0.02476
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [361] for horizon 35 : 0.00061   
-    │         Avg displacement in data: 0.02465
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [381] for horizon 37 : 0.00055   
-    │         Avg displacement in data: 0.02336
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [401] for horizon 39 : 0.00051   
-    │         Avg displacement in data: 0.02254
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [421] for horizon 41 : 0.0005   
-    │         Avg displacement in data: 0.02233
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [441] for horizon 43 : 0.00049   
-    │         Avg displacement in data: 0.02208
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [461] for horizon 45 : 0.00046   
-    │         Avg displacement in data: 0.02135
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [481] for horizon 47 : 0.00056   
+    │         Avg displacement in data: 0.02115
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [301] for horizon 29 : 0.00041   
+    │         Avg displacement in data: 0.02028
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [321] for horizon 31 : 0.00048   
+    │         Avg displacement in data: 0.02183
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [341] for horizon 33 : 0.00062   
+    │         Avg displacement in data: 0.02489
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [361] for horizon 35 : 0.00062   
+    │         Avg displacement in data: 0.0249
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [381] for horizon 37 : 0.00056   
     │         Avg displacement in data: 0.02377
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [501] for horizon 49 : 0.00081   
-    │         Avg displacement in data: 0.02845
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [521] for horizon 51 : 0.00126   
-    │         Avg displacement in data: 0.03549
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [541] for horizon 51 : 0.00122   
-    │         Avg displacement in data: 0.03496
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [561] for horizon 51 : 0.00118   
-    │         Avg displacement in data: 0.03433
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [581] for horizon 51 : 0.00116   
-    │         Avg displacement in data: 0.03409
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [601] for horizon 51 : 0.00112   
-    │         Avg displacement in data: 0.0334
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [621] for horizon 51 : 0.0011   
-    │         Avg displacement in data: 0.03316
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [641] for horizon 51 : 0.0011   
-    │         Avg displacement in data: 0.03309
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [661] for horizon 51 : 0.00107   
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [401] for horizon 39 : 0.00053   
+    │         Avg displacement in data: 0.02304
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [421] for horizon 41 : 0.00052   
+    │         Avg displacement in data: 0.02287
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [441] for horizon 43 : 0.00052   
+    │         Avg displacement in data: 0.02286
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [461] for horizon 45 : 0.0005   
+    │         Avg displacement in data: 0.02234
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [481] for horizon 47 : 0.00063   
+    │         Avg displacement in data: 0.02518
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [501] for horizon 49 : 0.00092   
+    │         Avg displacement in data: 0.03039
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [521] for horizon 51 : 0.0014   
+    │         Avg displacement in data: 0.03746
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [541] for horizon 51 : 0.00134   
+    │         Avg displacement in data: 0.03662
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [561] for horizon 51 : 0.00129   
+    │         Avg displacement in data: 0.03597
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [581] for horizon 51 : 0.00129   
+    │         Avg displacement in data: 0.03598
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [601] for horizon 51 : 0.00123   
+    │         Avg displacement in data: 0.03513
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [621] for horizon 51 : 0.0012   
+    │         Avg displacement in data: 0.03459
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [641] for horizon 51 : 0.00116   
+    │         Avg displacement in data: 0.03399
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [661] for horizon 51 : 0.00114   
+    │         Avg displacement in data: 0.03379
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [681] for horizon 51 : 0.00113   
+    │         Avg displacement in data: 0.03362
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [701] for horizon 51 : 0.00111   
+    │         Avg displacement in data: 0.03329
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [721] for horizon 51 : 0.0011   
+    │         Avg displacement in data: 0.03311
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [741] for horizon 51 : 0.00107   
     │         Avg displacement in data: 0.03272
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [681] for horizon 51 : 0.00101   
-    │         Avg displacement in data: 0.03171
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [701] for horizon 51 : 0.00098   
-    │         Avg displacement in data: 0.03136
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [721] for horizon 51 : 0.00097   
-    │         Avg displacement in data: 0.03114
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [741] for horizon 51 : 0.00096   
-    │         Avg displacement in data: 0.03104
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [761] for horizon 51 : 0.00093   
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [761] for horizon 51 : 0.00105   
+    │         Avg displacement in data: 0.03248
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [781] for horizon 51 : 0.00104   
+    │         Avg displacement in data: 0.03225
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [801] for horizon 51 : 0.00103   
+    │         Avg displacement in data: 0.03207
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [821] for horizon 51 : 0.001   
+    │         Avg displacement in data: 0.03162
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [841] for horizon 51 : 0.00098   
+    │         Avg displacement in data: 0.03131
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [861] for horizon 51 : 0.00096   
+    │         Avg displacement in data: 0.03099
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [881] for horizon 51 : 0.00093   
     │         Avg displacement in data: 0.03052
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [781] for horizon 51 : 0.00088   
-    │         Avg displacement in data: 0.02974
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [801] for horizon 51 : 0.00087   
-    │         Avg displacement in data: 0.02951
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [821] for horizon 51 : 0.00086   
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [901] for horizon 51 : 0.0009   
+    │         Avg displacement in data: 0.03007
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [921] for horizon 51 : 0.00088   
+    │         Avg displacement in data: 0.02968
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [941] for horizon 51 : 0.00086   
     │         Avg displacement in data: 0.02926
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [841] for horizon 51 : 0.00084   
-    │         Avg displacement in data: 0.02892
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [861] for horizon 51 : 0.00082   
-    │         Avg displacement in data: 0.02866
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [881] for horizon 51 : 0.00079   
-    │         Avg displacement in data: 0.02809
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [901] for horizon 51 : 0.00077   
-    │         Avg displacement in data: 0.02777
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [921] for horizon 51 : 0.00076   
-    │         Avg displacement in data: 0.02749
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [941] for horizon 51 : 0.00076   
-    │         Avg displacement in data: 0.0276
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [961] for horizon 51 : 0.00077   
-    │         Avg displacement in data: 0.02775
-    └ @ Main In[12]:9
-    ┌ Info:    Loss [981] for horizon 51 : 0.00071   
-    │         Avg displacement in data: 0.02664
-    └ @ Main In[12]:9
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [961] for horizon 51 : 0.00082   
+    │         Avg displacement in data: 0.02861
+    └ @ Main In[13]:9
+    ┌ Info:    Loss [981] for horizon 51 : 0.00078   
+    │         Avg displacement in data: 0.02802
+    └ @ Main In[13]:9
 
 
 #### Comparison of the plots
@@ -743,7 +762,7 @@ plotResults()
 
 
     
-![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_39_0.svg)
+![svg](advanced_hybrid_ME_files/advanced_hybrid_ME_41_0.svg)
     
 
 
