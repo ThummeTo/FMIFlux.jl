@@ -21,25 +21,17 @@
 (@v1.6) pkg> add FMIFlux
 ```
 
-(3)\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
+3\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
 (@v1.6) pkg> test FMIFlux
 ```
 
-(4)\. Additionally, you can check the version of [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) that you have installed with the ```status``` command.
-```julia-repl
-(@v1.6) pkg> status FMIFlux
-```
-
-5\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
+4\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
 
 ## What is currently supported in FMIFlux.jl?
 - building and training ME-NeuralFMUs (event-handling is BETA) with the default Flux-Front-End
 - building and training CS-NeuralFMUs with the default Flux-Front-End
 - ...
-
-## What is currently BETA-supported in FMIFlux.jl?
-- training ME-NeuralFMUs with state- and time-event-handling 
 
 ## What is under development in FMIFlux.jl?
 - performance optimizations
@@ -50,7 +42,7 @@
 - ...
 
 ## What Platforms are supported?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6.5 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6.6 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
 
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png?raw=true "FMI.jl Family")
@@ -63,10 +55,10 @@ To keep dependencies nice and clean, the original package [*FMI.jl*](https://git
 - [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl): Machine Learning with FMUs (differentiation over FMUs)
 - [*FMIZoo.jl*](https://github.com/ThummeTo/FMIZoo.jl): A collection of testing and example FMUs
 
-## Known limitations
-- Systems, that are explicitely time-dependent are currently not fully tested. This is on the ToDo-list.
+## How to cite?
+Tobias Thummerer, Johannes Stoljar and Lars Mikelsons. 2022. **NeuralFMU: presenting a workflow for integrating hybrid NeuralODEs into real-world applications.** Electronics 11, 19, 3202. [DOI: 10.3390/electronics11193202](https://doi.org/10.3390/electronics11193202)
 
-## How to cite? Related publications?
 Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. **NeuralFMU: towards structural integration of FMUs into neural networks.** Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. [DOI: 10.3384/ecp21181297](https://doi.org/10.3384/ecp21181297)
 
-Tobias Thummerer, Johannes Tintenherr, Lars Mikelsons 2021 **Hybrid modeling of the human cardiovascular system using NeuralFMUs** Journal of Physics: Conference Series 2090, 1, 012155. [DOI: 10.1088/1742-6596/2090/1/012155](https://doi.org/10.1088/1742-6596/2090/1/012155)
+## Related publications?
+Tobias Thummerer, Johannes Tintenherr, Lars Mikelsons 2021. **Hybrid modeling of the human cardiovascular system using NeuralFMUs** Journal of Physics: Conference Series 2090, 1, 012155. [DOI: 10.1088/1742-6596/2090/1/012155](https://doi.org/10.1088/1742-6596/2090/1/012155)

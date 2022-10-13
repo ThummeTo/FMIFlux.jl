@@ -113,3 +113,38 @@ function (l::SkipStop)(x)
     
     return collect((i ∈ l.start.indices ? x[l.start.map[i]] : l.start.cache[i]) for i in 1:length(l.start.cache))
 end
+
+### CACHE ### 
+
+mutable struct CacheLayer
+    cache::AbstractArray
+
+    function CacheLayer()
+        inst = new()
+        return inst
+    end
+end
+export CacheLayer
+
+function (l::CacheLayer)(x)
+
+    l.cache = x
+    
+    return x
+end
+
+### CACHERetrieve ### 
+
+struct CacheRetrieveLayer
+    cacheLayer::CacheLayer
+    
+    function CacheRetrieveLayer(cacheLayer::CacheLayer)
+        inst = new(cacheLayer)
+        return inst
+    end
+end
+export CacheRetrieveLayer
+
+function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=[])
+    return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+end

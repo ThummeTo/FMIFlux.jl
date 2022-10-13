@@ -69,7 +69,7 @@ problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam()
+optim = Adam(1e-6)
 Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
 
 fmiUnload(myFMU)

@@ -32,16 +32,21 @@ fmiEnterInitializationMode(myFMU)
 fmiExitInitializationMode(myFMU)
 
 # setup traing data
-posData = fmi2GetSolutionValue(realSimData, "mass.s")
+velData = fmi2GetSolutionValue(realSimData, "mass.v")
 
 # loss function for training
 function losssum(p)
     global problem, x0, posData
     solution = problem(x0; p=p)
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    if !solution.success
+        return Inf 
+    end
+
+    # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    Flux.Losses.mse(posNet, posData)
+    return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -124,7 +129,7 @@ net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, set
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
             Dense(16, numStates))
-#ToDo: push!(nets, net)
+push!(nets, net)
 
 optim = Adam(1e-4)
 for i in 1:length(nets)

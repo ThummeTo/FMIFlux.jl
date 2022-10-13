@@ -39,7 +39,10 @@ for FMUPath in FMUPaths
     fmiSetContinuousStates(myFMU, x0)
     samp_jac = fmi2SampleDirectionalDerivative(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
     auto_jac = fmi2GetJacobian(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
-    @info auto_jac
+    @info "auto_jac: $(auto_jac)"
+    @info "FD_jac: $(FD_jac)"
+    @info "ZG_jac $(ZG_jac)"
+    @info "samp_jac: $(samp_jac)"
 
     @test (abs.(auto_jac -   FD_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)
     @test (abs.(auto_jac -   ZG_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)
@@ -52,6 +55,10 @@ for FMUPath in FMUPaths
     fmi2SetContinuousStates(myFMU, x0)
     samp_jac = fmi2SampleDirectionalDerivative(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
     auto_jac = fmi2GetJacobian(myFMU, myFMU.modelDescription.derivativeValueReferences, myFMU.modelDescription.stateValueReferences)
+    @info "auto_jac: $(auto_jac)"
+    @info "FD_jac: $(FD_jac)"
+    @info "ZG_jac $(ZG_jac)"
+    @info "samp_jac: $(samp_jac)"
 
     @test (abs.(auto_jac -   FD_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)
     @test (abs.(auto_jac -   ZG_jac) .< ones(numStates, numStates).*1e-6) == ones(Bool, numStates, numStates)

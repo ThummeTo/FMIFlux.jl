@@ -84,7 +84,7 @@ solutionBefore = problem(extForce, t_step)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam()
+optim = Adam(1e-6)
 Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
 
 # check results

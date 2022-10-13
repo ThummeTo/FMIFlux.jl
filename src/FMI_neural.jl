@@ -13,12 +13,14 @@ import ForwardDiff
 import Optim
 import ProgressMeter
 
-import SciMLBase: RightRootFind
+import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!
+import SciMLBase: ContinuousCallback, VectorContinuousCallback
 
 using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
 import ChainRulesCore: ignore_derivatives
 
 using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange
+using FMIImport: logInfo, logWarn, logError
 
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
@@ -33,7 +35,7 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     fmu::FMU
 
     currentComponent
-
+    
     tspan
     saveat
     saved_values
@@ -68,8 +70,6 @@ mutable struct ME_NeuralFMU <: NeuralFMU
 
     progressMeter
 
-    #componentShadow::Union{FMU2ComponentShadow, Nothing}
-
     solveCycle::UInt
 
     function ME_NeuralFMU()
@@ -98,7 +98,7 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     model
     fmu::F
     currentComponent # ::Union{C, Nothing}
-
+    
     tspan
     saveat
     solution::FMU2Solution
@@ -366,39 +366,18 @@ function startCallback(integrator, nfmu, t)
         #     @warn "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
         # end
 
-        # allocate component shadow for second run
-        if nfmu.fmu.executionConfig.useComponentShadow
-
-            if nfmu.currentComponent == nothing
-                nfmu.currentComponent = FMU2ComponentShadow()
-                @debug "[$(nfmu.solveCycle)][INIT SHADOW]"
-                push!(nfmu.fmu.components, nfmu.currentComponent)
-            end
-
-            # real comp renew
-            realComponent = nfmu.currentComponent.realComponent
-            realComponent, nfmu.x0 = prepareFMU(nfmu.fmu, realComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, pushComponents=false)
-            setComponent!(nfmu.currentComponent, realComponent)
-
-            handleEvents(nfmu.currentComponent) 
-            #affectIntegrator(integrator, nfmu, -1, ForwardDiff.value(t))
-            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
-
-            nfmu.currentComponent.log = (nfmu.solveCycle == 2)
-
+        
+        nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
+        # handleEvents(nfmu.currentComponent)  done in prepareFMU!
+        
+        if length(nfmu.solution.events) > 0
+            @debug "Initial Event handled!"
         else
-            nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
-            # handleEvents(nfmu.currentComponent)  done in prepareFMU!
-            
-            if length(nfmu.solution.events) > 0
-                @debug "Initial Event handled!"
-            else
-                @debug "No initial events ..."
-            end
-
-            #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
+            @debug "No initial events ..."
         end
 
+        #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
+        
         # re-init every callback except #1 (the startCallback itself)
         # for i in 2:length(nfmu.callbacks)
         #     callback = nfmu.callbacks[i]
@@ -467,7 +446,7 @@ function time_choice(nfmu, integrator, tStart, tStop)
 end
 
 # Handles events and returns the values and nominals of the changed continuous states.
-function handleEvents(c::Union{FMU2Component, FMU2ComponentShadow})
+function handleEvents(c::FMU2Component)
 
     @debug @assert c.state == fmi2ComponentStateEventMode "handleEvents(...): Must be in event mode!"
 
@@ -826,7 +805,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
         ratio = ne / pt
        
         if ne >= 100 && ratio > nfmu.fmu.executionConfig.maxStateEventsPerSecond
-            @info "Event jittering:"
+            logError(nfmu.fmu, "Event jittering detected:")
             for i in 0:nfmu.fmu.modelDescription.numberOfEventIndicators
                 num = 0
                 for e in nfmu.solution.events
@@ -1047,17 +1026,12 @@ function ME_NeuralFMU(fmu::FMU2,
                       kwargs...)
 
     nfmu = ME_NeuralFMU()
-
+    
     layers = []
 
     if convertParams === nothing
         convertParams = isa(model, Chain) 
     end
-
-    # if fmu.executionConfig.useVectorCallbacks
-    #     fmu.executionConfig.useVectorCallbacks = false
-    #     @warn "Disabled vector callbacks for this FMU, currently not supported by ForwardDiff."
-    # end
     
     for layer in model 
         typ = typeof(layer)
@@ -1086,9 +1060,9 @@ function ME_NeuralFMU(fmu::FMU2,
             
                     newlayer = typ.name.wrapper(args...)
                     push!(layers, newlayer)
-                    @info "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to `$(typeof(newlayer))`."
+                    logInfo(fmu, "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to `$(typeof(newlayer))`.")
                 else
-                    @warn "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`."
+                    logWarn(fmu, "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`.")
                 end
             end
         else
@@ -1100,7 +1074,7 @@ function ME_NeuralFMU(fmu::FMU2,
 
     if convertParams
         model = Chain(layers...)
-        @info "ME_NeuralFMU(...): Succesfully converted model to Float64."
+        logInfo(fmu, "ME_NeuralFMU(...): Succesfully converted model to Float64.")
     end
 
     ######
@@ -1239,6 +1213,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     inPlace = nfmu.fmu.executionConfig.inPlace
     tspan = getfield(nfmu.neuralODE, :tspan)
 
+    # setup problem and parameters
+    if p == nothing
+        p = nfmu.neuralODE.p
+    end
+
     ignore_derivatives() do
         @debug "ME_NeuralFMU..."
 
@@ -1363,8 +1342,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
         if showProgress || true # true, as long as we dont know if we have time events!
 
-            nfmu.progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
-            ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
+            if showProgress
+                nfmu.progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
+                ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
+            end
 
             stepCb = FunctionCallingCallback((x, t, integrator) -> stepCompleted(nfmu, x, t, integrator, t_start, t_stop);
                                                 func_everystep=true,
@@ -1395,13 +1376,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
         if sense === nothing
 
-            # currently, Callbacks only working with ForwardDiff
-            if length(nfmu.callbacks) > 2 # only start and stop callback
-                p_len = 0
-                fp = Flux.params(nfmu)
-                if length(fp) > 0
-                    p_len = length(fp[1])
-                end
+            p_len = length(p[1])
+
+            # currently, Callbacks only working with ForwardDiff for discontinuous systems
+            if p_len < 100 # length(nfmu.callbacks) > 2 # only start and stop callback # nfmu.fmu.hasStateEvents || nfmu.fmu.hasTimeEvents # 
+                
                 fds_chunk_size = p_len
                 # limit to 256 because of RAM usage
                 if fds_chunk_size > 256
@@ -1418,7 +1397,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
 
                 if inPlace === true
-                    #@info "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `Zygote`. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`."
+                    #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `Zygote`. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
                     inPlace = false # Zygote only works for out-of-place (currently)
                 end
             end
@@ -1426,10 +1405,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
     end # ignore_derivatives
 
-    # setup problem and parameters
-    if p == nothing
-        p = nfmu.neuralODE.p
-    end
     prob = nothing
 
     if inPlace
@@ -1489,7 +1464,16 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     ts = collect(t_start:t_step:t_stop)
     nfmu.currentComponent.skipNextDoStep = true # skip first fim2DoStep-call
     model_input = inputFct.(ts)
-    valueStack = nfmu.model.(model_input)
+
+    function simStep(input)
+        y = nfmu.model(input)
+        ignore_derivatives() do
+            fmi2DoStep(nfmu.currentComponent, t_step)
+        end
+        return y
+    end
+
+    valueStack = simStep.(model_input)
 
     ignore_derivatives() do
         nfmu.solution.success = true
@@ -1525,7 +1509,18 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
         c.skipNextDoStep = true
     end
     model_input = inputFct.(ts)
-    valueStack = nfmu.model.(model_input)
+
+    function simStep(input)
+        y = nfmu.model(input)
+        ignore_derivatives() do
+            for c in nfmu.currentComponent
+                fmi2DoStep(c, t_step)
+            end
+        end
+        return y
+    end
+
+    valueStack = simStep.(model_input)
 
     ignore_derivatives() do
         nfmu.solution.success = true
@@ -1549,41 +1544,6 @@ function Flux.params(neuralfmu::CS_NeuralFMU)
 end
 
 # FMI version independent dosteps
-
-"""
-Wrapper. Call ```fmi2EvaluateME``` for more information.
-"""
-function fmiEvaluateME(str::fmi2Struct, 
-                     x::Array{<:Real}, 
-                     t::Real = (typeof(str) == FMU2 ? str.components[end].t : str.t),
-                     setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
-                     setValues::Array{<:Real} = zeros(Real, 0),
-                     getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
-    fmi2EvaluateME(str, x, t,
-                setValueReferences,
-                setValues,
-                getValueReferences)
-end
-
-"""
-Wrapper. Call ```fmi2DoStepCS``` for more information.
-"""
-function fmiDoStepCS(str::fmi2Struct, 
-                     dt::Real,
-                     setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
-                     setValues::Array{<:Real} = zeros(Real, 0),
-                     getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
-    fmi2DoStepCS(str, dt, setValueReferences, setValues, getValueReferences)
-end
-
-"""
-Wrapper. Call ```fmi2InputDoStepCSOutput``` for more information.
-"""
-function fmiInputDoStepCSOutput(str::fmi2Struct, 
-                                dt::Real, 
-                                u::Array{<:Real})
-    fmi2InputDoStepCSOutput(str, dt, u)
-end
 
 # function ChainRulesCore.rrule(f::Union{typeof(fmi2SetupExperiment), 
 #                                        typeof(fmi2EnterInitializationMode), 
