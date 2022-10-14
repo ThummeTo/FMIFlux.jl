@@ -70,10 +70,10 @@ net = Chain(Dense(numStates, numStates, tanh; init=Flux.identity_init),
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
-net = Chain(states -> fmiEvaluateME(realFMU, states), 
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numStates))
+net = Chain(x -> realFMU(;x=x)[2], 
+            Dense(numStates, 16, tanh; init=Flux.identity_init),
+            Dense(16, 16, tanh; init=Flux.identity_init),
+            Dense(16, numStates; init=Flux.identity_init))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
@@ -92,13 +92,13 @@ net = Chain(x -> c1(x),
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
-net = Chain(Dense(numStates, 16, leakyrelu),
-            Dense(16, 16, leakyrelu),
-            Dense(16, numStates),
-            states -> fmiEvaluateME(realFMU, states),
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numStates))
+net = Chain(Dense(numStates, 16, leakyrelu; init=Flux.identity_init),
+            Dense(16, 16, leakyrelu; init=Flux.identity_init),
+            Dense(16, numStates; init=Flux.identity_init),
+            x -> realFMU(;x=x)[2], 
+            Dense(numStates, 16, tanh; init=Flux.identity_init),
+            Dense(16, 16, tanh; init=Flux.identity_init),
+            Dense(16, numStates; init=Flux.identity_init))
 push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
