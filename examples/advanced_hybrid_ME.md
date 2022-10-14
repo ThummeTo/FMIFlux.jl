@@ -130,9 +130,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_mrwvhO/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_Sosyi4/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_mrwvhO/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_Sosyi4/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
@@ -292,9 +292,9 @@ fmiPlot(simpleSimData)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_IqWq2M/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_aB90U3/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_IqWq2M/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_aB90U3/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
@@ -639,13 +639,13 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     │         Avg displacement in data: 0.02579
     └ @ Main In[13]:9
     ┌ Info:    Loss [281] for horizon 27 : 0.00045   
-    │         Avg displacement in data: 0.02115
+    │         Avg displacement in data: 0.02116
     └ @ Main In[13]:9
     ┌ Info:    Loss [301] for horizon 29 : 0.00041   
     │         Avg displacement in data: 0.02028
     └ @ Main In[13]:9
     ┌ Info:    Loss [321] for horizon 31 : 0.00048   
-    │         Avg displacement in data: 0.02183
+    │         Avg displacement in data: 0.02188
     └ @ Main In[13]:9
     ┌ Info:    Loss [341] for horizon 33 : 0.00062   
     │         Avg displacement in data: 0.02489
@@ -675,7 +675,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     │         Avg displacement in data: 0.03039
     └ @ Main In[13]:9
     ┌ Info:    Loss [521] for horizon 51 : 0.0014   
-    │         Avg displacement in data: 0.03746
+    │         Avg displacement in data: 0.03745
     └ @ Main In[13]:9
     ┌ Info:    Loss [541] for horizon 51 : 0.00134   
     │         Avg displacement in data: 0.03662
@@ -684,7 +684,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     │         Avg displacement in data: 0.03597
     └ @ Main In[13]:9
     ┌ Info:    Loss [581] for horizon 51 : 0.00129   
-    │         Avg displacement in data: 0.03598
+    │         Avg displacement in data: 0.03596
     └ @ Main In[13]:9
     ┌ Info:    Loss [601] for horizon 51 : 0.00123   
     │         Avg displacement in data: 0.03513
@@ -723,13 +723,13 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     │         Avg displacement in data: 0.03162
     └ @ Main In[13]:9
     ┌ Info:    Loss [841] for horizon 51 : 0.00098   
-    │         Avg displacement in data: 0.03131
+    │         Avg displacement in data: 0.03132
     └ @ Main In[13]:9
     ┌ Info:    Loss [861] for horizon 51 : 0.00096   
     │         Avg displacement in data: 0.03099
     └ @ Main In[13]:9
     ┌ Info:    Loss [881] for horizon 51 : 0.00093   
-    │         Avg displacement in data: 0.03052
+    │         Avg displacement in data: 0.03053
     └ @ Main In[13]:9
     ┌ Info:    Loss [901] for horizon 51 : 0.0009   
     │         Avg displacement in data: 0.03007
