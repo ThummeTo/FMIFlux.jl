@@ -16,7 +16,7 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
+realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
 realSimData = fmiSimulate(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
 @test x0 == [1.0, 0.0]
@@ -71,9 +71,9 @@ push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
 net = Chain(x -> realFMU(;x=x)[2], 
-            Dense(numStates, 16, tanh; init=Flux.identity_init),
-            Dense(16, 16, tanh; init=Flux.identity_init),
-            Dense(16, numStates; init=Flux.identity_init))
+            Dense(numStates, 16, tanh),
+            Dense(16, 16, tanh),
+            Dense(16, numStates))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)

@@ -16,20 +16,12 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(realFMU; loggingOn=false)
-fmiSetupExperiment(realFMU, t_start, t_stop)
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
+realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeCoSimulation)
+x0 = ones(2)
+realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], saveat=tData)
 
 # load FMU for NeuralFMU
-myFMU = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(myFMU; loggingOn=false)
-fmiSetupExperiment(myFMU, t_start, t_stop)
-fmiEnterInitializationMode(myFMU)
-fmiExitInitializationMode(myFMU)
+myFMU = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
 
 # setup traing data
 velData = fmi2GetSolutionValue(realSimData, "mass.v")

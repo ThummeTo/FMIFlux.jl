@@ -22,7 +22,7 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 for FMUPath in FMUPaths
-    myFMU = fmiLoad(FMUPath)
+    myFMU = fmiLoad(FMUPath; type=fmi2TypeModelExchange)
     comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
     FMI.fmi2SetupExperiment(comp, t_start, t_stop)
     FMI.fmi2EnterInitializationMode(comp)
