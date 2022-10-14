@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+preferred-citation: conference-paper
+authors:
+- family-names: "Thummerer"
+  given-names: "Tobias"
+  orcid: "https://orcid.org/0000-0003-0908-0783"
+- family-names: "Mikelsons"
+  given-names: "Lars"
+- family-names: "Kircher"
+  given-names: "Josef"
+title: "NeuralFMU: Towards Structural Integration of FMUs into Neural Networks"
+doi: 10.3384/ecp21181297 
+date-released: 2021-09-27
+url: "https://ecp.ep.liu.se/index.php/modelica/article/view/207"

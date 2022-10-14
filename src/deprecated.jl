@@ -32,7 +32,11 @@ function fmi2EvaluateME(fmu::FMU2,
     end
     
     dx = zeros(length(x))
-    y, dx = FMIImport.eval!(fmu.components[end], dx, y, y_refs, x, u, u_refs, t)
+
+    c = fmu.components[end]
+
+    y, dx = c(dx=dx, y=y, y_refs=y_refs, x=x, u=u, u_refs=u_refs, t=t)
+    
     return [(dx == nothing ? [] : dx)..., (y == nothing ? [] : y)...]
 end
 export fmi2EvaluateME
@@ -107,7 +111,7 @@ function fmi2InputDoStepCSOutput(fmu::FMU2,
 
     c = fmu.components[end]
     
-    y, _ = FMIImport.eval!(c, nothing, y, y_refs, nothing, u, u_refs, nothing)
+    y, _ = c(y=y, y_refs=y_refs, u=u, u_refs=u_refs)
 
     # ignore_derivatives() do
     #     fmi2DoStep(c, dt)
@@ -130,7 +134,7 @@ function fmi2DoStepCS(fmu::FMU2,
 
     c = fmu.components[end]
     
-    y, _ = FMIImport.eval!(c, nothing, y, y_refs, nothing, u, u_refs, nothing)
+    y, _ = c(y=y, y_refs=y_refs, u=u, u_refs=u_refs)
 
     # ignore_derivatives() do
     #     fmi2DoStep(c, dt)

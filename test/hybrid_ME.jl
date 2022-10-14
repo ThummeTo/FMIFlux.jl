@@ -37,7 +37,7 @@ velData = fmi2GetSolutionValue(realSimData, "mass.v")
 # loss function for training
 function losssum(p)
     global problem, x0, posData
-    solution = problem(x0; p=p)
+    solution = problem(x0; p=p, showProgress=true)
 
     if !solution.success
         return Inf 
@@ -75,7 +75,7 @@ net = Chain(Dense(numStates, numStates, tanh; init=Flux.identity_init),
             Dense(numStates, numStates, identity; init=Flux.identity_init))
 push!(nets, net)
 
-# 2 # default ME-NeuralFMU (learn dynamics)
+# 2 # default ME-NeuralFMU (learn dynamics, parameter count > 100)
 net = Chain(states ->  fmiEvaluateME(myFMU, states), 
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),

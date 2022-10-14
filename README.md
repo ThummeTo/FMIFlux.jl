@@ -42,7 +42,7 @@
 - ...
 
 ## What Platforms are supported?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6.6 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
 
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png?raw=true "FMI.jl Family")

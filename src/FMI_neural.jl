@@ -1337,21 +1337,16 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             push!(nfmu.callbacks, cb)
         end
 
-        # use step callback always if we have inputs or need event handling (or just want to see our simulation progress)
-        # integrator step callback
-
-        if showProgress || true # true, as long as we dont know if we have time events!
-
-            if showProgress
-                nfmu.progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
-                ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
-            end
-
-            stepCb = FunctionCallingCallback((x, t, integrator) -> stepCompleted(nfmu, x, t, integrator, t_start, t_stop);
-                                                func_everystep=true,
-                                                func_start=true)
-            push!(nfmu.callbacks, stepCb)
+        if showProgress
+            nfmu.progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
+            ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
         end
+
+        # integrator step callback
+        stepCb = FunctionCallingCallback((x, t, integrator) -> stepCompleted(nfmu, x, t, integrator, t_start, t_stop);
+                                            func_everystep=true,
+                                            func_start=true)
+        push!(nfmu.callbacks, stepCb)
 
         if saving
             nfmu.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
@@ -1367,29 +1362,25 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             push!(nfmu.callbacks, savingCB)
         end
 
-        # stoping cb (OPT A)
-        # stopcb = FunctionCallingCallback((u, t, integrator) -> stopCallback(nfmu, t);
-        #                             funcat=[nfmu.tspan[end]])
-        # push!(nfmu.callbacks, stopcb)
-
         # auto pick sensealg
 
         if sense === nothing
 
             p_len = length(p[1])
 
-            # currently, Callbacks only working with ForwardDiff for discontinuous systems
-            if p_len < 100 # length(nfmu.callbacks) > 2 # only start and stop callback # nfmu.fmu.hasStateEvents || nfmu.fmu.hasTimeEvents # 
+            # in Julia 1.6,  Callbacks only working with ForwardDiff for discontinuous systems
+            if nfmu.fmu.hasStateEvents || nfmu.fmu.hasTimeEvents # p_len < 100 
                 
                 fds_chunk_size = p_len
-                # limit to 256 because of RAM usage
-                if fds_chunk_size > 256
-                    fds_chunk_size = 256
+                # limit to 128 because of RAM usage
+                if fds_chunk_size > 128
+                    fds_chunk_size = 128
                 end
                 if fds_chunk_size < 1
                     fds_chunk_size = 1
                 end
 
+                #sense = ForwardDiffSensitivity(;convert_tspan=true)
                 sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
                 #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
         
@@ -1422,7 +1413,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     #     nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
     #     stopCallback(nfmu, nfmu.tspan[end])
     # else
-        nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
+    #nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
+    nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
     #end
 
     # stopCB (Opt B)
@@ -1561,19 +1553,46 @@ end
 # end
 
 """
-ToDo 
+
+    train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Integer=64, printStep::Bool=false)
+
+A function analogous to Flux.train! but with additional features and explicit parameters (faster).
+
+# Arguments
+- `loss` a loss function in the format `loss(p)`
+- `params` a object holding the parameters
+- `data` the training data (or often an iterator)
+- `optim` the optimizer used for training 
+
+# Keywords 
+- `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff` (default) and `:Zygote`
+- `cb` a custom callback function that is called after every training step
+- `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-algorithms)
+- `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; cb=nothing, chunk_size::Integer=64, printStep::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false)
 
     to_differentiate = p -> loss(p)
 
     for i in 1:length(data)
         for j in 1:length(params)
-            grad = ForwardDiff.gradient(
-                to_differentiate,
-                params[j],
-                ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-            );
+
+            if gradient == :ForwardDiff
+
+                if chunk_size == nothing
+                    grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                else
+                    grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                    grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                end
+
+            elseif gradient == :Zygote 
+                grad = Zygote.gradient(
+                    to_differentiate,
+                    params[j])[1]
+            else
+                @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
+            end
 
             step = Flux.Optimise.apply!(optim, params[j], grad)
             params[j] .-= step
