@@ -48,9 +48,9 @@ function callb(p)
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 30 == 0
+    if iterCB % 10 == 0
         loss = losssum(p[1])
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss  
         lastLoss = loss
     end
@@ -144,7 +144,7 @@ for i in 1:length(nets)
         iterCB = 0
         lastLoss = losssum(p_net[1])
         @info "Start-Loss for net #$i: $lastLoss"
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=()->callb(p_net))
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
         # check results
         solutionAfter = problem(x0)

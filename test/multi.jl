@@ -12,7 +12,7 @@ Random.seed!(1234);
 
 t_start = 0.0
 t_step = 0.01
-t_stop = 5.0
+t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
@@ -47,9 +47,9 @@ function callb()
         lastLoss = losssum()
     end
 
-    if iterCB % 50 == 0
+    if iterCB % 10 == 0
         loss = losssum()
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss   
         lastLoss = loss
     end
@@ -65,15 +65,19 @@ end
 # NeuralFMU setup
 total_fmu_outdim = sum(map(x->length(x.modelDescription.outputValueReferences), fmus))
 
+function eval(i, u)
+    y, _ = fmus[i](;u_refs=fmus[i].modelDescription.inputValueReferences, u=u, y_refs=fmus[i].modelDescription.outputValueReferences)
+    return y
+end
 net = Chain(
     Parallel(
         vcat,
-        inputs -> fmi2InputDoStepCSOutput(fmus[1], t_step, inputs[1:1]),
-        inputs -> fmi2InputDoStepCSOutput(fmus[2], t_step, inputs[2:2])
+        inputs -> eval(1, inputs[1:1]),
+        inputs -> eval(2, inputs[2:2])
     ),
-    Dense(total_fmu_outdim, 16, tanh),
-    Dense(16, 16, tanh),
-    Dense(16, length(fmus[1].modelDescription.outputValueReferences)),
+    Dense(total_fmu_outdim, 16, tanh; init=Flux.identity_init),
+    Dense(16, 16, tanh; init=Flux.identity_init),
+    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=Flux.identity_init),
 )
 
 problem = CS_NeuralFMU(fmus, net, (t_start, t_stop); saveat=tData)
@@ -85,7 +89,7 @@ solutionBefore = problem(extForce, t_step)
 p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
-Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
+Flux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=callb)
 
 # check results
 solutionAfter = problem(extForce, t_step)

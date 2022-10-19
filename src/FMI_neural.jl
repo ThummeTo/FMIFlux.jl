@@ -102,11 +102,13 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     tspan
     saveat
     solution::FMU2Solution
+    re # restrucure function
 
     function CS_NeuralFMU{F, C}() where {F, C}
         inst = new{F, C}()
 
         inst.currentComponent = nothing
+        inst.re = nothing
 
         return inst
     end
@@ -123,7 +125,7 @@ function setInInitialization(mv::FMIImport.fmi2ScalarVariable)
 end
 
 function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{AbstractArray{<:Real}, Nothing}=nothing, inputs::Union{Dict{<:Any, <:Any}, Nothing}=nothing)
+    x0::Union{AbstractArray{<:Real}, Nothing}=nothing, inputs::Union{Dict{<:Any, <:Any}, Nothing}=nothing, cleanup::Bool=false)
 
     ignore_derivatives() do
 
@@ -150,12 +152,9 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, type::fmi2Type,
         # instantiate (hard)
         if instantiate
             # remove old one if we missed it (callback)
-            # if c != nothing
-            #     if freeInstance
-            #         fmi2FreeInstance!(c)
-            #         @debug "[AUTO-RELEASE INST]"
-            #     end
-            # end
+            if cleanup && c != nothing
+                finishFMU(fmu, c, freeInstance, terminate)
+            end
 
             c = fmi2Instantiate!(fmu; type=type)
         else # use existing instance
@@ -252,7 +251,7 @@ function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, type::fmi2Type,
 end
 
 function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing, initFct=nothing)
+    x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing, initFct=nothing, cleanup::Bool=false)
 
     ignore_derivatives() do
         for i in 1:length(fmu)
@@ -280,12 +279,9 @@ function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}},
             # instantiate (hard)
             if instantiate
                 # remove old one if we missed it (callback)
-                if c[i] != nothing
-                    if freeInstance
-                        fmi2FreeInstance!(c[i])
-                        @debug "[AUTO-RELEASE INST]"
-                    end
-                end
+            if cleanup && c[i] != nothing
+                finishFMU(fmu[i], c[i], freeInstance, terminate)
+            end
 
                 c[i] = fmi2Instantiate!(fmu[i]; type=type)
                 @debug "[NEW INST]"
@@ -1164,15 +1160,26 @@ function finishFMU(fmu::FMU2, c::Union{FMU2Component, Nothing}, freeInstance::Un
     return c
 end
 
-function finishFMU(fmu::Vector{FMU2}, c::Vector{Union{FMU2Component, Nothing}}, freeInstance::Union{Nothing, Bool})
+function finishFMU(fmu::Vector{FMU2}, c::Vector{Union{FMU2Component, Nothing}}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool})
 
     ignore_derivatives() do
         for i in 1:length(fmu)
+            if terminate === nothing
+                terminate = fmu[i].executionConfig.terminate
+            end
+
             if freeInstance === nothing
                 freeInstance = fmu[i].executionConfig.freeInstance
             end
 
             if c[i] != nothing
+
+                # soft terminate (if necessary)
+                if terminate
+                    retcode = fmi2Terminate(c[i]; soft=true)
+                    @debug @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
+                end
+
                 if freeInstance
                     fmi2FreeInstance!(c[i])
                     @debug "[RELEASED INST]"
@@ -1439,6 +1446,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  t_step::Real, 
                                  t_start::Real = nfmu.tspan[1], 
                                  t_stop::Real = nfmu.tspan[end]; 
+                                 p=nothing,
                                  tolerance::Union{Real, Nothing} = nothing,
                                  parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
                                  setup::Union{Bool, Nothing} = nothing,
@@ -1451,14 +1459,21 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
         nfmu.solution = FMU2Solution(nfmu.fmu)
     end
 
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
+    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
 
     ts = collect(t_start:t_step:t_stop)
     nfmu.currentComponent.skipNextDoStep = true # skip first fim2DoStep-call
     model_input = inputFct.(ts)
 
     function simStep(input)
-        y = nfmu.model(input)
+        y = nothing 
+
+        if p == nothing # structured, implicite parameters
+            y = nfmu.model(input)
+        else # flattened, explicite parameters
+            @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
+            y = nfmu.re(p)(input)
+        end
         ignore_derivatives() do
             fmi2DoStep(nfmu.currentComponent, t_step)
         end
@@ -1473,8 +1488,8 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
 
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
-    # this is not possible in CS, clean-up happens at the next call
-    #nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance)
+    # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
+    # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
 
     return nfmu.solution
 end
@@ -1482,6 +1497,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          t_step::Real, 
                                          t_start::Real = nfmu.tspan[1], 
                                          t_stop::Real = nfmu.tspan[end]; 
+                                         p=nothing,
                                          tolerance::Union{Real, Nothing} = nothing,
                                          parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing} = nothing,
                                          setup::Union{Bool, Nothing} = nothing,
@@ -1494,7 +1510,9 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
         nfmu.solution = FMU2Solution(nfmu.fmu)
     end 
 
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance)
+    @assert p==nothing "`p != nothing` not implemented yet."
+
+    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
 
     ts = collect(t_start:t_step:t_stop)
     for c in nfmu.currentComponent
@@ -1520,19 +1538,29 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     
     nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
 
-    # this is not possible in CS, clean-up happens at the next call
-    #nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance)
+    # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
+    # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
 
     return nfmu.solution
 end
 
 # adapting the Flux functions
-function Flux.params(neuralfmu::ME_NeuralFMU)
-    Flux.params(neuralfmu.neuralODE)
+function Flux.params(neuralfmu::ME_NeuralFMU; destructure::Bool=false)
+    if destructure 
+        p, nfmu.re = Flux.destructure(nfmu.neuralODE)
+        return p
+    else
+        return Flux.params(neuralfmu.neuralODE)
+    end
 end
 
-function Flux.params(neuralfmu::CS_NeuralFMU)
-    Flux.params(neuralfmu.model)
+function Flux.params(neuralfmu::CS_NeuralFMU; destructure::Bool=false)
+    if destructure 
+        p, nfmu.re = Flux.destructure(nfmu.model)
+        return p
+    else
+        return Flux.params(neuralfmu.model)
+    end
 end
 
 # FMI version independent dosteps
@@ -1580,7 +1608,13 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
             if gradient == :ForwardDiff
 
                 if chunk_size == nothing
-                    grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                    if VERSION >= v"1.7.0"
+                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                    else # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
+                        grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                    end
                 else
                     grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
                     grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);

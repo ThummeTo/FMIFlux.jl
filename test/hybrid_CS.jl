@@ -46,9 +46,9 @@ function callb()
         lastLoss = losssum()
     end
 
-    if iterCB % 50 == 0
+    if iterCB % 10 == 0
         loss = losssum()
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss   
         lastLoss = loss
     end
@@ -58,10 +58,14 @@ end
 numInputs = length(myFMU.modelDescription.inputValueReferences)
 numOutputs = length(myFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
-            Dense(numOutputs, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numOutputs))
+function eval(u)
+    y, _ = myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences)
+    return y
+end
+net = Chain(inputs -> eval(inputs),
+            Dense(numOutputs, 16, tanh; init=Flux.identity_init),
+            Dense(16, 16, tanh; init=Flux.identity_init),
+            Dense(16, numOutputs; init=Flux.identity_init))
 
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
@@ -70,6 +74,6 @@ problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
-Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
+Flux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=callb)
 
 fmiUnload(myFMU)

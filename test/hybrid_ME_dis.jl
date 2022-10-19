@@ -16,13 +16,13 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("BouncingBall1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
-realSimData = fmiSimulate(realFMU, t_start, t_stop; recordValues=["mass_s", "mass_v"], saveat=tData)
+realFMU = fmiLoad("SpringTimeFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
+realSimData = fmiSimulate(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
-@test x0 == [1.0, 0.0]
+@test x0 == [0.5, 0.0]
 
 # setup traing data
-velData = fmi2GetSolutionValue(realSimData, "mass_v")
+velData = fmi2GetSolutionValue(realSimData, "mass.v")
 
 # loss function for training
 function losssum(p)
@@ -48,7 +48,7 @@ function callb(p)
 
     if iterCB % 10 == 0
         loss = losssum(p[1])
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
 
         # This test condition is not good, because when the FMU passes an event, the error might increase.  
         @test (loss < lastLoss) && (loss != lastLoss)
@@ -56,7 +56,7 @@ function callb(p)
     end
 end
 
-vr = fmi2StringToValueReference(realFMU, "mass_m")
+vr = fmi2StringToValueReference(realFMU, "mass.m")
 
 numStates = fmiGetNumberOfStates(realFMU)
 
@@ -64,9 +64,9 @@ numStates = fmiGetNumberOfStates(realFMU)
 nets = [] 
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(Dense(numStates, numStates, tanh; init=Flux.identity_init),
+net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
             states -> fmiEvaluateME(realFMU, states), 
-            Dense(numStates, numStates, identity; init=Flux.identity_init))
+            Dense(numStates, numStates, tanh; init=Flux.identity_init))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
@@ -92,9 +92,8 @@ net = Chain(x -> c1(x),
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
-net = Chain(Dense(numStates, 16, leakyrelu; init=Flux.identity_init),
-            Dense(16, 16, leakyrelu; init=Flux.identity_init),
-            Dense(16, numStates; init=Flux.identity_init),
+net = Chain(Dense(numStates, 16, identity; init=Flux.identity_init),
+            Dense(16, numStates, identity; init=Flux.identity_init),
             x -> realFMU(;x=x)[2], 
             Dense(numStates, 16, tanh; init=Flux.identity_init),
             Dense(16, 16, tanh; init=Flux.identity_init),
@@ -104,14 +103,14 @@ push!(nets, net)
 # 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states -> realFMU(;x=states, t=0.0)[2],
             x -> c1(x),
-            Dense(numStates, 8, tanh),
-            Dense(8, 16, tanh),
-            Dense(16, 1),
+            Dense(numStates, 8, tanh; init=Flux.identity_init),
+            Dense(8, 16, tanh; init=Flux.identity_init),
+            Dense(16, 1; init=Flux.identity_init),
             x -> c2([1], x, []))
 push!(nets, net)
 
 # 6. NeuralFMU with additional getter 
-getVRs = [fmi2StringToValueReference(realFMU, "mass_s")]
+getVRs = [fmi2StringToValueReference(realFMU, "mass.s")]
 numGetVRs = length(getVRs)
 function eval(x)
     y, dx = realFMU(;x=x, y_refs=getVRs)
@@ -126,12 +125,12 @@ net = Chain(x -> eval(x),
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
-setVRs = [fmi2StringToValueReference(realFMU, "mass_m")]
+setVRs = [fmi2StringToValueReference(realFMU, "mass.m")]
 numSetVRs = length(setVRs)
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1]), 
-            Dense(numStates, 8, tanh),
-            Dense(8, 16, tanh),
-            Dense(16, numStates))
+            Dense(numStates, 8, tanh; init=Flux.identity_init),
+            Dense(8, 16, tanh; init=Flux.identity_init),
+            Dense(16, numStates, identity; init=Flux.identity_init))
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
@@ -140,14 +139,14 @@ function eval(x)
     return [y..., dx...]
 end
 net = Chain(x -> eval(x),
-            Dense(numStates+numGetVRs, 8, tanh),
-            Dense(8, 16, tanh),
-            Dense(16, numStates))
+            Dense(numStates+numGetVRs, 8, tanh; init=Flux.identity_init),
+            Dense(8, 16, tanh; init=Flux.identity_init),
+            Dense(16, numStates; init=Flux.identity_init))
 push!(nets, net)
 
 optim = Adam(1e-6)
 for i in 1:length(nets)
-    @testset "Net setup #$i" begin
+    @testset "Net setup $(i)/$(length(nets))" begin
         global nets, problem, lastLoss, iterCB
 
         net = nets[i]
@@ -167,8 +166,8 @@ for i in 1:length(nets)
 
         iterCB = 0
         lastLoss = losssum(p_net[1])
-        @info "Start-Loss for net #$i: $lastLoss"
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 60), optim; cb=()->callb(p_net))
+        @info "Start-Loss for net $(i)/$(length(nets)): $lastLoss"
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
         # check results
         solutionAfter = problem(x0)

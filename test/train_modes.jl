@@ -25,7 +25,7 @@ x0 = fmiGetContinuousStates(realFMU)
 realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
 
 # load FMU for NeuralFMU
-myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
+myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
@@ -47,7 +47,7 @@ function callb(p)
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 25 == 0
+    if iterCB % 10 == 0
         loss = losssum(p[1])
         @info "Loss: $loss"
         @test loss < lastLoss  
@@ -97,9 +97,9 @@ for handleEvents in [true, false]
                 # end
 
                 net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
-                    states -> fmiEvaluateME(myFMU, states),
-                    Dense(numStates, 16, tanh),
-                    Dense(16, numStates))
+                    states -> myFMU(;x=states)[2],
+                    Dense(numStates, 16, tanh; init=Flux.identity_init),
+                    Dense(16, numStates; init=Flux.identity_init))
                 
                 optim = Adam(1e-4)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
@@ -119,7 +119,7 @@ for handleEvents in [true, false]
                 lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
 
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=()->callb(p_net))
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)
