@@ -35,6 +35,10 @@ function losssum(p)
     global problem, x0, posData
     solution = problem(x0; p=p)
 
+    if !solution.success
+        return Inf 
+    end
+
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
     Flux.Losses.mse(posNet, posData)
@@ -98,8 +102,8 @@ for handleEvents in [true, false]
 
                 net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
                     states -> myFMU(;x=states)[2],
-                    Dense(numStates, 16, tanh; init=Flux.identity_init),
-                    Dense(16, numStates; init=Flux.identity_init))
+                    Dense(numStates, 16, tanh),
+                    Dense(16, numStates))
                 
                 optim = Adam(1e-4)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)

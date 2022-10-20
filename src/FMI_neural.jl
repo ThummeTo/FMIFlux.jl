@@ -1472,7 +1472,14 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
             y = nfmu.model(input)
         else # flattened, explicite parameters
             @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
-            y = nfmu.re(p)(input)
+            #_p = undual(p)
+            #@info "$(typeof(p))"
+            #@info "$(typeof(_p))"
+            #if length(p) == 1
+                y = nfmu.re(p)(input)
+            #else
+                #y = nfmu.re(p)(input)
+            #end
         end
         ignore_derivatives() do
             fmi2DoStep(nfmu.currentComponent, t_step)
@@ -1486,13 +1493,26 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
         nfmu.solution.success = true
     end
 
-    nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
+    nfmu.solution.values = SavedValues{typeof(ts[1]), typeof(valueStack[1])}(ts, valueStack)
 
     # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
     # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
 
     return nfmu.solution
 end
+
+function undual(e::AbstractArray)
+    return collect(undual(c) for c in e)
+end
+
+function undual(e::ForwardDiff.Dual)
+    return ForwardDiff.value(e)
+end
+
+function undual(e)
+    return e
+end
+
 function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          t_step::Real, 
                                          t_start::Real = nfmu.tspan[1], 
@@ -1510,8 +1530,6 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
         nfmu.solution = FMU2Solution(nfmu.fmu)
     end 
 
-    @assert p==nothing "`p != nothing` not implemented yet."
-
     nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
 
     ts = collect(t_start:t_step:t_stop)
@@ -1521,7 +1539,20 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     model_input = inputFct.(ts)
 
     function simStep(input)
-        y = nfmu.model(input)
+        y = nothing
+
+        if p == nothing # structured, implicite parameters
+            y = nfmu.model(input)
+        else # flattened, explicite parameters
+            @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
+            #_p = collect(ForwardDiff.value(r) for r in p[1])
+            if length(p) == 1
+                y = nfmu.re(p[1])(input)
+            else
+                y = nfmu.re(p)(input)
+            end
+        end
+
         ignore_derivatives() do
             for c in nfmu.currentComponent
                 fmi2DoStep(c, t_step)
@@ -1536,7 +1567,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
         nfmu.solution.success = true
     end 
     
-    nfmu.solution.values = SavedValues{Float64, Vector{Float64}}(ts, valueStack )
+    nfmu.solution.values = SavedValues{typeof(ts[1]), typeof(valueStack[1])}(ts, valueStack)
 
     # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
     # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
@@ -1545,21 +1576,21 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
 end
 
 # adapting the Flux functions
-function Flux.params(neuralfmu::ME_NeuralFMU; destructure::Bool=false)
+function Flux.params(nfmu::ME_NeuralFMU; destructure::Bool=false)
     if destructure 
         p, nfmu.re = Flux.destructure(nfmu.neuralODE)
         return p
     else
-        return Flux.params(neuralfmu.neuralODE)
+        return Flux.params(nfmu.neuralODE)
     end
 end
 
-function Flux.params(neuralfmu::CS_NeuralFMU; destructure::Bool=false)
+function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=true)
     if destructure 
         p, nfmu.re = Flux.destructure(nfmu.model)
-        return p
+        return Flux.params([p])
     else
-        return Flux.params(neuralfmu.model)
+        return Flux.params(nfmu.model)
     end
 end
 
@@ -1598,7 +1629,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-algorithms)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Float32}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false)
 
     to_differentiate = p -> loss(p)
 
@@ -1609,7 +1640,10 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
 
                 if chunk_size == nothing
                     if VERSION >= v"1.7.0"
+
+                        # chunk size heuristics: as large as the RAM allows it (estimate)
                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+
                         grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
                         grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
                     else # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7

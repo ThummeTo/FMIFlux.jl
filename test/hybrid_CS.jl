@@ -5,7 +5,6 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5
 
 import Random 
 Random.seed!(1234);
@@ -27,8 +26,12 @@ end
 accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
-function losssum()
-    solution = problem(extForce, t_step)
+function losssum(p)
+    solution = problem(extForce, t_step; p=p)
+
+    if !solution.success
+        return Inf 
+    end
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
 
@@ -38,16 +41,16 @@ end
 # callback function for training
 iterCB = 0
 lastLoss = 0.0
-function callb()
+function callb(p)
     global iterCB += 1
     global lastLoss
 
     if iterCB == 1
-        lastLoss = losssum()
+        lastLoss = losssum(p)
     end
 
     if iterCB % 10 == 0
-        loss = losssum()
+        loss = losssum(p)
         @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss   
         lastLoss = loss
@@ -74,6 +77,9 @@ problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
-Flux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=callb)
+
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net[1]))
+
+@test length(myFMU.components) <= 1
 
 fmiUnload(myFMU)

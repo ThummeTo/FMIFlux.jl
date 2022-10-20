@@ -61,24 +61,33 @@ vr = fmi2StringToValueReference(realFMU, "mass.m")
 numStates = fmiGetNumberOfStates(realFMU)
 
 # some NeuralFMU setups
-nets = [] 
+nets = []
+
+c1 = CacheLayer()
+c2 = CacheRetrieveLayer(c1)
+c3 = CacheLayer()
+c4 = CacheRetrieveLayer(c3)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
+net = Chain(x -> c1(x),
+            Dense(numStates, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []),
             states -> fmiEvaluateME(realFMU, states), 
-            Dense(numStates, numStates, tanh; init=Flux.identity_init))
+            x -> c3(x),
+            Dense(numStates, 1, identity; init=Flux.identity_init),
+            x -> c4([1], x, []))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
 net = Chain(x -> realFMU(;x=x)[2], 
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numStates))
+            x -> c1(x),
+            Dense(numStates, 16, identity; init=Flux.identity_init),
+            Dense(16, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
-c1 = CacheLayer()
-c2 = CacheRetrieveLayer(c1)
 function eval(x)
     y, dx = realFMU(;x=x)
     return dx
@@ -92,20 +101,24 @@ net = Chain(x -> c1(x),
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
-net = Chain(Dense(numStates, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+net = Chain(x -> c1(x),
+            Dense(numStates, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []),
             x -> realFMU(;x=x)[2], 
-            Dense(numStates, 16, tanh; init=Flux.identity_init),
-            Dense(16, 16, tanh; init=Flux.identity_init),
-            Dense(16, numStates; init=Flux.identity_init))
+            x -> c3(x),
+            Dense(numStates, 16, identity, init=Flux.identity_init),
+            Dense(16, 16, identity, init=Flux.identity_init),
+            Dense(16, 1, identity, init=Flux.identity_init),
+            x -> c4([1], x, []))
 push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states -> realFMU(;x=states, t=0.0)[2],
             x -> c1(x),
-            Dense(numStates, 8, tanh; init=Flux.identity_init),
-            Dense(8, 16, tanh; init=Flux.identity_init),
-            Dense(16, 1; init=Flux.identity_init),
+            Dense(numStates, 8, identity; init=Flux.identity_init),
+            Dense(8, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
             x -> c2([1], x, []))
 push!(nets, net)
 
@@ -118,19 +131,21 @@ function eval(x)
 end
 net = Chain(x -> eval(x), 
             x -> c1(x),
-            Dense(numStates+numGetVRs, 8, tanh),
-            Dense(8, 16, tanh),
-            Dense(16, 1),
-            x -> c2([2], x, []))
+            Dense(numStates+numGetVRs, 8, identity; init=Flux.identity_init),
+            Dense(8, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
 setVRs = [fmi2StringToValueReference(realFMU, "mass.m")]
 numSetVRs = length(setVRs)
 net = Chain(states ->  fmiEvaluateME(realFMU, states, realFMU.components[end].t, setVRs, [1.1]), 
-            Dense(numStates, 8, tanh; init=Flux.identity_init),
-            Dense(8, 16, tanh; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init))
+            x -> c1(x),
+            Dense(numStates, 8, identity; init=Flux.identity_init),
+            Dense(8, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []))
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
@@ -139,9 +154,11 @@ function eval(x)
     return [y..., dx...]
 end
 net = Chain(x -> eval(x),
-            Dense(numStates+numGetVRs, 8, tanh; init=Flux.identity_init),
-            Dense(8, 16, tanh; init=Flux.identity_init),
-            Dense(16, numStates; init=Flux.identity_init))
+            x -> c1(x),
+            Dense(numStates+numGetVRs, 8, identity; init=Flux.identity_init),
+            Dense(8, 16, identity; init=Flux.identity_init),
+            Dense(16, 1, identity; init=Flux.identity_init),
+            x -> c2([1], x, []))
 push!(nets, net)
 
 optim = Adam(1e-6)
