@@ -17,8 +17,9 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeCoSimulation)
-x0 = ones(2)
 realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], saveat=tData)
+x0 = collect(realSimData.values.saveval[1])
+@test x0 == [0.5, 0.0]
 
 # load FMU for NeuralFMU
 myFMU = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
@@ -101,10 +102,14 @@ push!(nets, net)
 # 6 # NeuralFMU with additional getter 
 getVRs = [fmi2StringToValueReference(myFMU, "mass.s")]
 numGetVRs = length(getVRs)
-net = Chain(states ->  fmiEvaluateME(myFMU, states, myFMU.components[end].t, fmi2ValueReference[], Real[], getVRs), 
+function eval6(x)
+    y, dx = myFMU(;x=x, y_refs=getVRs)
+    return [dx..., y...]
+end
+net = Chain(x -> eval6(x), 
             Dense(numStates+numGetVRs, 8, tanh),
             Dense(8, 16, tanh),
-            Dense(16, numStates))
+            Dense(16, numStates; init=Flux.identity_init))
 push!(nets, net)
 
 # 7 # NeuralFMU with additional setter 

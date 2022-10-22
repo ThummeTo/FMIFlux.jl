@@ -1019,10 +1019,14 @@ function ME_NeuralFMU(fmu::FMU2,
                       saveat=[], 
                       recordFMUValues = nothing, 
                       convertParams::Union{Nothing, Bool}=nothing,
+                      abstol::Real = 1e-6, 
+                      reltol::Real = 1e-3,
+                      dtmin::Real = 1e-16,
+                      force_dtmin::Bool = false,
                       kwargs...)
 
     nfmu = ME_NeuralFMU()
-    
+   
     layers = []
 
     if convertParams === nothing
@@ -1081,7 +1085,7 @@ function ME_NeuralFMU(fmu::FMU2,
 
     nfmu.recordValues = prepareValueReference(fmu, recordFMUValues)
 
-    nfmu.neuralODE = NeuralODE(model, tspan, alg; saveat=saveat, kwargs...)
+    nfmu.neuralODE = NeuralODE(model, tspan, alg; saveat=saveat, abstol=abstol, reltol=reltol, dtmin=dtmin, force_dtmin=force_dtmin, kwargs...)
 
     nfmu.tspan = tspan
     nfmu.saveat = saveat
@@ -1390,6 +1394,13 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
                 #sense = ForwardDiffSensitivity(;convert_tspan=true)
                 sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
                 #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
+
+                if (nfmu.fmu.hasStateEvents && nfmu.fmu.executionConfig.handleStateEvents) || (nfmu.fmu.hasTimeEvents && nfmu.fmu.executionConfig.handleTimeEvents)
+                    if inPlace === true
+                        #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `ForwardDiff` for discontinuous NeuralFMUs. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
+                        inPlace = false # ForwardDiff only works for out-of-place (currently), overwriting `dx` leads to issues like `dt < dtmin`
+                    end
+                end
         
             else
                 sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
@@ -1411,7 +1422,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         prob = ODEProblem{true}(ff, nfmu.x0, nfmu.tspan, p)
     else 
         ff = ODEFunction{false}((x, p, t) -> fx(nfmu, x, p, t), 
-                                tgrad=basic_tgrad)
+                                tgrad=nothing) # basic_tgrad)
         prob = ODEProblem{false}(ff, nfmu.x0, nfmu.tspan, p)
     end
 
@@ -1499,18 +1510,6 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
 
     return nfmu.solution
-end
-
-function undual(e::AbstractArray)
-    return collect(undual(c) for c in e)
-end
-
-function undual(e::ForwardDiff.Dual)
-    return ForwardDiff.value(e)
-end
-
-function undual(e)
-    return e
 end
 
 function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
@@ -1639,16 +1638,20 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
             if gradient == :ForwardDiff
 
                 if chunk_size == nothing
+                    
+                    # chunk size heuristics: as large as the RAM allows it (estimate)
+                    # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
                     if VERSION >= v"1.7.0"
-
-                        # chunk size heuristics: as large as the RAM allows it (estimate)
                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
-
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
-                    else # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
-                        grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                    else
+                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
                     end
+
+                    grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                    grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                    # else 
+                    #     grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                    # end
                 else
                     grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
                     grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);

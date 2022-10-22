@@ -5,7 +5,7 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5
+using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
 Random.seed!(5678);
@@ -17,18 +17,17 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(realFMU; loggingOn=false)
-fmiSetupExperiment(realFMU, t_start, t_stop)
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
+pdict = Dict("mass.m" => 1.3)
+realSimData = fmiSimulate(realFMU, t_start, t_stop; parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
+x0 = collect(realSimData.values.saveval[1])
+@test x0 == [0.5, 0.0]
 
 # load FMU for NeuralFMU
 myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
+velData = fmi2GetSolutionValue(realSimData, "mass.v")
 
 # loss function for training
 function losssum(p)
@@ -39,9 +38,10 @@ function losssum(p)
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    #posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    Flux.Losses.mse(posNet, posData)
+    return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -100,13 +100,21 @@ for handleEvents in [true, false]
                 #     fmiExitInitializationMode(myFMU)
                 # end
 
-                net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
-                    states -> myFMU(;x=states)[2],
-                    Dense(numStates, 16, tanh),
-                    Dense(16, numStates))
+                c1 = CacheLayer()
+                c2 = CacheRetrieveLayer(c1)
+                c3 = CacheLayer()
+                c4 = CacheRetrieveLayer(c3)
+                net = Chain(x -> c1(x),
+                            Dense(numStates, numStates, identity; init=Flux.identity_init),
+                            x -> c2([1], x[2], []),
+                            states -> myFMU(;x=states)[2],
+                            x -> c3(x),
+                            Dense(numStates, 16, identity; init=Flux.identity_init),
+                            Dense(16, numStates, identity; init=Flux.identity_init),
+                            x -> c4([1], x[2], []) )
                 
-                optim = Adam(1e-4)
-                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
+                optim = Adam(1e-6)
+                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Rosenbrock23(autodiff=false); saveat=tData)
                 @test problem != nothing
                 
                 solutionBefore = problem(x0)
