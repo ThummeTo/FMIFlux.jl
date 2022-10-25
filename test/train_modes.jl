@@ -104,13 +104,13 @@ for handleEvents in [true, false]
                             Dense(numStates, numStates, identity; init=Flux.identity_init),
                             x -> c2([1], x[2], []),
                             states -> myFMU(;x=states)[2],
-                            x -> c3(x),
-                            Dense(numStates, 16, identity; init=Flux.identity_init),
+                            dx -> c3(dx),
+                            Dense(numStates, 16, tanh; init=Flux.identity_init),
                             Dense(16, numStates, identity; init=Flux.identity_init),
-                            x -> c4([1], x[2], []) )
+                            dx -> c4([1], dx[2], []) )
                 
-                optim = Adam(1e-6)
-                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Rosenbrock23(autodiff=false); saveat=tData)
+                optim = Adam(1e-8)
+                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
                 @test problem != nothing
                 
                 solutionBefore = problem(x0)
@@ -127,7 +127,7 @@ for handleEvents in [true, false]
                 lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
 
-                @info "[$(iterCB)] Loss: $lastLoss"
+                @info "[ $(iterCB)] Loss: $lastLoss"
                 FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
                 # check results

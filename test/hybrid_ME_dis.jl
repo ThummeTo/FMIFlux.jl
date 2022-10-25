@@ -191,7 +191,7 @@ for i in 1:length(nets)
 
         iterCB = 0
         lastLoss = losssum(p_net[1])
-        @info "Start-Loss for net $(i)/$(length(nets)): $lastLoss"
+        @info "[ $(iterCB)] Loss: $lastLoss"
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
         # check results
