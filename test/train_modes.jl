@@ -53,7 +53,7 @@ function callb(p)
 
     if iterCB % 10 == 0
         loss = losssum(p[1])
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss  
         lastLoss = loss
     end
@@ -81,8 +81,10 @@ for handleEvents in [true, false]
                 myFMU.executionConfig.assertOnError = true
                 myFMU.executionConfig.assertOnWarning = true
 
+                @info "handleEvents: $(handleEvents) | instantiate: $(myFMU.executionConfig.instantiate) | reset: $(myFMU.executionConfig.reset) | freeInstance: $(myFMU.executionConfig.freeInstance)"
+
                 if myFMU.executionConfig.instantiate == false 
-                    @info "instantiate = false, instantiating..."
+                    #@info "instantiate = false, instantiating..."
 
                     comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
                     FMI.fmi2SetupExperiment(comp, t_start, t_stop)
@@ -93,12 +95,6 @@ for handleEvents in [true, false]
 
                     FMI.fmi2Terminate(comp)
                 end
-
-                # if myFMU.executionConfig.setup == false
-                #     fmiSetupExperiment(myFMU, t_start, t_stop)
-                #     fmiEnterInitializationMode(myFMU)
-                #     fmiExitInitializationMode(myFMU)
-                # end
 
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
@@ -131,6 +127,7 @@ for handleEvents in [true, false]
                 lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
 
+                @info "[$(iterCB)] Loss: $lastLoss"
                 FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
 
                 # check results
