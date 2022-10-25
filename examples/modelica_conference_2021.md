@@ -127,9 +127,9 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_H1soLt/SpringFrictionPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_OsG1aH/SpringFrictionPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_H1soLt/SpringFrictionPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_OsG1aH/SpringFrictionPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
@@ -301,9 +301,9 @@ fmiInfo(simpleFMU)
     ##################### End information for FMU #####################
 
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_EKV94r/SpringPendulum1D`.
+    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_617pgD/SpringPendulum1D`.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_EKV94r/SpringPendulum1D/resources`
+    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_617pgD/SpringPendulum1D/resources`
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
     ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
     └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
@@ -677,7 +677,7 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 ```
 
-    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:21[39m
+    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:24[39m
 
 
 
@@ -713,7 +713,7 @@ optim = ADAM()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
 ```
 
-    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:31[39m
+    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:33[39m
     ┌ Info:   Loss [1]: 0.35233
     │         Avg displacement in data: 0.59357
     │         Weight/Scale: 1.1993630640973756   Bias/Offset: 0.0009999976539634642
@@ -982,7 +982,7 @@ end
     └ @ Main In[14]:15
 
 
-    112.888147 seconds (211.91 M allocations: 153.160 GiB, 18.00% gc time, 2.43% compilation time)
+    134.515606 seconds (212.03 M allocations: 153.164 GiB, 15.98% gc time, 2.31% compilation time)
 
 
 
@@ -1009,7 +1009,7 @@ end
     
 
 
-    ┌ Info: Friction model 1 mse: 6.076064634503041
+    ┌ Info: Friction model 1 mse: 6.076064634503042
     └ @ Main In[18]:29
 
 
@@ -1237,7 +1237,7 @@ end
     └ @ Main In[14]:15
 
 
-    104.945759 seconds (188.60 M allocations: 140.127 GiB, 18.57% gc time)
+    121.808850 seconds (188.60 M allocations: 140.127 GiB, 16.64% gc time)
 
 
 
@@ -1264,7 +1264,7 @@ end
     
 
 
-    ┌ Info: Friction model 1 mse: 6.076064634503041
+    ┌ Info: Friction model 1 mse: 6.076064634503042
     └ @ Main In[18]:29
     ┌ Info: Friction model 2 mse: 6.19198240945078
     └ @ Main In[18]:29
