@@ -51,7 +51,7 @@ function callb(p)
         lastLoss = losssum(p[1])
     end
 
-    if iterCB % 10 == 0
+    if iterCB % 5 == 0
         loss = losssum(p[1])
         @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss   
@@ -93,7 +93,7 @@ solutionBefore = problem(extForce, t_step)
 p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), 30), optim; cb=()->callb(p_net))
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
 
 # check results
 solutionAfter = problem(extForce, t_step)

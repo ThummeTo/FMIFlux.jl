@@ -366,10 +366,10 @@ function startCallback(integrator, nfmu, t)
         nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
         # handleEvents(nfmu.currentComponent)  done in prepareFMU!
         
-        if nfmu.currentComponent.eventInfo.nextEventTime == t
+        if nfmu.currentComponent.eventInfo.nextEventTime == t && nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
         else
-            @debug "No initial events ..."
+            @debug "No initial time events ..."
         end
 
         #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
@@ -1313,7 +1313,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu, integrator, t_start, t_stop),
             (integrator) -> affectFMU!(nfmu, integrator, 0), 
             Float64; 
-            initial_affect=(nfmu.currentComponent.eventInfo.nextEventTime == t_start),
+            initial_affect=(nfmu.currentComponent.eventInfo.nextEventTime == t_start), # already checked in the outer closure: nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
             save_positions=(saveEventPositions, saveEventPositions))
 
             push!(nfmu.callbacks, timeEventCb)
@@ -1646,8 +1646,8 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
                         
                     else
-                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
-                        #grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                         #grad = ForwardDiff.gradient(to_differentiate, params[j]);
                     end
 
                     grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
