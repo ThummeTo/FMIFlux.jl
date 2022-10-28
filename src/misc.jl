@@ -101,3 +101,13 @@ function transferParams!(net, p_net, c=1; netRange=nothing)
         end
     end
 end
+
+# this is needed by Zygote, but not defined by default
+function Base.ndims(::Tuple{Float64})
+    return 1
+end
+
+# transposes a vector of vectors
+function transpose(vec::AbstractVector{<:AbstractVector{<:Real}})
+    return collect(eachrow(reduce(hcat, vec)))
+end
