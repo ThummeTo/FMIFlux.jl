@@ -5,7 +5,7 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5
+using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
 Random.seed!(5678);
@@ -17,27 +17,31 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
-fmiInstantiate!(realFMU; loggingOn=false)
-fmiSetupExperiment(realFMU, t_start, t_stop)
-fmiEnterInitializationMode(realFMU)
-fmiExitInitializationMode(realFMU)
-x0 = fmiGetContinuousStates(realFMU)
-realSimData = fmiSimulateCS(realFMU, t_start, t_stop; recordValues=["mass.s", "mass.v"], setup=false, reset=false, instantiate=false, saveat=tData)
+pdict = Dict("mass.m" => 1.3)
+realSimData = fmiSimulate(realFMU, t_start, t_stop; parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
+x0 = collect(realSimData.values.saveval[1])
+@test x0 == [0.5, 0.0]
 
 # load FMU for NeuralFMU
-myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
+myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
+velData = fmi2GetSolutionValue(realSimData, "mass.v")
 
 # loss function for training
 function losssum(p)
     global problem, x0, posData
     solution = problem(x0; p=p)
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    if !solution.success
+        return Inf 
+    end
+
+    #posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    Flux.Losses.mse(posNet, posData)
+    return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -47,9 +51,9 @@ function callb(p)
     global iterCB += 1
     global lastLoss
 
-    if iterCB % 25 == 0
+    if iterCB % 5 == 0
         loss = losssum(p[1])
-        @info "Loss: $loss"
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss  
         lastLoss = loss
     end
@@ -77,8 +81,10 @@ for handleEvents in [true, false]
                 myFMU.executionConfig.assertOnError = true
                 myFMU.executionConfig.assertOnWarning = true
 
+                @info "handleEvents: $(handleEvents) | instantiate: $(myFMU.executionConfig.instantiate) | reset: $(myFMU.executionConfig.reset) | freeInstance: $(myFMU.executionConfig.freeInstance)"
+
                 if myFMU.executionConfig.instantiate == false 
-                    @info "instantiate = false, instantiating..."
+                    #@info "instantiate = false, instantiating..."
 
                     comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
                     FMI.fmi2SetupExperiment(comp, t_start, t_stop)
@@ -90,18 +96,20 @@ for handleEvents in [true, false]
                     FMI.fmi2Terminate(comp)
                 end
 
-                # if myFMU.executionConfig.setup == false
-                #     fmiSetupExperiment(myFMU, t_start, t_stop)
-                #     fmiEnterInitializationMode(myFMU)
-                #     fmiExitInitializationMode(myFMU)
-                # end
-
-                net = Chain(Dense(numStates, numStates, identity; init=Flux.identity_init),
-                    states -> fmiEvaluateME(myFMU, states),
-                    Dense(numStates, 16, tanh),
-                    Dense(16, numStates))
+                c1 = CacheLayer()
+                c2 = CacheRetrieveLayer(c1)
+                c3 = CacheLayer()
+                c4 = CacheRetrieveLayer(c3)
+                net = Chain(x -> c1(x),
+                            Dense(numStates, numStates, identity; init=Flux.identity_init),
+                            x -> c2([1], x[2], []),
+                            states -> myFMU(;x=states)[2],
+                            dx -> c3(dx),
+                            Dense(numStates, 16, tanh; init=Flux.identity_init),
+                            Dense(16, numStates, identity; init=Flux.identity_init),
+                            dx -> c4([1], dx[2], []) )
                 
-                optim = Adam(1e-4)
+                optim = Adam(1e-8)
                 problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
                 @test problem != nothing
                 
@@ -119,7 +127,8 @@ for handleEvents in [true, false]
                 lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
 
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 50), optim; cb=()->callb(p_net))
+                @info "[ $(iterCB)] Loss: $lastLoss"
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)

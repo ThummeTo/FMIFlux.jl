@@ -5,7 +5,6 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5
 
 import Random 
 Random.seed!(1234);
@@ -16,7 +15,7 @@ t_stop = 1.0 # 5.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
+myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeCoSimulation)
 parameters = Dict("mass_s0" => 1.3)
 realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], saveat=tData)
 
@@ -27,8 +26,12 @@ end
 accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
-function losssum()
-    solution = problem(extForce, t_step)
+function losssum(p)
+    solution = problem(extForce, t_step; p=p)
+
+    if !solution.success
+        return Inf 
+    end
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
 
@@ -38,17 +41,17 @@ end
 # callback function for training
 iterCB = 0
 lastLoss = 0.0
-function callb()
+function callb(p)
     global iterCB += 1
     global lastLoss
 
     if iterCB == 1
-        lastLoss = losssum()
+        lastLoss = losssum(p[1])
     end
 
-    if iterCB % 50 == 0
-        loss = losssum()
-        @info "Loss: $loss"
+    if iterCB % 5 == 0
+        loss = losssum(p[1])
+        @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss   
         lastLoss = loss
     end
@@ -58,10 +61,14 @@ end
 numInputs = length(myFMU.modelDescription.inputValueReferences)
 numOutputs = length(myFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmiInputDoStepCSOutput(myFMU, t_step, inputs),
-            Dense(numOutputs, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numOutputs))
+function eval(u)
+    y, _ = myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences)
+    return y
+end
+net = Chain(inputs -> eval(inputs),
+            Dense(numOutputs, 16, tanh; init=Flux.identity_init),
+            Dense(16, 16, tanh; init=Flux.identity_init),
+            Dense(16, numOutputs; init=Flux.identity_init))
 
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
@@ -69,7 +76,10 @@ problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam()
-Flux.train!(losssum, p_net, Iterators.repeated((), 100), optim; cb=callb)
+optim = Adam(1e-6)
+
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
+
+@test length(myFMU.components) <= 1
 
 fmiUnload(myFMU)

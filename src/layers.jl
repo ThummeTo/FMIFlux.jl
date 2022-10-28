@@ -3,6 +3,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+using Statistics: mean, std
+
 ### SHIFTSCALE ###
 
 struct ShiftScale{T}
@@ -17,12 +19,19 @@ struct ShiftScale{T}
     function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}) where {T}
         return ShiftScale{T}(shift, scale)
     end
+
+    # initialize for data array
+    function ShiftScale(data::AbstractArray{<:AbstractArray{T}}) where {T}
+        shift = -mean.(data)
+        scale = 1.0 ./ std.(data)
+        return ShiftScale{T}(shift, scale)
+    end
 end
 export ShiftScale
 
 function (l::ShiftScale)(x)
 
-    x_proc = (x .+ m.shift) .* m.scale
+    x_proc = (x .+ l.shift) .* l.scale
     
     return x_proc
 end
@@ -48,68 +57,55 @@ struct ScaleShift{T}
     function ScaleShift(l::ShiftScale{T}) where {T}
         return ScaleShift{T}(1.0 / l.scale, -1.0 * shift)
     end
+
+    function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}
+        shift = mean.(data)
+        scale = std.(data)
+        return ShiftScale{T}(scale, shift)
+    end
 end
 export ScaleShift
 
 function (l::ScaleShift)(x)
 
-    x_proc = (x .* m.scale) .+ m.shift
+    x_proc = (x .* l.scale) .+ l.shift
     
     return x_proc
 end
 
 Flux.@functor ScaleShift (scale, shift)
 
-### SKIPSTART ### 
+### CACHE ### 
 
-struct SkipStart{T}
-    cache::AbstractArray{T}
-    indices::AbstractArray{UInt}
-    map::Dict{UInt, UInt}
-    
-    function SkipStart{T}(cache::AbstractArray{T}, indices::AbstractArray{UInt}) where {T}
-        map = Dict()
-        mi = 1
-        for i in 1:max(indices)
-            if i ∈ indices
-                map[i] = mi
-                mi += 1
-            end
-        end
-        inst = new(cache, indices, map)
+mutable struct CacheLayer
+    cache::AbstractArray
+
+    function CacheLayer()
+        inst = new()
         return inst
     end
-
-    function ScaleShift(cache::AbstractArray{T}, indices::AbstractArray{UInt}) where {T}
-        return ScaleShift{T}(cache, indices)
-    end
 end
-export SkipStart
+export CacheLayer
 
-function (l::SkipStart)(x)
+function (l::CacheLayer)(x)
 
-    x.cache = x
+    l.cache = x
     
-    return x[m.indices]
+    return x
 end
 
-### SKIPSTOP ### 
+### CACHERetrieve ### 
 
-struct SkipStop{T}
-    start::SkipStart{T}
+struct CacheRetrieveLayer
+    cacheLayer::CacheLayer
     
-    function SkipStop{T}(start::SkipStart{T}) where {T}
-        inst = new(start)
+    function CacheRetrieveLayer(cacheLayer::CacheLayer)
+        inst = new(cacheLayer)
         return inst
     end
-
-    function SkipStop(start::SkipStart{T}) where {T}
-        return SkipStop{T}(start)
-    end
 end
-export SkipStop
+export CacheRetrieveLayer
 
-function (l::SkipStop)(x)
-    
-    return collect((i ∈ l.start.indices ? x[l.start.map[i]] : l.start.cache[i]) for i in 1:length(l.start.cache))
+function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=[])
+    return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
 end

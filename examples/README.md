@@ -1,0 +1,3 @@
+![FMIFlux.jl Logo](https://github.com/ThummeTo/FMIFlux.jl/blob/main/logo/dark/fmifluxjl_logo_640_320.png?raw=true "FMIFlux.jl Logo")
+
+Examples can be found in the [examples folder in the examples branch](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) or the [examples section of the documentation](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/). All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).

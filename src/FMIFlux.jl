@@ -23,11 +23,10 @@ using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicator
 using FMIImport: fmi2SampleDirectionalDerivative, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
-include("component_shadow.jl")
-include("FMI2_neural.jl")
 include("FMI_neural.jl")
 include("misc.jl")
 include("layers.jl")
+include("deprecated.jl")
 
 function __init__()
     @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
@@ -47,19 +46,13 @@ function __init__()
     end
 end
 
-# FMI2_neural.jl
-export fmi2EvaluateME, fmi2DoStepCS
-export fmi2InputDoStepCSOutput
-export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU, NeuralFMU_TrainingModeConfig
-
 # FMI_neural.jl
-export fmiEvaluateME, fmiDoStepCS
-export fmiInputDoStepCSOutput
+export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
 
 # misc.jl
 export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
-# debugging only 
-# export _build_jac_dx_x_slow
+# deprecated.jl
+# >>> deprecated functions are exported inside the file itself
 
 end # module

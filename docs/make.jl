@@ -21,6 +21,7 @@ makedocs(sitename="FMIFlux.jl",
                     "Advanced ME-NeuralFMU" => "examples/advanced_hybrid_ME.md"
                     "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
             ]
+            "FAQ" => "faq.md"
             "Library Functions" => "library.md"
             "Related Publication" => "related.md"
             "Contents" => "contents.md"
