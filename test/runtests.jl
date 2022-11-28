@@ -26,10 +26,10 @@ function runtests(exportingTool)
 
     @testset "Testing FMUs exported from $(ENV["EXPORTINGTOOL"]) ($(ENV["EXPORTINGVERSION"]))" begin
         
-        @info "Sensitivities (sens.jl)"
-        @testset "Sensitivities" begin
-            include("sens.jl")
-        end
+        # @info "Sensitivities (sens.jl)"
+        # @testset "Sensitivities" begin
+        #     include("sens.jl")
+        # end
 
         @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
         @testset "ME-NeuralFMU (Continuous)" begin
