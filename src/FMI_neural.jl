@@ -1644,7 +1644,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                     # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
                     if VERSION >= v"1.7.0"
                         # chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
-                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*16
                         
                     else
                          chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
