@@ -1647,7 +1647,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*16
                         
                     else
-                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*8
+                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
                          #grad = ForwardDiff.gradient(to_differentiate, params[j]);
                     end
 
