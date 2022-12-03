@@ -21,9 +21,18 @@ struct ShiftScale{T}
     end
 
     # initialize for data array
-    function ShiftScale(data::AbstractArray{<:AbstractArray{T}}) where {T}
+    function ShiftScale(data::AbstractArray{<:AbstractArray{T}}; range::Union{Symbol, UnitRange{<:Integer}}=-1:1) where {T}
         shift = -mean.(data)
-        scale = 1.0 ./ std.(data)
+        scale = nothing
+
+        if range == :NormalDistribution
+            scale = 1.0 ./ std.(data)
+        elseif isa(range, UnitRange{<:Integer})
+            scale = 1.0 ./ (collect(max(d...) for d in data) - collect(min(d...) for d in data)) .* (range[end] - range[1])
+        else
+            @assert false "Unsupported scaleMode, supported is `:NormalDistribution` or `UnitRange{<:Integer}`"
+        end
+
         return ShiftScale{T}(shift, scale)
     end
 end
@@ -54,8 +63,8 @@ struct ScaleShift{T}
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T}) where {T}
-        return ScaleShift{T}(1.0 / l.scale, -1.0 * shift)
+    function ScaleShift(l::ShiftScale{T}; indices=1:length(data)) where {T}
+        return ScaleShift{T}(1.0 / l.scale[indices], -1.0 * l.shift[indices])
     end
 
     function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}

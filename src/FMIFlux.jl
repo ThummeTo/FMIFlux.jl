@@ -11,39 +11,58 @@ using Requires
 
 using FMIImport
 using FMIImport: fmi2ValueReference, FMU, FMU2, FMU2Component
-
-#import FMIImport.PreallocationTools
-
-# ToDo: this can not be imported correctly from FMIImport.jl
-fmi2Struct = Union{FMU2, FMU2Component}
-
+using FMIImport: fmi2Struct
 using FMIImport: fmi2SetupExperiment, fmi2EnterInitializationMode, fmi2ExitInitializationMode, fmi2Reset, fmi2Terminate
 using FMIImport: fmi2NewDiscreteStates, fmi2SetContinuousStates, fmi2GetContinuousStates, fmi2GetNominalsOfContinuousStates
 using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicators, fmi2GetDerivatives, fmi2GetReal
 using FMIImport: fmi2SampleDirectionalDerivative, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
-include("FMI_neural.jl")
+include("neural.jl")
 include("misc.jl")
 include("layers.jl")
 include("deprecated.jl")
+include("batch.jl")
 include("losses.jl")
+include("scheduler.jl")
+
+# from Plots.jl 
+# No export here, Plots.plot is extended if available.
+
+# from FMI.jl 
+function fmiPlot(nfmu::NeuralFMU; kwargs...)
+    @assert false "fmiPlot(...) needs `Plots` package. Please install `Plots` and do `using Plots` or `import Plots`."
+end
+function fmiPlot!(fig, nfmu::NeuralFMU; kwargs...)
+    @assert false "fmiPlot!(...) needs `Plots` package. Please install `Plots` and do `using Plots` or `import Plots`."
+end
+# No export here, FMI.fmiPlot is extended.
+
+# from JLD2.jl
+function fmiSaveParameters(nfmu::NeuralFMU, path::String; keyword="parameters")
+    @assert false "fmiSaveParameters(...) needs `JLD2` package. Please install `JLD2` and do `using JLD2` or `import JLD2`."
+end
+function fmiLoadParameters(nfmu::NeuralFMU, path::String; flux_model=nothing, keyword="parameters")
+    @assert false "fmiLoadParameters(...) needs `JLD2` package. Please install `JLD2` and do `using JLD2` or `import JLD2`."
+end
+export fmiSaveParameters, fmiLoadParameters
 
 function __init__()
     @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
         import .Plots
-
-        include("FMI_plot.jl")
-
-        Plots.plot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+        include("extensions/Plots.jl")
     end
 
     @require FMI="14a09403-18e3-468f-ad8a-74f8dda2d9ac" begin 
         @require Plots="91a5bcdd-55d7-5caf-9e0b-520d859cae80" begin 
             import .FMI 
-            
-            FMI.fmiPlot(nfmu::NeuralFMU) = fmiPlot(nfmu)
+            include("extensions/FMI.jl")
         end
+    end
+
+    @require JLD2="033835bb-8acc-5ee8-8aae-3f567f8a3819" begin
+        import .JLD2
+        include("extensions/JLD2.jl")
     end
 end
 
@@ -52,6 +71,10 @@ export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
 
 # misc.jl
 export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
+
+# scheduler.jl
+export WorstElementScheduler, WorstGrowScheduler, RandomScheduler, SequentialScheduler
+export initialize!, update!
 
 # deprecated.jl
 # >>> deprecated functions are exported inside the file itself
