@@ -25,7 +25,7 @@ mutable struct WorstElementScheduler <: BatchScheduler
     lossFct
     runkwargs
     printMsg::String
-
+    
     function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1)
         inst = new()
         inst.neuralFMU = neuralFMU
@@ -37,6 +37,44 @@ mutable struct WorstElementScheduler <: BatchScheduler
         inst.plotStep = plotStep
 
         inst.printMsg = ""
+       
+        return inst
+    end
+end
+
+# ToDo: DocString update.
+"""
+    Computes all batch element losses. Picks the batch element with the greatest accumulated loss as next training element. If picked, accumulated loss is resetted.
+    (Prevents starvation of batch elements with little loss)
+"""
+mutable struct LossAccumulationScheduler <: BatchScheduler
+
+    ### mandatory ###
+    step::Integer
+    elementIndex::Integer
+    applyStep::Integer
+    plotStep::Integer
+    batch
+    neuralFMU::NeuralFMU
+
+    ### type specific ###
+    lossFct
+    runkwargs
+    printMsg::String
+    lossAccu::Array{<:Real}
+    
+    function LossAccumulationScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1)
+        inst = new()
+        inst.neuralFMU = neuralFMU
+        inst.step = 0
+        inst.elementIndex = 0
+        inst.batch = batch
+        inst.lossFct = lossFct
+        inst.applyStep = applyStep
+        inst.plotStep = plotStep
+
+        inst.printMsg = ""
+        inst.lossAccu = zeros(length(batch))
 
         return inst
     end
@@ -141,7 +179,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
 
     lastIndex = 0
     scheduler.step = 0
-    scheduler.elementIndex = 0
+    scheduler.elementIndex = 1
 
     if hasfield(typeof(scheduler), :runkwargs)
         scheduler.runkwargs = runkwargs
@@ -182,6 +220,10 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     end
 
     fig = Plots.plot(; xlabel="Batch ID", ylabel="Loss", title=title)
+
+    if hasfield(typeof(scheduler), :lossAccu)
+        Plots.bar!(fig, xs, scheduler.lossAccu, label=:none, color=:magenta, bar_width=0.25);
+    end
     
     Plots.bar!(fig, xs, ys_shadow, label=:none, color=:orange, bar_width=1.0);
     Plots.bar!(fig, xs, ys, label=:none, color=:blue, bar_width=0.5);
@@ -249,6 +291,48 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
     end
 
     return maxind
+end
+
+function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
+    
+    avgsum = 0.0
+    losssum = 0.0
+
+    maxe = 0.0
+    nextind = 1
+
+    # reset current accu loss
+    scheduler.lossAccu[scheduler.elementIndex] = 0.0
+
+    num = length(scheduler.batch)
+    for i in 1:num
+        
+        FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+
+        scheduler.lossAccu[i] += l
+
+        losssum += l
+        avgsum += l / num
+
+        if l > maxe
+            maxe = l 
+        end
+    end
+
+    # find largest accumulated loss
+    for i in 1:num
+        if scheduler.lossAccu[i] > scheduler.lossAccu[nextind]
+            nextind = i
+        end
+    end
+
+    if print
+        scheduler.printMsg = "AVG: $(roundToLength(avgsum, 8)) | MAX: $(roundToLength(maxe, 8)) @ #$(scheduler.elementIndex)"
+        @info scheduler.printMsg
+    end
+
+    return nextind
 end
 
 function apply!(scheduler::WorstGrowScheduler; print::Bool=true)

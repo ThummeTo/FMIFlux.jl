@@ -73,8 +73,11 @@ export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
 export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # scheduler.jl
-export WorstElementScheduler, WorstGrowScheduler, RandomScheduler, SequentialScheduler
+export WorstElementScheduler, WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler
 export initialize!, update!
+
+# batch.jl 
+export batchDataSolution, batchDataEvaluation
 
 # deprecated.jl
 # >>> deprecated functions are exported inside the file itself
