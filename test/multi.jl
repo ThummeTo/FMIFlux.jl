@@ -18,7 +18,7 @@ tData = t_start:t_step:t_stop
 # generate traing data
 myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeCoSimulation)
 parameters = Dict("mass_s0" => 1.3)
-realSimData = fmiSimulateCS(myFMU, t_start, t_stop; parameters=parameters, recordValues=["mass.a"], saveat=tData)
+realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
 fmiUnload(myFMU)
 
 # setup traing data

@@ -4,6 +4,7 @@
 #
 
 import Printf
+using Colors
 
 abstract type BatchScheduler end
 
@@ -213,25 +214,41 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     xs = 1:num 
     ys = collect((length(b.losses) > 0 ? b.losses[end].loss : 0.0) for b in scheduler.batch)
     ys_shadow = collect((length(b.losses) > 1 ? b.losses[end-1].loss : 0.0) for b in scheduler.batch)
-
+    
     title = "[$(scheduler.step)]" 
     if hasfield(typeof(scheduler), :printMsg)
         title = title * " " * scheduler.printMsg
     end
 
-    fig = Plots.plot(; xlabel="Batch ID", ylabel="Loss", title=title)
+    fig = Plots.plot(; xlabel="Batch ID", ylabel="Loss", background_color_legend=colorant"rgba(255,255,255,0.5)", title=title)
 
     if hasfield(typeof(scheduler), :lossAccu)
-        Plots.bar!(fig, xs, scheduler.lossAccu, label=:none, color=:magenta, bar_width=0.25);
+        normScale = max(ys..., ys_shadow...) / max(scheduler.lossAccu...)
+        Plots.bar!(fig, xs, scheduler.lossAccu .* normScale, label="Accum. loss (norm.)", color=:blue, bar_width=1.0, alpha=0.2);
+    end
+
+    good = []
+    bad = []
+
+    for i in 1:num 
+        if ys[i] > ys_shadow[i]
+            push!(bad, i)
+        else
+            push!(good, i)
+        end
     end
     
-    Plots.bar!(fig, xs, ys_shadow, label=:none, color=:orange, bar_width=1.0);
-    Plots.bar!(fig, xs, ys, label=:none, color=:blue, bar_width=0.5);
+    Plots.bar!(fig, xs[good], ys[good], label="Loss (better)", color=:green, bar_width=1.0);
+    Plots.bar!(fig, xs[bad], ys[bad], label="Loss (worse)", color=:orange, bar_width=1.0);
+
+    for i in 1:length(ys_shadow)
+        Plots.plot!(fig, [xs[i]-0.5, xs[i]+0.5], [ys_shadow[i], ys_shadow[i]], label=(i == 1 ? "Last loss" : :none), linewidth=2, color=:black);
+    end
     
     if lastIndex > 0
-        Plots.plot!(fig, [lastIndex], [0.0], color=:green, marker=:circle, label="Current ID", markersize = 5.0) # current batch element
+        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID", markersize = 5.0) # current batch element
     end
-    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:red, marker=:circle, label="Next ID", markersize = 3.0) # next batch element
+    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID", markersize = 3.0) # next batch element
     display(fig)
 end
 

@@ -84,6 +84,31 @@ end
 
 Flux.@functor ScaleShift (scale, shift)
 
+### ScaleSum ###
+
+struct ScaleSum{T}
+    scale::AbstractArray{T}
+    
+    function ScaleSum{T}(scale::AbstractArray{T}) where {T}
+        inst = new(scale)
+        return inst
+    end
+
+    function ScaleSum(scale::AbstractArray{T}) where {T}
+        return ScaleSum{T}(scale)
+    end
+end
+export ScaleSum
+
+function (l::ScaleSum)(x)
+
+    x_proc = sum(x .* l.scale)
+    
+    return [x_proc]
+end
+
+Flux.@functor ScaleSum (scale, )
+
 ### CACHE ### 
 
 mutable struct CacheLayer
@@ -115,6 +140,11 @@ struct CacheRetrieveLayer
 end
 export CacheRetrieveLayer
 
-function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=[])
-    return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=nothing)
+    # Zygote doesn't like empty arrays
+    if idxAfter == nothing
+        return [l.cacheLayer.cache[idxBefore]..., x...]
+    else
+        return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+    end
 end

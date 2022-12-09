@@ -15,7 +15,7 @@ using FMIImport: fmi2Struct
 using FMIImport: fmi2SetupExperiment, fmi2EnterInitializationMode, fmi2ExitInitializationMode, fmi2Reset, fmi2Terminate
 using FMIImport: fmi2NewDiscreteStates, fmi2SetContinuousStates, fmi2GetContinuousStates, fmi2GetNominalsOfContinuousStates
 using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicators, fmi2GetDerivatives, fmi2GetReal
-using FMIImport: fmi2SampleDirectionalDerivative, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
+using FMIImport: fmi2SampleJacobian, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
 include("neural.jl")
@@ -78,6 +78,9 @@ export initialize!, update!
 
 # batch.jl 
 export batchDataSolution, batchDataEvaluation
+
+# layers.jl
+# >>> layers are exported inside the file itself
 
 # deprecated.jl
 # >>> deprecated functions are exported inside the file itself

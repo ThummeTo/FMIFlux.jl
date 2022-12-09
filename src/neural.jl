@@ -1224,8 +1224,7 @@ Via optional argument `reset`, the FMU is reset every time evaluation is started
 """
 function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  t_step::Real, 
-                                 t_start::Real = nfmu.tspan[1], 
-                                 t_stop::Real = nfmu.tspan[end]; 
+                                 tspan::Tuple{Float64, Float64} = nfmu.tspan; 
                                  p=nothing,
                                  tolerance::Union{Real, Nothing} = nothing,
                                  parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
@@ -1235,6 +1234,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  freeInstance::Union{Bool, Nothing} = nothing,
                                  terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
+    t_start, t_stop = tspan
     nfmu.currentComponent, _ = prepareSolveFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
     nfmu.solution = FMU2Solution(nfmu.currentComponent)
 
@@ -1249,14 +1249,8 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
             y = nfmu.model(input)
         else # flattened, explicite parameters
             @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
-            #_p = undual(p)
-            #@info "$(typeof(p))"
-            #@info "$(typeof(_p))"
-            #if length(p) == 1
-                y = nfmu.re(p)(input)
-            #else
-                #y = nfmu.re(p)(input)
-            #end
+            
+            y = nfmu.re(p)(input)
         end
         ignore_derivatives() do
             fmi2DoStep(nfmu.currentComponent, t_step)
@@ -1282,8 +1276,7 @@ end
 
 function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          t_step::Real, 
-                                         t_start::Real = nfmu.tspan[1], 
-                                         t_stop::Real = nfmu.tspan[end]; 
+                                         tspan::Tuple{Float64, Float64} = nfmu.tspan; 
                                          p=nothing,
                                          tolerance::Union{Real, Nothing} = nothing,
                                          parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing} = nothing,
@@ -1293,6 +1286,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          freeInstance::Union{Bool, Nothing} = nothing,
                                          terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
+    t_start, t_stop = tspan
     nfmu.currentComponent, _ = prepareSolveFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
     nfmu.solution = FMU2Solution(nfmu.currentComponent)
 

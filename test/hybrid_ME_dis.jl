@@ -18,7 +18,7 @@ tData = t_start:t_step:t_stop
 # generate training data
 realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
 pdict = Dict("mass.m" => 1.3)
-realSimData = fmiSimulate(realFMU, t_start, t_stop; parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
+realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
 @test x0 == [0.5, 0.0]
 
