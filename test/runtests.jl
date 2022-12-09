@@ -3,6 +3,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+start_time = time()
+
 using FMIFlux
 using Test
 using FMIZoo
@@ -26,11 +28,6 @@ function runtests(exportingTool)
 
     @testset "Testing FMUs exported from $(ENV["EXPORTINGTOOL"]) ($(ENV["EXPORTINGVERSION"]))" begin
         
-        @info "Sensitivities (sens.jl)"
-        @testset "Sensitivities" begin
-            include("sens.jl")
-        end
-
         @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
         @testset "ME-NeuralFMU (Continuous)" begin
             include("hybrid_ME.jl")
@@ -73,3 +70,5 @@ end
         @warn "Test-sets are currrently using Windows- and Linux-FMUs, automated testing for macOS is currently not supported."
     end
 end
+
+@info "Finished tests after $(round(time()-start_time; digits=2))s"

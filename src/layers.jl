@@ -21,9 +21,18 @@ struct ShiftScale{T}
     end
 
     # initialize for data array
-    function ShiftScale(data::AbstractArray{<:AbstractArray{T}}) where {T}
+    function ShiftScale(data::AbstractArray{<:AbstractArray{T}}; range::Union{Symbol, UnitRange{<:Integer}}=-1:1) where {T}
         shift = -mean.(data)
-        scale = 1.0 ./ std.(data)
+        scale = nothing
+
+        if range == :NormalDistribution
+            scale = 1.0 ./ std.(data)
+        elseif isa(range, UnitRange{<:Integer})
+            scale = 1.0 ./ (collect(max(d...) for d in data) - collect(min(d...) for d in data)) .* (range[end] - range[1])
+        else
+            @assert false "Unsupported scaleMode, supported is `:NormalDistribution` or `UnitRange{<:Integer}`"
+        end
+
         return ShiftScale{T}(shift, scale)
     end
 end
@@ -54,8 +63,8 @@ struct ScaleShift{T}
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T}) where {T}
-        return ScaleShift{T}(1.0 / l.scale, -1.0 * shift)
+    function ScaleShift(l::ShiftScale{T}; indices=1:length(data)) where {T}
+        return ScaleShift{T}(1.0 / l.scale[indices], -1.0 * l.shift[indices])
     end
 
     function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}
@@ -74,6 +83,31 @@ function (l::ScaleShift)(x)
 end
 
 Flux.@functor ScaleShift (scale, shift)
+
+### ScaleSum ###
+
+struct ScaleSum{T}
+    scale::AbstractArray{T}
+    
+    function ScaleSum{T}(scale::AbstractArray{T}) where {T}
+        inst = new(scale)
+        return inst
+    end
+
+    function ScaleSum(scale::AbstractArray{T}) where {T}
+        return ScaleSum{T}(scale)
+    end
+end
+export ScaleSum
+
+function (l::ScaleSum)(x)
+
+    x_proc = sum(x .* l.scale)
+    
+    return [x_proc]
+end
+
+Flux.@functor ScaleSum (scale, )
 
 ### CACHE ### 
 
@@ -106,6 +140,11 @@ struct CacheRetrieveLayer
 end
 export CacheRetrieveLayer
 
-function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=[])
-    return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=nothing)
+    # Zygote doesn't like empty arrays
+    if idxAfter == nothing
+        return [l.cacheLayer.cache[idxBefore]..., x...]
+    else
+        return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+    end
 end

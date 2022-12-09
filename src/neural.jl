@@ -13,14 +13,17 @@ import ForwardDiff
 import Optim
 import ProgressMeter
 
-import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!
+import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!, terminate!
 import SciMLBase: ContinuousCallback, VectorContinuousCallback
 
 using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
 import ChainRulesCore: ignore_derivatives
 
-using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange
+using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange, FMU2Component
 using FMIImport: logInfo, logWarn, logError
+
+import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
+import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
@@ -34,7 +37,7 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     neuralODE::NeuralODE
     fmu::FMU
 
-    currentComponent
+    currentComponent::Union{FMU2Component, Nothing}
     
     tspan
     saveat
@@ -42,6 +45,7 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     recordValues
 
     valueStack
+    solution::FMU2Solution
 
     customCallbacksBefore::Array
     callbacks::Array
@@ -49,8 +53,7 @@ mutable struct ME_NeuralFMU <: NeuralFMU
 
     x0::Array{Float64}
     firstRun::Bool
-    solution::FMU2Solution
-
+    
     tolerance::Union{Real, Nothing}
     parameters::Union{Dict{<:Any, <:Any}, Nothing}
     setup::Union{Bool, Nothing}
@@ -69,6 +72,7 @@ mutable struct ME_NeuralFMU <: NeuralFMU
     stop_t
 
     progressMeter
+    execution_start::Real
 
     solveCycle::UInt
 
@@ -87,6 +91,8 @@ mutable struct ME_NeuralFMU <: NeuralFMU
         inst.customCallbacksBefore = []
         inst.customCallbacksAfter = []
 
+        inst.execution_start = 0.0
+
         return inst 
     end
 end
@@ -101,7 +107,9 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     
     tspan
     saveat
+
     solution::FMU2Solution
+   
     re # restrucure function
 
     function CS_NeuralFMU{F, C}() where {F, C}
@@ -114,241 +122,235 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     end
 end
 
-import FMIImport: fmi2VariabilityConstant, fmi2InitialApprox, fmi2InitialExact
-function setBeforeInitialization(mv::FMIImport.fmi2ScalarVariable)
-    return mv.variability != fmi2VariabilityConstant && mv.initial ∈ (fmi2InitialApprox, fmi2InitialExact)
-end
+# function prepareSolveFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
+#     x0::Union{AbstractArray{<:Real}, Nothing}=nothing, inputs::Union{Dict{<:Any, <:Any}, Nothing}=nothing, cleanup::Bool=false)
 
-import FMIImport: fmi2CausalityInput, fmi2CausalityParameter, fmi2VariabilityTunable
-function setInInitialization(mv::FMIImport.fmi2ScalarVariable)
-    return mv.causality == fmi2CausalityInput || (mv.causality != fmi2CausalityParameter && mv.variability == fmi2VariabilityTunable) || (mv.variability != fmi2VariabilityConstant && mv.initial == fmi2InitialExact)
-end
+#     ignore_derivatives() do
 
-function prepareFMU(fmu::FMU2, c::Union{Nothing, FMU2Component}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Dict{<:Any, <:Any}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{AbstractArray{<:Real}, Nothing}=nothing, inputs::Union{Dict{<:Any, <:Any}, Nothing}=nothing, cleanup::Bool=false)
+#         if instantiate === nothing 
+#             instantiate = fmu.executionConfig.instantiate
+#         end
 
-    ignore_derivatives() do
+#         if freeInstance === nothing 
+#             freeInstance = fmu.executionConfig.freeInstance
+#         end
 
-        if instantiate === nothing 
-            instantiate = fmu.executionConfig.instantiate
-        end
+#         if terminate === nothing 
+#             terminate = fmu.executionConfig.terminate
+#         end
 
-        if freeInstance === nothing 
-            freeInstance = fmu.executionConfig.freeInstance
-        end
+#         if reset === nothing 
+#             reset = fmu.executionConfig.reset 
+#         end
 
-        if terminate === nothing 
-            terminate = fmu.executionConfig.terminate
-        end
+#         if setup === nothing 
+#             setup = fmu.executionConfig.setup 
+#         end 
 
-        if reset === nothing 
-            reset = fmu.executionConfig.reset 
-        end
+#         # instantiate (hard)
+#         if instantiate
+#             # remove old one if we missed it (callback)
+#             if cleanup && c != nothing
+#                 finishSolveFMU(fmu, c, freeInstance, terminate)
+#             end
 
-        if setup === nothing 
-            setup = fmu.executionConfig.setup 
-        end 
+#             c = fmi2Instantiate!(fmu; type=type)
+#         else # use existing instance
+#             if c === nothing && length(fmu.components) > 0
+#                 c = fmu.components[end]
+#             else
+#                 @warn "Found no FMU instance, but executionConfig doesn't force allocation. Allocating one. Use `fmi2Instantiate(fmu)` to prevent this message."
+#                 c = fmi2Instantiate!(fmu; type=type)
+#             end
 
-        # instantiate (hard)
-        if instantiate
-            # remove old one if we missed it (callback)
-            if cleanup && c != nothing
-                finishFMU(fmu, c, freeInstance, terminate)
-            end
+#             # soft terminate (if necessary)
+#             # if terminate
+#             #     retcode = fmi2Terminate(c; soft=true)
+#             #     @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
+#             # end
+#         end
 
-            c = fmi2Instantiate!(fmu; type=type)
-        else # use existing instance
-            if c === nothing && length(fmu.components) > 0
-                c = fmu.components[end]
-            end
+#         @assert c != nothing "No FMU instance available, allocate one or use `fmu.executionConfig.instantiate=true`."
 
-            # soft terminate (if necessary)
-            # if terminate
-            #     retcode = fmi2Terminate(c; soft=true)
-            #     @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
-            # end
-        end
+#         # soft reset (if necessary)
+#         if reset
+#             retcode = fmi2Reset(c; soft=true)
+#             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Reset failed with return code $(retcode)."
+#         end 
 
-        @assert c != nothing "No FMU instance available, allocate one or use `fmu.executionConfig.instantiate=true`."
+#         # setup experiment (hard)
+#         if setup
+#             retcode = fmi2SetupExperiment(c, t_start, t_stop; tolerance=tolerance)
+#             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting up experiment failed with return code $(retcode)."
+#         end
 
-        # soft reset (if necessary)
-        if reset
-            retcode = fmi2Reset(c; soft=true)
-            @assert retcode == fmi2StatusOK "fmi2Simulate(...): Reset failed with return code $(retcode)."
-        end 
+#         # parameters
+#         if parameters !== nothing
+#             retcodes = fmi2Set(c, collect(keys(parameters)), collect(Base.values(parameters)); filter=setBeforeInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
+#         end
 
-        # setup experiment (hard)
-        if setup
-            retcode = fmi2SetupExperiment(c, t_start, t_stop; tolerance=tolerance)
-            @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting up experiment failed with return code $(retcode)."
-        end
+#         # inputs
+#         if inputs !== nothing
+#             retcodes = fmi2Set(c, collect(keys(inputs)), collect(values(inputs)); filter=setBeforeInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
+#         end
 
-        # parameters
-        if parameters !== nothing
-            retcodes = fmi2Set(c, collect(keys(parameters)), collect(Base.values(parameters)); filter=setBeforeInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
-        end
+#         # start state
+#         if x0 !== nothing
+#             #retcode = fmi2SetContinuousStates(c, x0)
+#             #@assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
+#             retcodes = fmi2Set(c, fmu.modelDescription.stateValueReferences, x0; filter=setBeforeInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
+#         end
 
-        # inputs
-        if inputs !== nothing
-            retcodes = fmi2Set(c, collect(keys(inputs)), collect(values(inputs)); filter=setBeforeInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
-        end
+#         # enter (hard)
+#         if setup
+#             retcode = fmi2EnterInitializationMode(c)
+#             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Entering initialization mode failed with return code $(retcode)."
+#         end
 
-        # start state
-        if x0 !== nothing
-            #retcode = fmi2SetContinuousStates(c, x0)
-            #@assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
-            retcodes = fmi2Set(c, fmu.modelDescription.stateValueReferences, x0; filter=setBeforeInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
-        end
+#         # parameters
+#         if parameters !== nothing
+#             retcodes = fmi2Set(c, collect(keys(parameters)), collect(Base.values(parameters)); filter=setInInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
+#         end
 
-        # enter (hard)
-        if setup
-            retcode = fmi2EnterInitializationMode(c)
-            @assert retcode == fmi2StatusOK "fmi2Simulate(...): Entering initialization mode failed with return code $(retcode)."
-        end
+#         # inputs
+#         if inputs !== nothing
+#             retcodes = fmi2Set(c, collect(keys(inputs)), collect(Base.values(inputs)); filter=setInInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
+#         end
 
-        # parameters
-        if parameters !== nothing
-            retcodes = fmi2Set(c, collect(keys(parameters)), collect(Base.values(parameters)); filter=setInInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
-        end
+#         # start state
+#         if x0 !== nothing
+#             #retcode = fmi2SetContinuousStates(c, x0)
+#             #@assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
+#             retcodes = fmi2Set(c, fmu.modelDescription.stateValueReferences, x0; filter=setInInitialization)
+#             @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
+#         end
 
-        # inputs
-        if inputs !== nothing
-            retcodes = fmi2Set(c, collect(keys(inputs)), collect(Base.values(inputs)); filter=setInInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
-        end
+#         # exit setup (hard)
+#         if setup
+#             retcode = fmi2ExitInitializationMode(c)
+#             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Exiting initialization mode failed with return code $(retcode)."
+#         end
 
-        # start state
-        if x0 !== nothing
-            #retcode = fmi2SetContinuousStates(c, x0)
-            #@assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
-            retcodes = fmi2Set(c, fmu.modelDescription.stateValueReferences, x0; filter=setInInitialization)
-            @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial inputs failed with return code $(retcode)."
-        end
+#         if type == fmi2TypeModelExchange
+#             if x0 == nothing
+#                 x0 = fmi2GetContinuousStates(c)
+#             end
+#         end
 
-        # exit setup (hard)
-        if setup
-            retcode = fmi2ExitInitializationMode(c)
-            @assert retcode == fmi2StatusOK "fmi2Simulate(...): Exiting initialization mode failed with return code $(retcode)."
-        end
+#         if instantiate || reset # we have a fresh instance 
+#             @debug "[NEW INST]"
+#             handleEvents(c) 
+#         end
+#     end
 
-        if type == fmi2TypeModelExchange
-            if x0 == nothing
-                x0 = fmi2GetContinuousStates(c)
-            end
-        end
+#     return c, x0
+# end
 
-        if instantiate || reset # we have a fresh instance 
-            @debug "[NEW INST]"
-            handleEvents(c) 
-        end
-    end
+# function prepareSolveFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
+#     x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing, initFct=nothing, cleanup::Bool=false)
 
-    return c, x0
-end
+#     ignore_derivatives() do
+#         for i in 1:length(fmu)
 
-function prepareFMU(fmu::Vector{FMU2}, c::Vector{Union{Nothing, FMU2Component}}, type::fmi2Type, instantiate::Union{Nothing, Bool}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}, reset::Union{Nothing, Bool}, setup::Union{Nothing, Bool}, parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing}, t_start, t_stop, tolerance;
-    x0::Union{Vector{Union{Array{<:Real}, Nothing}}, Nothing}=nothing, initFct=nothing, cleanup::Bool=false)
+#             if instantiate === nothing
+#                 instantiate = fmu[i].executionConfig.instantiate
+#             end
 
-    ignore_derivatives() do
-        for i in 1:length(fmu)
+#             if freeInstance === nothing 
+#                 freeInstance = fmu[i].executionConfig.freeInstance
+#             end
 
-            if instantiate === nothing
-                instantiate = fmu[i].executionConfig.instantiate
-            end
+#             if terminate === nothing 
+#                 terminate = fmu[i].executionConfig.terminate
+#             end
 
-            if freeInstance === nothing 
-                freeInstance = fmu[i].executionConfig.freeInstance
-            end
+#             if reset === nothing
+#                 reset = fmu[i].executionConfig.reset
+#             end
 
-            if terminate === nothing 
-                terminate = fmu[i].executionConfig.terminate
-            end
+#             if setup === nothing
+#                 setup = fmu[i].executionConfig.setup
+#             end
 
-            if reset === nothing
-                reset = fmu[i].executionConfig.reset
-            end
+#             # instantiate (hard)
+#             if instantiate
+#                 # remove old one if we missed it (callback)
+#             if cleanup && c[i] != nothing
+#                 finishSolveFMU(fmu[i], c[i], freeInstance, terminate)
+#             end
 
-            if setup === nothing
-                setup = fmu[i].executionConfig.setup
-            end
+#                 c[i] = fmi2Instantiate!(fmu[i]; type=type)
+#                 @debug "[NEW INST]"
+#             else
+#                 if c[i] === nothing
+#                     c[i] = fmu[i].components[end]
+#                 end
+#             end
 
-            # instantiate (hard)
-            if instantiate
-                # remove old one if we missed it (callback)
-            if cleanup && c[i] != nothing
-                finishFMU(fmu[i], c[i], freeInstance, terminate)
-            end
+#             # soft terminate (if necessary)
+#             if terminate
+#                 retcode = fmi2Terminate(c[i]; soft=true)
+#                 @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
+#             end
 
-                c[i] = fmi2Instantiate!(fmu[i]; type=type)
-                @debug "[NEW INST]"
-            else
-                if c[i] === nothing
-                    c[i] = fmu[i].components[end]
-                end
-            end
+#             # soft reset (if necessary)
+#             if reset
+#                 retcode = fmi2Reset(c[i]; soft=true)
+#                 @assert retcode == fmi2StatusOK "fmi2Simulate(...): Reset failed with return code $(retcode)."
+#             end
 
-            # soft terminate (if necessary)
-            if terminate
-                retcode = fmi2Terminate(c[i]; soft=true)
-                @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
-            end
+#             # enter setup (hard)
+#             if setup
+#                 retcode = fmi2SetupExperiment(c[i], t_start, t_stop; tolerance=tolerance)
+#                 @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting up experiment failed with return code $(retcode)."
 
-            # soft reset (if necessary)
-            if reset
-                retcode = fmi2Reset(c[i]; soft=true)
-                @assert retcode == fmi2StatusOK "fmi2Simulate(...): Reset failed with return code $(retcode)."
-            end
+#                 retcode = fmi2EnterInitializationMode(c[i])
+#                 @assert retcode == fmi2StatusOK "fmi2Simulate(...): Entering initialization mode failed with return code $(retcode)."
+#             end
 
-            # enter setup (hard)
-            if setup
-                retcode = fmi2SetupExperiment(c[i], t_start, t_stop; tolerance=tolerance)
-                @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting up experiment failed with return code $(retcode)."
+#             if x0 !== nothing
+#                 if x0[i] !== nothing
+#                     retcode = fmi2SetContinuousStates(c[i], x0[i])
+#                     @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
+#                 end
+#             end
 
-                retcode = fmi2EnterInitializationMode(c[i])
-                @assert retcode == fmi2StatusOK "fmi2Simulate(...): Entering initialization mode failed with return code $(retcode)."
-            end
+#             if parameters !== nothing
+#                 if parameters[i] !== nothing
+#                     retcodes = fmi2Set(c[i], collect(keys(parameters[i])), collect(values(parameters[i])) )
+#                     @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
+#                 end
+#             end
 
-            if x0 !== nothing
-                if x0[i] !== nothing
-                    retcode = fmi2SetContinuousStates(c[i], x0[i])
-                    @assert retcode == fmi2StatusOK "fmi2Simulate(...): Setting initial state failed with return code $(retcode)."
-                end
-            end
+#             if initFct !== nothing
+#                 initFct()
+#             end
 
-            if parameters !== nothing
-                if parameters[i] !== nothing
-                    retcodes = fmi2Set(c[i], collect(keys(parameters[i])), collect(values(parameters[i])) )
-                    @assert all(retcodes .== fmi2StatusOK) "fmi2Simulate(...): Setting initial parameters failed with return code $(retcode)."
-                end
-            end
+#             # exit setup (hard)
+#             if setup
+#                 retcode = fmi2ExitInitializationMode(c[i])
+#                 @assert retcode == fmi2StatusOK "fmi2Simulate(...): Exiting initialization mode failed with return code $(retcode)."
+#             end
 
-            if initFct !== nothing
-                initFct()
-            end
+#             if type == fmi2TypeModelExchange
+#                 if x0 === nothing
+#                     if x0[i] === nothing
+#                         x0[i] = fmi2GetContinuousStates(c[i])
+#                     end
+#                 end
+#             end
+#         end
 
-            # exit setup (hard)
-            if setup
-                retcode = fmi2ExitInitializationMode(c[i])
-                @assert retcode == fmi2StatusOK "fmi2Simulate(...): Exiting initialization mode failed with return code $(retcode)."
-            end
 
-            if type == fmi2TypeModelExchange
-                if x0 === nothing
-                    if x0[i] === nothing
-                        x0[i] = fmi2GetContinuousStates(c[i])
-                    end
-                end
-            end
-        end
+#     end # ignore_derivatives
 
-    end # ignore_derivatives
-
-    return c, x0
-end
+#     return c, x0
+# end
 
 ##### EVENT HANDLING START
 
@@ -357,14 +359,13 @@ function startCallback(integrator, nfmu, t)
         nfmu.solveCycle += 1
         @debug "[$(nfmu.solveCycle)][FIRST STEP]"
 
-        @assert ForwardDiff.value(t) == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
-        # if ForwardDiff.value(t) == nfmu.tspan[1]
-        #     @warn "startCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
-        # end
+        nfmu.execution_start = time()
 
+        t = undual(t)
+
+        @assert t == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
         
-        nfmu.currentComponent, nfmu.x0 = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0)
-        # handleEvents(nfmu.currentComponent)  done in prepareFMU!
+        nfmu.currentComponent, nfmu.x0 = prepareSolveFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, handleEvents=FMIFlux.handleEvents)
         
         if nfmu.currentComponent.eventInfo.nextEventTime == t && nfmu.currentComponent.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
@@ -373,12 +374,6 @@ function startCallback(integrator, nfmu, t)
         end
 
         #@assert fmi2EnterContinuousTimeMode(nfmu.currentComponent) == fmi2StatusOK
-        
-        # re-init every callback except #1 (the startCallback itself)
-        # for i in 2:length(nfmu.callbacks)
-        #     callback = nfmu.callbacks[i]
-        #     callback.initialize(callback, u, t, integrator)
-        # end
     end
 end
 
@@ -387,31 +382,19 @@ function stopCallback(nfmu, t)
     ignore_derivatives() do
         @debug "[$(nfmu.solveCycle)][LAST STEP]"
 
-        @assert ForwardDiff.value(t) == nfmu.tspan[end] "stopCallback(...): Called for non-start-point t=$(ForwardDiff.value(t))"
+        t = undual(t)
 
-        if nfmu.fmu.executionConfig.useComponentShadow
+        @assert t == nfmu.tspan[end] "stopCallback(...): Called for non-start-point t=$(t)"
 
-            if nfmu.solveCycle == 2
-                prepare!(nfmu.currentComponent)
-                @debug "[$(nfmu.solveCycle)][PREPARED SHADOW]"
-            end
-            
-            #comp = finishFMU(nfmu.fmu, nfmu.currentComponent.realComponent, nfmu.freeInstance; popComponent=false)
-            #setComponent!(nfmu.currentComponent, comp)
-
-        else
-            nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, nfmu.freeInstance, nfmu.terminate)
-        end
-
+        nfmu.currentComponent = finishSolveFMU(nfmu.fmu, nfmu.currentComponent, nfmu.freeInstance, nfmu.terminate)
+        
     end
 end
 
 # Read next time event from fmu and provide it to the integrator 
 function time_choice(nfmu, integrator, tStart, tStop)
 
-    #@debug "TC"
-
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in time_choice start `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     # last call may be after simulation end
     if nfmu.currentComponent == nothing
@@ -442,100 +425,36 @@ function time_choice(nfmu, integrator, tStart, tStop)
     
 end
 
-# Handles events and returns the values and nominals of the changed continuous states.
-function handleEvents(c::FMU2Component)
-
-    @assert c.state == fmi2ComponentStateEventMode "handleEvents(...): Must be in event mode!"
-
-    #@debug "Handle Events..."
-
-    # trigger the loop
-    c.eventInfo.newDiscreteStatesNeeded = fmi2True
-
-    valuesOfContinuousStatesChanged = fmi2False
-    nominalsOfContinuousStatesChanged = fmi2False
-    nextEventTimeDefined = fmi2False
-    nextEventTime = 0.0
-
-    numCalls = 0
-    while c.eventInfo.newDiscreteStatesNeeded == fmi2True
-        numCalls += 1
-        fmi2NewDiscreteStates!(c, c.eventInfo)
-
-        if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
-            valuesOfContinuousStatesChanged = fmi2True
-        end
-
-        if c.eventInfo.nominalsOfContinuousStatesChanged == fmi2True
-            nominalsOfContinuousStatesChanged = fmi2True
-        end
-
-        if c.eventInfo.nextEventTimeDefined == fmi2True
-            nextEventTimeDefined = fmi2True
-            nextEventTime = c.eventInfo.nextEventTime
-        end
-
-        if c.eventInfo.terminateSimulation == fmi2True
-            @error "handleEvents(...): FMU throws `terminateSimulation`!"
-        end
-
-        @assert numCalls <= c.fmu.executionConfig.maxNewDiscreteStateCalls "handleEvents(...): `fmi2NewDiscreteStates!` exceeded $(c.fmu.executionConfig.maxNewDiscreteStateCalls) calls, this may be an error in the FMU. If not, you can change the max value for this FMU in `fmu.executionConfig.maxNewDiscreteStateCalls`."
-    end
-
-    c.eventInfo.valuesOfContinuousStatesChanged = valuesOfContinuousStatesChanged
-    c.eventInfo.nominalsOfContinuousStatesChanged = nominalsOfContinuousStatesChanged
-    c.eventInfo.nextEventTimeDefined = nextEventTimeDefined
-    c.eventInfo.nextEventTime = nextEventTime
-
-    @assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK "FMU is not in state continuous time after event handling."
-
-    return nothing
-end
-
 # Returns the event indicators for an FMU.
 function condition(nfmu::ME_NeuralFMU, out::SubArray{<:ForwardDiff.Dual{T, V, N}, A, B, C, D}, _x, t, integrator) where {T, V, N, A, B, C, D} # Event when event_f(u,t) == 0
-    #@debug "Cond"
+    
+    @debug assert_integrator_valid()
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in condition start `u` @ $(integrator.t)."
-    #@info "Condition"
     @assert nfmu.fmu.components[end].state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
 
-    if isa(t, ForwardDiff.Dual)
-        t = ForwardDiff.value(t)
-    end
-
-    x = nothing
-    if all(isa.(x, ForwardDiff.Dual))
-        x = collect(ForwardDiff.value(e) for e in _x)
-    else
-        x = _x
-    end
+    t = undual(t)
+    x = undual(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #nfmu.fmu.components[end].t = t # this will auto-set time via fx-call!
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(nfmu.fmu, t)
 
-    buf = zeros(nfmu.fmu.modelDescription.numberOfEventIndicators)
-    fmi2GetEventIndicators!(nfmu.fmu.components[end], buf)
+    out_tmp = zeros(nfmu.fmu.modelDescription.numberOfEventIndicators)
+    fmi2GetEventIndicators!(nfmu.fmu.components[end], out_tmp)
 
-    out[:] = collect(ForwardDiff.Dual{T, V, N}(V(buf[i]), ForwardDiff.partials(out[i])) for i in 1:length(out))
+    fd_set!(out, out_tmp)
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in condition out `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     return nothing
 end
 function condition(nfmu::ME_NeuralFMU, out, _x, t, integrator) # Event when event_f(u,t) == 0
-    #@debug "Cond"
-    # last call may be after simulation end
-    # if nfmu.currentComponent == nothing
-    #     return nothing
-    # end
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in condition start `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     @assert nfmu.fmu.components[end].state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
@@ -544,29 +463,17 @@ function condition(nfmu::ME_NeuralFMU, out, _x, t, integrator) # Event when even
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
 
-    if isa(t, ForwardDiff.Dual) 
-        t = ForwardDiff.value(t)
-    end 
-
-    x = nothing
-    if all(isa.(x, ForwardDiff.Dual))
-        x = collect(ForwardDiff.value(e) for e in _x)
-    else
-        x = _x
-    end
+    t = undual(t)
+    x = undual(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #nfmu.fmu.components[end].t = t # this will auto-set time via fx-call!
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(nfmu.fmu, t)
 
-    # ToDo: Input Function
-
-    #@debug "Condition..."
-
     fmi2GetEventIndicators!(nfmu.fmu.components[end], out)
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in condition stop `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     return nothing
 end
@@ -575,11 +482,6 @@ global lastIndicator = nothing
 global lastIndicatorX = nothing 
 global lastIndicatorT = nothing
 function conditionSingle(nfmu::ME_NeuralFMU, index, _x, t, integrator) 
-
-    # last call may be after simulation end
-    # if nfmu.currentComponent == nothing
-    #     return 1.0
-    # end
 
     @assert nfmu.fmu.components[end].state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
@@ -590,26 +492,14 @@ function conditionSingle(nfmu::ME_NeuralFMU, index, _x, t, integrator)
         return 1.0
     end
 
-    if isa(t, ForwardDiff.Dual) 
-        t = ForwardDiff.value(t)
-    end 
-
-    x = nothing
-    if all(isa.(x, ForwardDiff.Dual))
-        x = collect(ForwardDiff.value(e) for e in _x)
-    else
-        x = _x
-    end
-
-    #@debug "ConditionSingle..."
+    t = undual(t)
+    x = undual(_x)
 
     global lastIndicator # , lastIndicatorX, lastIndicatorT
 
     if lastIndicator == nothing || length(lastIndicator) != nfmu.fmu.modelDescription.numberOfEventIndicators
         lastIndicator = zeros(nfmu.fmu.modelDescription.numberOfEventIndicators)
     end
-
-    #if lastIndicatorX == nothing || lastIndicatorX != x || lastIndicatorT == nothing || lastIndicatorT != t
 
     # ToDo: Input Function
     
@@ -619,11 +509,7 @@ function conditionSingle(nfmu::ME_NeuralFMU, index, _x, t, integrator)
     fmi2SetTime(nfmu.fmu, t)
 
     fmi2GetEventIndicators!(nfmu.fmu.components[end], lastIndicator)
-    #lastIndicatorX = copy(x)
-    #lastIndicatorT = t
     
-#end
-
     return lastIndicator[index]
 end
 
@@ -637,36 +523,23 @@ end
 # Handles the upcoming events.
 function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in start `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     c = nfmu.fmu.components[end]
 
     @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...): Must be in continuous time mode!"
 
-    t = integrator.t
-    if isa(t, ForwardDiff.Dual) 
-
-        # correct NaNs in `t`
-        # partials = ForwardDiff.partials(integrator.t)
-        # T, V, N = fd_eltypes(integrator.t)
-        # partials = collect(isnan(p) ? 0.0 : p for p in partials)
-        # fd_t = ForwardDiff.Dual{T, V, N}(V(ForwardDiff.value(t)), ForwardDiff.Partials{N, V}((partials...,)))
-        # set_t!(integrator, fd_t)
-
-        t = ForwardDiff.value(t)
-    end 
-
-    x = nothing
-    if all(isa.(integrator.u, ForwardDiff.Dual))
-        x = collect(ForwardDiff.value(u) for u in integrator.u)
-    else
-        x = integrator.u
-    end
+    t = undual(integrator.t)
+    x = undual(integrator.u)
 
     # there are fx-evaluations before the event is handled, reset the FMU state to the current integrator step
-    #c.t = t # this will auto-set time via fx-call!
+    mode = c.fmu.executionConfig.force
+    c.fmu.executionConfig.force = true
+
     nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(c, t)
+
+    c.fmu.executionConfig.force = mode
 
     # if inputFunction !== nothing
     #     fmi2SetReal(c, inputValues, inputFunction(integrator.t))
@@ -719,66 +592,26 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
             right_x = right_x_fmu
         end
 
-        #@info "(integrator.opt.internalnorm(integrator.u, integrator.t)) = $(ForwardDiff.value(integrator.opts.internalnorm(integrator.u, integrator.t)))"
-
-        if all(isa.(integrator.u, ForwardDiff.Dual))
+        if isdual(integrator.u)
             T, V, N = fd_eltypes(integrator.u)
 
-            # use original partials:
-            #partials = 
-
-            # use "fresh" partials (ones)
-            #partials =  ForwardDiff.Partials{N, V}((ones(V, length(ForwardDiff.partials(integrator.u[i])))...,))
-
-            # use zero partials
-            #partials =  ForwardDiff.Partials{N, V}((zeros(V, length(ForwardDiff.partials(integrator.u[i])))...,))
-
-            #new_x = collect(ForwardDiff.Dual{T, V, N}(V(right_x[i]), ForwardDiff.partials(integrator.u[i]))   for i in 1:length(integrator.u))
             new_x = collect(ForwardDiff.Dual{T, V, N}(V(right_x[i]), ForwardDiff.partials(integrator.u[i]))   for i in 1:length(integrator.u))
             set_u!(integrator, new_x)
-            # for i in 1:length(integrator.u)
-            #     integrator.u[i] = ForwardDiff.Dual{T, V, N}(V(right_x[i]), ForwardDiff.partials(integrator.u[i])) 
-            # end
+            
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]. (ForwardDiff) "
         else
             integrator.u = right_x
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]."
         end
-        #integrator.u = right_x
-
-        #@info "$(collect(ForwardDiff.value(u) for u in integrator.u))"
-        #@info "$(integrator.u)"
-        #@info "(integrator.opt.internalnorm(x, t)) = $(integrator.opts.internalnorm(x, t))"
-        #@info "(integrator.opt.internalnorm(integrator.u, t)) = $(ForwardDiff.value(integrator.opts.internalnorm(integrator.u, t)))"
-        #@info "(integrator.opt.internalnorm(x, integrator.t)) = $(ForwardDiff.value(integrator.opts.internalnorm(x, integrator.t)))"
-        #@info "(integrator.opt.internalnorm(integrator.u, integrator.t)) = $(ForwardDiff.value(integrator.opts.internalnorm(integrator.u, integrator.t)))"
-
-        #@assert collect(ForwardDiff.value(u) for u in integrator.u) == right_x
-
+       
         u_modified!(integrator, true)
-        
-        # This is necessary because otherwise there are issues when using ForwardDiff with Callbacks
-            # integrator.dt = 1e-100
-            # integrator.dtpropose = integrator.dt
-            # integrator.dtcache = integrator.dt
-        #dtmin = nextfloat(integrator.opts.dtmin)
-        #auto_dt_reset!(integrator) 
-        # if integrator.dt <= dtmin 
-        #     @warn "Auto computation leads to $(integrator.dt) <= `dtmin`, this would cause termination of simulation."
-            #  integrator.dt = 1e-10
-            #  integrator.dtpropose = integrator.dt
-            #  integrator.dtcache = integrator.dt
-        # end
-        #reinit!(integrator, right_x; t0=t, erase_sol=false, reset_dt=true, reinit_callbacks=false)
-        
-        #set_proposed_dt!(integrator, 1e-8)
     else
-
-        u_modified!(integrator, false)
 
         ignore_derivatives() do 
             @debug "affectFMU!(_, _, $idx): NeuralFMU event without state change at $t. Indicator [$idx]."
         end
+
+        u_modified!(integrator, false)
     end
 
     if c.eventInfo.nominalsOfContinuousStatesChanged == fmi2True
@@ -792,17 +625,19 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
         end
 
         # calculates state events per second
-        pt = min(t-nfmu.tspan[1], 1.0)
+        pt = t-nfmu.tspan[1]
         ne = 0 
         for event in nfmu.solution.events
-            if event.indicator > 0 # count only state events
-                ne += 1
-            end
+            #if t - event.t < pt 
+                if event.indicator > 0 # count only state events
+                    ne += 1
+                end
+            #end
         end
         ratio = ne / pt
        
         if ne >= 100 && ratio > nfmu.fmu.executionConfig.maxStateEventsPerSecond
-            logError(nfmu.fmu, "Event jittering detected:")
+            logError(nfmu.fmu, "Event jittering detected $(round(Integer, ratio)) events/s, aborting at t=$(t) (rel. t=$(pt)) at event $(ne):")
             for i in 0:nfmu.fmu.modelDescription.numberOfEventIndicators
                 num = 0
                 for e in nfmu.solution.events
@@ -811,22 +646,21 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
                     end 
                 end
                 if num > 0
-                    println("Event indicator #$(i) triggered $(num) ($(round(num/1000.0*100.0; digits=1))%)")
+                    logError(nfmu.fmu, "\tEvent indicator #$(i) triggered $(num) ($(round(num/1000.0*100.0; digits=1))%)")
                 end
             end
-            @assert false "Event jittering detected $(round(Integer, ratio)) events/s, aborting at t=$(t) (rel. t=$(pt)) at event $(ne)."
+
+            terminate!(integrator)
         end
     end
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN when leaving in `u` @ $(integrator.t)."
-
-    #@assert fmi2EnterContinuousTimeMode(c) == fmi2StatusOK
+    @debug assert_integrator_valid()
 end
 
 # Does one step in the simulation.
 function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator, tStart, tStop)
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in stepcompleted start `u` @ $(integrator.t)."
+    @debug assert_integrator_valid()
 
     #@debug "Step"
     # there might be no component!
@@ -836,11 +670,11 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator, tStart, tStop)
         ProgressMeter.update!(nfmu.progressMeter, floor(Integer, 1000.0*(t-tStart)/(tStop-tStart)) )
     end
 
-    if nfmu.currentComponent != nothing && (!nfmu.fmu.executionConfig.useComponentShadow || nfmu.currentComponent.realComponent != nothing)
+    if nfmu.currentComponent != nothing
         (status, enterEventMode, terminateSimulation) = fmi2CompletedIntegratorStep(nfmu.currentComponent, fmi2True)
 
         if terminateSimulation == fmi2True
-            @error "stepCompleted(...): FMU requested termination!"
+            logError(nfmu.fmu, "stepCompleted(...): FMU requested termination!")
         end
 
         if enterEventMode == fmi2True
@@ -853,23 +687,14 @@ function stepCompleted(nfmu::ME_NeuralFMU, x, t, integrator, tStart, tStop)
         #@debug "Step completed at $(ForwardDiff.value(t)) with $(collect(ForwardDiff.value(xs) for xs in x))"
     end
 
-    @assert !isnan(integrator.opts.internalnorm(integrator.u, integrator.t)) "NaN in stepcompleted end `u` @ $(integrator.t)."
-
+    @debug assert_integrator_valid()
 end
 
 # save FMU values 
 function saveValues(nfmu, c::FMU2Component, recordValues, _x, t, integrator)
 
-    if isa(t, ForwardDiff.Dual) 
-        t = ForwardDiff.value(t)
-    end 
-    
-    x = nothing
-    if all(isa.(x, ForwardDiff.Dual))
-        x = collect(ForwardDiff.value(e) for e in _x)
-    else
-        x = _x
-    end
+    t = undual(t) 
+    x = undual(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
@@ -879,18 +704,6 @@ function saveValues(nfmu, c::FMU2Component, recordValues, _x, t, integrator)
     # Todo set inputs
     
     return (fmi2GetReal(c, recordValues)...,)
-end
-
-function fd_eltypes(e::SubArray{<:ForwardDiff.Dual{T, V, N}}) where {T, V, N}
-    return (T, V, N)
-end
-
-function fd_eltypes(e::Vector{<:ForwardDiff.Dual{T, V, N}}) where {T, V, N}
-    return (T, V, N)
-end
-
-function fd_eltypes(e::ForwardDiff.Dual{T, V, N}) where {T, V, N}
-    return (T, V, N)
 end
 
 function fx(nfmu,
@@ -906,39 +719,8 @@ function fx(nfmu,
     
     dx_tmp = fx(nfmu,x,p,t)
 
-    if all(isa.(dx_tmp, ForwardDiff.Dual))
-        if all(isa.(dx, ForwardDiff.Dual))
-            #dx[:] = dx_tmp
-            for i in 1:length(dx)
-                dx[i] = dx_tmp[i]
-            end
-        else 
-            #dx[:] = collect(ForwardDiff.value(e) for e in dx_tmp)
-            for i in 1:length(dx)
-                dx[i] = ForwardDiff.value(e)
-            end
-        end
-        
-    else 
-        if all(isa.(dx, ForwardDiff.Dual))
-      
-            T, V, N = fd_eltypes(dx)
+    fd_set!(dx, dx_tmp)
 
-            #dx[:] = collect(ForwardDiff.Dual{T, V, N}(V(dx_tmp[i]), ForwardDiff.partials(dx[i])    ) for i in 1:length(dx))
-            for i in 1:length(dx)
-                dx[i] = ForwardDiff.Dual{T, V, N}(V(dx_tmp[i]), ForwardDiff.partials(dx[i])    ) 
-            end
-        else
-            #dx[:] = dx_tmp
-            for i in 1:length(dx)
-                dx[i] = dx_tmp[i]
-            end
-        end
-    end
-
-    #@assert !any(isnan.(collect(any(isnan.(ForwardDiff.partials.(x[i]).values)) for i in 1:length(x)))) "NaN in end fx `u` @ $(t)."
-
-    #return dx_tmp
     return dx
 end
 
@@ -947,10 +729,6 @@ function fx(nfmu,
     p::Array,
     t::Real) 
     
-    # if all(isa.(x, ForwardDiff.Dual))
-    #     x = collect(ForwardDiff.value(e) for e in x)
-    # end
-
     c = nfmu.currentComponent
 
     if c === nothing
@@ -958,40 +736,18 @@ function fx(nfmu,
         return zeros(length(x))
     end
 
-    ignore_derivatives() do
-        if isa(t, ForwardDiff.Dual) 
-            t = ForwardDiff.value(t)
-        end 
-    end
-
     #nfmu.fmu.components[end].t = t 
     dx = nfmu.neuralODE.re(p)(x)
 
     ignore_derivatives() do
 
+        t = undual(t)
         fmi2SetTime(c, t)
 
         #@debug "fx($t, $(collect(ForwardDiff.value(xs) for xs in x))) = $(collect(ForwardDiff.value(xs) for xs in dx))"
 
+        #nfmu.currentComponent.solution.evals_fx += 1
     end 
-
-    # build up ẋ interpolation polynominal
-    # ignore_derivatives() do
-    #     if nfmu.fmu.executionConfig.useComponentShadow
-    #         if nfmu.fmu.ẋy_interp == nothing
-    #             if t <= nfmu.tspan[end]
-    #                 if length(nfmu.fmu.t_cache) == 0 || nfmu.fmu.t_cache[end] < t
-    #                     push!(nfmu.fmu.ẋy_cache, collect(ForwardDiff.value(e) for e in dx) )
-    #                     push!(nfmu.fmu.t_cache, t)
-    #                 end
-    #             end
-
-    #             if t >= nfmu.tspan[end] # endpoint
-
-    #             end
-    #         end
-    #     end
-    # end
 
     return dx
 end
@@ -1018,12 +774,12 @@ function ME_NeuralFMU(fmu::FMU2,
                       tspan, 
                       alg=nothing; 
                       saveat=[], 
-                      recordFMUValues = nothing, 
+                      recordValues = nothing, 
                       convertParams::Union{Nothing, Bool}=nothing,
-                      abstol::Real = 1e-6, 
-                      reltol::Real = 1e-3,
-                      dtmin::Real = 1e-16,
-                      force_dtmin::Bool = false,
+                      #abstol::Real = 1e-6, 
+                      #reltol::Real = 1e-3,
+                      #dtmin::Real = 1e-16,
+                      #force_dtmin::Bool = false,
                       kwargs...)
 
     nfmu = ME_NeuralFMU()
@@ -1084,9 +840,10 @@ function ME_NeuralFMU(fmu::FMU2,
     
     nfmu.saved_values = nothing
 
-    nfmu.recordValues = prepareValueReference(fmu, recordFMUValues)
+    nfmu.recordValues = prepareValueReference(fmu, recordValues)
 
-    nfmu.neuralODE = NeuralODE(model, tspan, alg; saveat=saveat, abstol=abstol, reltol=reltol, dtmin=dtmin, force_dtmin=force_dtmin, kwargs...)
+    # abstol=abstol, reltol=reltol, dtmin=dtmin, force_dtmin=force_dtmin, 
+    nfmu.neuralODE = NeuralODE(model, tspan, alg; saveat=saveat, kwargs...)
 
     nfmu.tspan = tspan
     nfmu.saveat = saveat
@@ -1132,70 +889,81 @@ function CS_NeuralFMU(fmu::Union{FMU2, Vector{<:FMU2}},
     nfmu
 end
 
-function finishFMU(fmu::FMU2, c::Union{FMU2Component, Nothing}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}; popComponent::Bool=true)
+# function finishSolveFMU(fmu::FMU2, c::Union{FMU2Component, Nothing}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool}; popComponent::Bool=true)
 
-    # nothing to do here with `c == nothing`
-    if c == nothing 
-        return c 
+#     # nothing to do here with `c == nothing`
+#     if c == nothing 
+#         return c 
+#     end
+
+#     ignore_derivatives() do
+#         if terminate === nothing
+#             terminate = fmu.executionConfig.terminate
+#         end
+
+#         if freeInstance === nothing
+#             freeInstance = fmu.executionConfig.freeInstance
+#         end
+
+#         # soft terminate (if necessary)
+#         if terminate
+#             retcode = fmi2Terminate(c; soft=true)
+#             @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
+#         end
+
+#         if freeInstance
+#             fmi2FreeInstance!(c; popComponent=popComponent)
+#             @debug "[RELEASED INST]"
+#             c = nothing
+#         end
+
+#     end # ignore_derivatives
+
+#     return c
+# end
+
+# function finishSolveFMU(fmu::Vector{FMU2}, c::Vector{Union{FMU2Component, Nothing}}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool})
+
+#     ignore_derivatives() do
+#         for i in 1:length(fmu)
+#             if terminate === nothing
+#                 terminate = fmu[i].executionConfig.terminate
+#             end
+
+#             if freeInstance === nothing
+#                 freeInstance = fmu[i].executionConfig.freeInstance
+#             end
+
+#             if c[i] != nothing
+
+#                 # soft terminate (if necessary)
+#                 if terminate
+#                     retcode = fmi2Terminate(c[i]; soft=true)
+#                     @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
+#                 end
+
+#                 if freeInstance
+#                     fmi2FreeInstance!(c[i])
+#                     @debug "[RELEASED INST]"
+#                 end
+#                 c[i] = nothing
+#             end
+#         end
+
+#     end # ignore_derivatives
+
+#     return c
+# end
+
+function checkExecTime(integrator, nfmu::ME_NeuralFMU, max_execution_duration::Real)
+    dist = max(nfmu.execution_start + max_execution_duration - time(), 0.0)
+    
+    if dist <= 0.0
+        logWarn(nfmu.fmu, "Reached max execution duration ($(max_execution_duration)), exiting...")
+        terminate!(integrator)
     end
 
-    ignore_derivatives() do
-        if terminate === nothing
-            terminate = fmu.executionConfig.terminate
-        end
-
-        if freeInstance === nothing
-            freeInstance = fmu.executionConfig.freeInstance
-        end
-
-        # soft terminate (if necessary)
-        if terminate
-            retcode = fmi2Terminate(c; soft=true)
-            @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
-        end
-
-        if freeInstance
-            fmi2FreeInstance!(c; popComponent=popComponent)
-            @debug "[RELEASED INST]"
-            c = nothing
-        end
-
-    end # ignore_derivatives
-
-    return c
-end
-
-function finishFMU(fmu::Vector{FMU2}, c::Vector{Union{FMU2Component, Nothing}}, freeInstance::Union{Nothing, Bool}, terminate::Union{Nothing, Bool})
-
-    ignore_derivatives() do
-        for i in 1:length(fmu)
-            if terminate === nothing
-                terminate = fmu[i].executionConfig.terminate
-            end
-
-            if freeInstance === nothing
-                freeInstance = fmu[i].executionConfig.freeInstance
-            end
-
-            if c[i] != nothing
-
-                # soft terminate (if necessary)
-                if terminate
-                    retcode = fmi2Terminate(c[i]; soft=true)
-                    @assert retcode == fmi2StatusOK "fmi2Simulate(...): Termination failed with return code $(retcode)."
-                end
-
-                if freeInstance
-                    fmi2FreeInstance!(c[i])
-                    @debug "[RELEASED INST]"
-                end
-                c[i] = nothing
-            end
-        end
-
-    end # ignore_derivatives
-
-    return c
+    return dist
 end
 
 """
@@ -1205,37 +973,43 @@ Evaluates the ME_NeuralFMU in the timespan given during construction or in a cus
     - `reset`, the FMU is reset every time evaluation is started (default=`true`).
     - `setup`, the FMU is set up every time evaluation is started (default=`true`).
 """
-function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing, 
-                              t_start::Union{Real, Nothing} = nothing,
-                              t_stop::Union{Real, Nothing} = nothing;
-                              showProgress::Bool = false,
-                              tolerance::Union{Real, Nothing} = nothing,
-                              parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
-                              setup::Union{Bool, Nothing} = nothing,
-                              reset::Union{Bool, Nothing} = nothing,
-                              instantiate::Union{Bool, Nothing} = nothing,
-                              freeInstance::Union{Bool, Nothing} = nothing,
-                              terminate::Union{Bool, Nothing} = nothing,
-                              p=nothing,
-                              saveEventPositions::Bool=false,
-                              kwargs...)
+function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
+    tspan::Tuple{Float64, Float64} = nfmu.tspan;
+    showProgress::Bool = false,
+    progressDescr::String="Simulating ME-NeuralFMU ...",
+    tolerance::Union{Real, Nothing} = nothing,
+    parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
+    setup::Union{Bool, Nothing} = nothing,
+    reset::Union{Bool, Nothing} = nothing,
+    instantiate::Union{Bool, Nothing} = nothing,
+    freeInstance::Union{Bool, Nothing} = nothing,
+    terminate::Union{Bool, Nothing} = nothing,
+    p=nothing,
+    saveEventPositions::Bool=false,
+    max_execution_duration::Real=-1.0,
+    recordValues::fmi2ValueReferenceFormat=nfmu.recordValues,
+    saveat=nfmu.saveat, # ToDo: Data type 
+    kwargs...)
 
-    saving = (length(nfmu.recordValues) > 0)
+    recordValues = prepareValueReference(nfmu.fmu, recordValues)
+
+    saving = (length(recordValues) > 0)
     sense = nfmu.fmu.executionConfig.sensealg
     inPlace = nfmu.fmu.executionConfig.inPlace
-    tspan = getfield(nfmu.neuralODE, :tspan)
+    #tspan = getfield(nfmu.neuralODE, :tspan)
 
     # setup problem and parameters
     if p == nothing
         p = nfmu.neuralODE.p
     end
 
+    t_start = tspan[1]
+    t_stop = tspan[end]
+
     ignore_derivatives() do
         @debug "ME_NeuralFMU..."
 
         nfmu.firstRun = true
-
-        nfmu.solution = FMU2Solution(nfmu.fmu)
 
         nfmu.tolerance = tolerance
         nfmu.parameters = parameters
@@ -1249,36 +1023,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         nfmu.progressMeter = nothing
         nfmu.callbacks = []
 
-        nfmu.x0 = x_start
-
         # simulation tspan 
-        if t_start === nothing
-            t_start = tspan[1]
-        end
-        if t_stop === nothing
-            t_stop = tspan[end]
-        end
+        
         nfmu.tspan = (t_start, t_stop)
-    
-        # remove last run's shadow
-        if nfmu.fmu.executionConfig.useComponentShadow
-            if length(nfmu.fmu.components) > 0 && nfmu.fmu.components[end] == nfmu.currentComponent
-                ind = findall(x -> x==nfmu.currentComponent, nfmu.fmu.components)
-
-                if length(ind) == 1
-                    @debug ["SHADOW CLEANUP"]
-                    deleteat!(nfmu.fmu.components, ind)
-                end
-            end
-
-            if nfmu.progressMeter != nothing
-                ProgressMeter.finish!(nfmu.progressMeter)
-            end
-        # else
-        #     if length(nfmu.fmu.components) > 0
-        #         nfmu.currentComponent = nfmu.fmu.components[end]
-        #     end
-        end
+        nfmu.x0 = x_start
 
         # from here on, we are in event mode, if `setup=false` this is the job of the user
         # @assert nfmu.currentComponent.state == fmi2ComponentStateEventMode "FMU needs to be in event mode after setup (end)."
@@ -1298,7 +1046,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         # push!(nfmu.callbacks, startcb)
         # OPT B
         startCallback(nothing, nfmu, t_start)
+    end
+    
+    nfmu.solution = FMU2Solution(nfmu.currentComponent)
 
+    ignore_derivatives() do
         # custom callbacks
         for cb in nfmu.customCallbacksBefore
             push!(nfmu.callbacks, cb)
@@ -1344,13 +1096,21 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             end
         end
 
+        if max_execution_duration > 0.0
+            terminateCb = ContinuousCallback((x, t, integrator) -> checkExecTime(integrator, nfmu, max_execution_duration),
+                                                    (integrator) -> terminate!(integrator);
+                                                    save_positions=(false, false))
+            push!(nfmu.callbacks, terminateCb)
+            #@info "Setting max execeution time to $(max_execution_duration)"
+        end
+
         # custom callbacks
         for cb in nfmu.customCallbacksAfter
             push!(nfmu.callbacks, cb)
         end
 
         if showProgress
-            nfmu.progressMeter = ProgressMeter.Progress(1000; desc="Simulating ME-NeuralFMU ...", color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
+            nfmu.progressMeter = ProgressMeter.Progress(1000; desc=progressDescr, color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
             ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
         end
 
@@ -1361,15 +1121,16 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
         push!(nfmu.callbacks, stepCb)
 
         if saving
-            nfmu.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(nfmu.recordValues))...})
+            nfmu.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(recordValues))...})
+            nfmu.solution.valueReferences = recordValues
 
             if nfmu.saveat === nothing
-                savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator),
+                savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], recordValues, x, t, integrator),
                                 nfmu.solution.values)
             else
-                savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], nfmu.recordValues, x, t, integrator),
+                savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, nfmu.fmu.components[end], recordValues, x, t, integrator),
                                 nfmu.solution.values,
-                                saveat=nfmu.saveat)
+                                saveat=saveat)
             end
             push!(nfmu.callbacks, savingCB)
         end
@@ -1384,9 +1145,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
             if nfmu.fmu.hasStateEvents || nfmu.fmu.hasTimeEvents # p_len < 100 
                 
                 fds_chunk_size = p_len
-                # limit to 128 because of RAM usage
-                if fds_chunk_size > 128
-                    fds_chunk_size = 128
+                # limit to 256 because of RAM usage
+                if fds_chunk_size > 256
+                    fds_chunk_size = 256
                 end
                 if fds_chunk_size < 1
                     fds_chunk_size = 1
@@ -1433,11 +1194,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
     #     stopCallback(nfmu, nfmu.tspan[end])
     # else
     #nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
-    nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
+    nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; saveat=nfmu.saveat, callback=CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs..., kwargs...) 
+    
     #end
-
-    # stopCB (Opt B)
-    stopCallback(nfmu, t_stop)
 
     # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
     ignore_derivatives() do
@@ -1446,7 +1205,16 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nothing,
 
     end # ignore_derivatives
 
+    # stopCB (Opt B)
+    stopCallback(nfmu, t_stop)
+
     return nfmu.solution
+end
+function (nfmu::ME_NeuralFMU)(x0::Union{Array{<:Real}, Nothing},
+    t::Real;
+    p=nothing)
+
+    return fx(nfmu, x0, p, t)
 end
 
 """
@@ -1456,8 +1224,7 @@ Via optional argument `reset`, the FMU is reset every time evaluation is started
 """
 function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  t_step::Real, 
-                                 t_start::Real = nfmu.tspan[1], 
-                                 t_stop::Real = nfmu.tspan[end]; 
+                                 tspan::Tuple{Float64, Float64} = nfmu.tspan; 
                                  p=nothing,
                                  tolerance::Union{Real, Nothing} = nothing,
                                  parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
@@ -1467,11 +1234,9 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
                                  freeInstance::Union{Bool, Nothing} = nothing,
                                  terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    ignore_derivatives() do
-        nfmu.solution = FMU2Solution(nfmu.fmu)
-    end
-
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    t_start, t_stop = tspan
+    nfmu.currentComponent, _ = prepareSolveFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    nfmu.solution = FMU2Solution(nfmu.currentComponent)
 
     ts = collect(t_start:t_step:t_stop)
     nfmu.currentComponent.skipNextDoStep = true # skip first fim2DoStep-call
@@ -1484,14 +1249,8 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
             y = nfmu.model(input)
         else # flattened, explicite parameters
             @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
-            #_p = undual(p)
-            #@info "$(typeof(p))"
-            #@info "$(typeof(_p))"
-            #if length(p) == 1
-                y = nfmu.re(p)(input)
-            #else
-                #y = nfmu.re(p)(input)
-            #end
+            
+            y = nfmu.re(p)(input)
         end
         ignore_derivatives() do
             fmi2DoStep(nfmu.currentComponent, t_step)
@@ -1508,15 +1267,16 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     nfmu.solution.values = SavedValues{typeof(ts[1]), typeof(valueStack[1])}(ts, valueStack)
 
     # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
-    # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
+    # nfmu.currentComponent = finishSolveFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
+
+    #nfmu.currentComponent.solution = nfmu.solution
 
     return nfmu.solution
 end
 
 function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          t_step::Real, 
-                                         t_start::Real = nfmu.tspan[1], 
-                                         t_stop::Real = nfmu.tspan[end]; 
+                                         tspan::Tuple{Float64, Float64} = nfmu.tspan; 
                                          p=nothing,
                                          tolerance::Union{Real, Nothing} = nothing,
                                          parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing} = nothing,
@@ -1526,11 +1286,9 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          freeInstance::Union{Bool, Nothing} = nothing,
                                          terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
-    ignore_derivatives() do
-        nfmu.solution = FMU2Solution(nfmu.fmu)
-    end 
-
-    nfmu.currentComponent, _ = prepareFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    t_start, t_stop = tspan
+    nfmu.currentComponent, _ = prepareSolveFMU(nfmu.fmu, nfmu.currentComponent, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    nfmu.solution = FMU2Solution(nfmu.currentComponent)
 
     ts = collect(t_start:t_step:t_stop)
     for c in nfmu.currentComponent
@@ -1568,9 +1326,11 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     end 
     
     nfmu.solution.values = SavedValues{typeof(ts[1]), typeof(valueStack[1])}(ts, valueStack)
+    
+    #nfmu.currentComponent.solution = nfmu.solution
 
     # this is not possible in CS (pullbacks are sometimes called after the finished simulation), clean-up happens at the next call
-    # nfmu.currentComponent = finishFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
+    # nfmu.currentComponent = finishSolveFMU(nfmu.fmu, nfmu.currentComponent, freeInstance, terminate)
 
     return nfmu.solution
 end
@@ -1629,50 +1389,63 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-algorithms)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Float32}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Float32}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false)
 
     to_differentiate = p -> loss(p)
 
     for i in 1:length(data)
-        for j in 1:length(params)
 
-            if gradient == :ForwardDiff
+        try
+            
+            for j in 1:length(params)
 
-                if chunk_size == nothing
-                    
-                    # chunk size heuristics: as large as the RAM allows it (estimate)
-                    # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
-                    if VERSION >= v"1.7.0"
-                        chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                if gradient == :ForwardDiff
+
+                    if chunk_size == nothing
                         
+                        # chunk size heuristics: as large as the RAM allows it (estimate)
+                        # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
+                        if VERSION >= v"1.7.0"
+                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                            
+                        else
+                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                            #grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                        end
+
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+
                     else
-                         chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
-                         #grad = ForwardDiff.gradient(to_differentiate, params[j]);
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
                     end
 
-                    grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-                    grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
-
+                elseif gradient == :Zygote 
+                    grad = Zygote.gradient(
+                        to_differentiate,
+                        params[j])[1]
                 else
-                    grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-                    grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                    @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
                 end
 
-            elseif gradient == :Zygote 
-                grad = Zygote.gradient(
-                    to_differentiate,
-                    params[j])[1]
+                step = Flux.Optimise.apply!(optim, params[j], grad)
+                params[j] .-= step
+
+                if printStep
+                    @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
+                    @info "Step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
+                end
+            end    
+
+        catch e
+
+            if proceed_on_assert
+                @error "Training asserted, but continuing: $e"
             else
-                @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
+                throw(e)
             end
-
-            step = Flux.Optimise.apply!(optim, params[j], grad)
-            params[j] .-= step
-
-            if printStep
-                @info "Did step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
-            end
-        end    
+        end
         
         if cb != nothing 
             if isa(cb, AbstractArray)
