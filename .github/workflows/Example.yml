@@ -41,11 +41,11 @@ jobs:
                         
       - name: "Execute and synchronize all files"
         env:
-          EXAMPLES_PATH: 'examples/src'
+          EXAMPLES_PATH: 'examples/src/*.ipynb'
         run: |
-          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.6" --to notebook --inplace --execute $EXAMPLES_PATH/*.ipynb
-          jupyter nbconvert --to script $EXAMPLES_PATH/*.ipynb
-          jupyter nbconvert --to markdown $EXAMPLES_PATH/*.ipynb
+          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.6" --to notebook --inplace --execute $EXAMPLES_PATH
+          jupyter nbconvert --to script $EXAMPLES_PATH
+          jupyter nbconvert --to markdown $EXAMPLES_PATH
 
       - name: "Auto commit"
         if: ${{ matrix.os == 'ubuntu-latest'}}
