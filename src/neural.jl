@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
+# Licensed under the MIT license. See LICENSE file in the project root for details.
+#
 
 using Flux, DiffEqFlux
 using DiffEqCallbacks
@@ -752,14 +756,12 @@ end
 
 """
 Constructs a ME-NeuralFMU where the FMU is at an arbitrary location inside of the NN.
-
 # Arguents
     - `fmu` the considered FMU inside the NN 
     - `model` the NN topology (e.g. Flux.chain)
     - `tspan` simulation time span
     - `alg` a numerical ODE solver
     - `convertParams` automatically convert ANN parameters to Float64 if not already
-
 # Keyword arguments
     - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
     - `fixstep` forces fixed step integration
@@ -851,12 +853,10 @@ end
 
 """
 Constructs a CS-NeuralFMU where the FMU is at an arbitrary location inside of the NN.
-
 # Arguents
     - `fmu` the considered FMU inside the NN 
     - `model` the NN topology (e.g. Flux.chain)
     - `tspan` simulation time span
-
 # Keyword arguments
     - `saveat` time points to save the NeuralFMU output, if empty, solver step size is used (may be non-equidistant)
 """
@@ -964,7 +964,6 @@ end
 
 """
 Evaluates the ME_NeuralFMU in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
-
 # Keyword arguments
     - `reset`, the FMU is reset every time evaluation is started (default=`true`).
     - `setup`, the FMU is set up every time evaluation is started (default=`true`).
@@ -1215,7 +1214,6 @@ end
 
 """
 Evaluates the CS_NeuralFMU in the timespan given during construction or in a custum timespan from `t_start` to `t_stop` with a given time step size `t_step`.
-
 Via optional argument `reset`, the FMU is reset every time evaluation is started (default=`true`).
 """
 function (nfmu::CS_NeuralFMU{F, C})(inputFct,
@@ -1368,17 +1366,13 @@ end
 # end
 
 """
-
     train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Integer=64, printStep::Bool=false)
-
 A function analogous to Flux.train! but with additional features and explicit parameters (faster).
-
 # Arguments
 - `loss` a loss function in the format `loss(p)`
 - `params` a object holding the parameters
 - `data` the training data (or often an iterator)
 - `optim` the optimizer used for training 
-
 # Keywords 
 - `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff` (default) and `:Zygote`
 - `cb` a custom callback function that is called after every training step
@@ -1402,7 +1396,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                         # chunk size heuristics: as large as the RAM allows it (estimate)
                         # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
                         if VERSION >= v"1.7.0"
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*16
                             
                         else
                             chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
