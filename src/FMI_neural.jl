@@ -1650,7 +1650,8 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                          chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*64
                          #grad = ForwardDiff.gradient(to_differentiate, params[j]);
                     end
-
+                    println(chunk_size)
+                    println(length(params[j]))
                     grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
                     grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
 

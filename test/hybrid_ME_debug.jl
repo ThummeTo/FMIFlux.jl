@@ -179,7 +179,6 @@ optim = Adam(1e-4)
 for i in 2:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
-        println(i)
         net = nets[i]
         problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
         @test problem != nothing
