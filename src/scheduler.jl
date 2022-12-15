@@ -63,8 +63,9 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
     runkwargs
     printMsg::String
     lossAccu::Array{<:Real}
+    updateStep::Integer
     
-    function LossAccumulationScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1)
+    function LossAccumulationScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1, updateStep::Integer=1)
         inst = new()
         inst.neuralFMU = neuralFMU
         inst.step = 0
@@ -73,6 +74,7 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
         inst.lossFct = lossFct
         inst.applyStep = applyStep
         inst.plotStep = plotStep
+        inst.updateStep = updateStep
 
         inst.printMsg = ""
         inst.lossAccu = zeros(length(batch))
@@ -260,6 +262,10 @@ function roundToLength(number::Real, len::Integer)
 
     @assert len >= 5 "`len` must be at least `5`."
 
+    if number == 0.0
+        return "0.0"
+    end
+
     expLen = 0
 
     if abs(number) <= 1.0 
@@ -323,9 +329,17 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
 
     num = length(scheduler.batch)
     for i in 1:num
+
+        l = 0.0
+
+        if length(scheduler.batch[i].losses) >= 1
+            l = scheduler.batch[i].losses[end].loss
+        end
         
-        FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+        if scheduler.step % scheduler.updateStep == 0
+            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+        end
 
         scheduler.lossAccu[i] += l
 
