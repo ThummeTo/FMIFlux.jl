@@ -24,7 +24,7 @@ fmiInfo(referenceFMU)
 
 param = Dict("mass_s0" => 1.3, "mass.v" => 0.0)   # increase amplitude, invert phase
 vrs = ["mass.s", "mass.v", "mass.a"]
-referenceSimData = fmiSimulate(referenceFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
 fmiPlot(referenceSimData)
 
 posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
@@ -34,7 +34,7 @@ accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
 defaultFMU = referenceFMU
 param = Dict("mass_s0" => 0.5, "mass.v" => 0.0)
 
-defaultSimData = fmiSimulate(defaultFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
 fmiPlot(defaultSimData)
 
 posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
@@ -46,8 +46,8 @@ function extForce(t)
 end 
 
 # loss function for training
-function lossSum()
-    solution = csNeuralFMU(extForce, tStep)
+function lossSum(p)
+    solution = csNeuralFMU(extForce, tStep; p=p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
@@ -56,11 +56,11 @@ end
 
 # callback function for training
 global counter = 0
-function callb()
+function callb(p)
     global counter += 1
 
     if counter % 20 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "Loss [$counter]: $(round(avgLoss, digits=5))"
     end
 end
@@ -69,7 +69,13 @@ end
 numInputs = length(defaultFMU.modelDescription.inputValueReferences)
 numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmiInputDoStepCSOutput(defaultFMU, tStep, inputs),
+function eval(u)
+    y, _ = defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences)
+    return y
+end
+
+
+net = Chain(inputs -> eval(inputs),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
@@ -84,7 +90,7 @@ Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 paramsNet = Flux.params(csNeuralFMU)
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
 
 # plot results mass.a
 solutionAfter = csNeuralFMU(extForce, tStep)

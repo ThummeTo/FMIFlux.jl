@@ -28,7 +28,7 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.jl) with the same name, which contains only the code cells. For the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/modelica_conference_2021.md) corresponding to the notebook.  
+Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/modelica_conference_2021.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/modelica_conference_2021.jl) with the same name, which contains only the code cells. For the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/modelica_conference_2021.md) corresponding to the notebook.  
 
 
 ## Getting started
@@ -127,14 +127,6 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_yafBkF/SpringFrictionPendulum1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_yafBkF/SpringFrictionPendulum1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
-    ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
-
-
     #################### Begin information for FMU ####################
     	Model name:			SpringFrictionPendulum1D
     	FMI-Version:			2.0
@@ -177,7 +169,7 @@ x₀ = [0.5, 0.0]
 params = Dict(zip(initStates, x₀))
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
 
-realSimData = fmiSimulate(realFMU, tStart, tStop; parameters=params, recordValues=vrs, saveat=tSave)
+realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordValues=vrs, saveat=tSave)
 posReal = fmi2GetSolutionValue(realSimData, "mass.s")
 velReal = fmi2GetSolutionValue(realSimData, "mass.v")
 fmiPlot(realSimData)
@@ -200,7 +192,7 @@ The structure of the previous code section is used more often in the further sec
 ```julia
 function simulate(FMU, initStates, x₀, variables, tStart, tStop, tSave)
     params = Dict(zip(initStates, x₀))
-    return fmiSimulate(FMU, tStart, tStop; parameters=params, recordValues=variables, saveat=tSave)
+    return fmiSimulate(FMU, (tStart, tStop); parameters=params, recordValues=variables, saveat=tSave)
 end
 ```
 
@@ -299,14 +291,6 @@ fmiInfo(simpleFMU)
     		Serialize State:	true
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
-
-
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_gDRPkE/SpringPendulum1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_gDRPkE/SpringPendulum1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
-    ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
 
 
 The differences between both systems can be clearly seen from the plots in the subchapters. In the plot for the *realFMU* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFMU* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
@@ -655,18 +639,6 @@ The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (*simpleFM
 neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
 ```
 
-    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(identity), Matrix{Float64}, Vector{Float64}}`.
-    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
-    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(identity), Matrix{Float64}, Vector{Float64}}`.
-    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
-    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(tanh), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}`.
-    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
-    ┌ Info: ME_NeuralFMU(...): Succesfully converted layer of type `Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}` to `Dense{typeof(identity), Matrix{Float64}, Vector{Float64}}`.
-    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1089
-    ┌ Info: ME_NeuralFMU(...): Succesfully converted model to Float64.
-    └ @ FMIFlux /home/runner/.julia/packages/FMIFlux/WeryT/src/FMI_neural.jl:1103
-
-
 #### Plot before training
 
 Here the state trajectory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.
@@ -677,14 +649,11 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 ```
 
-    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:25[39m
-
-
 
 
 
     
-![svg](modelica_conference_2021_files/modelica_conference_2021_47_1.svg)
+![svg](modelica_conference_2021_files/modelica_conference_2021_47_0.svg)
     
 
 
@@ -713,10 +682,9 @@ optim = ADAM()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
 ```
 
-    [34mSimulating ME-NeuralFMU ... 100%|████████████████████████| Time: 0:00:31[39m
-    ┌ Info:   Loss [1]: 0.35233
-    │         Avg displacement in data: 0.59357
-    │         Weight/Scale: 1.1993630640973756   Bias/Offset: 0.0009999976539634642
+    ┌ Info:   Loss [1]: 0.64142
+    │         Avg displacement in data: 0.80089
+    │         Weight/Scale: 0.5550727972915012   Bias/Offset: 0.0009999999900079759
     └ @ Main In[14]:15
 
 
@@ -772,217 +740,217 @@ end
 
     ┌ Info: Run: 1/2  Epoch: 1/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [51]: 0.3097
-    │         Avg displacement in data: 0.55651
-    │         Weight/Scale: 1.151090262367403   Bias/Offset: -0.04668843522895984
+    ┌ Info:   Loss [51]: 0.45485
+    │         Avg displacement in data: 0.67443
+    │         Weight/Scale: 0.6028802404716107   Bias/Offset: 0.04828021006157077
     └ @ Main In[14]:15
-    ┌ Info:   Loss [101]: 0.29253
-    │         Avg displacement in data: 0.54086
-    │         Weight/Scale: 1.1212936549293726   Bias/Offset: -0.07575300655011709
+    ┌ Info:   Loss [101]: 0.39138
+    │         Avg displacement in data: 0.6256
+    │         Weight/Scale: 0.6409413544487673   Bias/Offset: 0.08734044707986238
     └ @ Main In[14]:15
-    ┌ Info:   Loss [151]: 0.06777
-    │         Avg displacement in data: 0.26034
-    │         Weight/Scale: 1.1076034280284022   Bias/Offset: -0.08355553348873182
+    ┌ Info:   Loss [151]: 0.35729
+    │         Avg displacement in data: 0.59774
+    │         Weight/Scale: 0.6705024458804647   Bias/Offset: 0.11917412473236139
     └ @ Main In[14]:15
-    ┌ Info:   Loss [201]: 0.03924
-    │         Avg displacement in data: 0.1981
-    │         Weight/Scale: 1.1199248322981799   Bias/Offset: -0.07270983859570386
+    ┌ Info:   Loss [201]: 0.33751
+    │         Avg displacement in data: 0.58096
+    │         Weight/Scale: 0.6940488159966223   Bias/Offset: 0.14522352322020005
     └ @ Main In[14]:15
-    ┌ Info:   Loss [251]: 0.0315
-    │         Avg displacement in data: 0.17748
-    │         Weight/Scale: 1.1207811358761721   Bias/Offset: -0.0772332446346298
+    ┌ Info:   Loss [251]: 0.32533
+    │         Avg displacement in data: 0.57038
+    │         Weight/Scale: 0.7129425125355464   Bias/Offset: 0.16635454654923768
     └ @ Main In[14]:15
-    ┌ Info:   Loss [301]: 0.02522
-    │         Avg displacement in data: 0.15882
-    │         Weight/Scale: 1.1255252118512482   Bias/Offset: -0.07588301481091568
+    ┌ Info:   Loss [301]: 0.31723
+    │         Avg displacement in data: 0.56323
+    │         Weight/Scale: 0.7280758621584592   Bias/Offset: 0.18315566333683783
     └ @ Main In[14]:15
-    ┌ Info:   Loss [351]: 0.0209
-    │         Avg displacement in data: 0.14457
-    │         Weight/Scale: 1.1312094908711745   Bias/Offset: -0.07184738363445317
+    ┌ Info:   Loss [351]: 0.31089
+    │         Avg displacement in data: 0.55758
+    │         Weight/Scale: 0.7400860511827587   Bias/Offset: 0.19604467290252178
     └ @ Main In[14]:15
-    ┌ Info:   Loss [401]: 0.01833
-    │         Avg displacement in data: 0.13539
-    │         Weight/Scale: 1.135240298679975   Bias/Offset: -0.06831656373328968
+    ┌ Info:   Loss [401]: 0.30264
+    │         Avg displacement in data: 0.55013
+    │         Weight/Scale: 0.7494671100680018   Bias/Offset: 0.20518196529098945
     └ @ Main In[14]:15
-    ┌ Info:   Loss [451]: 0.01688
-    │         Avg displacement in data: 0.12994
-    │         Weight/Scale: 1.137264407076433   Bias/Offset: -0.06601047449647206
+    ┌ Info:   Loss [451]: 0.28733
+    │         Avg displacement in data: 0.53603
+    │         Weight/Scale: 0.7570692033734648   Bias/Offset: 0.21047351091721003
     └ @ Main In[14]:15
-    ┌ Info:   Loss [501]: 0.01568
-    │         Avg displacement in data: 0.12521
-    │         Weight/Scale: 1.1386997025131984   Bias/Offset: -0.06356067446903858
+    ┌ Info:   Loss [501]: 0.2377
+    │         Avg displacement in data: 0.48754
+    │         Weight/Scale: 0.7632815153832909   Bias/Offset: 0.2103674948475488
     └ @ Main In[14]:15
     ┌ Info: Run: 1/2  Epoch: 2/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [551]: 0.01511
-    │         Avg displacement in data: 0.12294
-    │         Weight/Scale: 1.1365090911431506   Bias/Offset: -0.06492217144245187
+    ┌ Info:   Loss [551]: 0.17519
+    │         Avg displacement in data: 0.41855
+    │         Weight/Scale: 0.771933610211766   Bias/Offset: 0.21532825586937301
     └ @ Main In[14]:15
-    ┌ Info:   Loss [601]: 0.01457
-    │         Avg displacement in data: 0.1207
-    │         Weight/Scale: 1.1344149101256844   Bias/Offset: -0.06595116316626476
+    ┌ Info:   Loss [601]: 0.03232
+    │         Avg displacement in data: 0.17977
+    │         Weight/Scale: 0.7894761928254148   Bias/Offset: 0.24217790496864008
     └ @ Main In[14]:15
-    ┌ Info:   Loss [651]: 0.01394
-    │         Avg displacement in data: 0.11808
-    │         Weight/Scale: 1.1327667053691277   Bias/Offset: -0.06647680742198193
+    ┌ Info:   Loss [651]: 0.0245
+    │         Avg displacement in data: 0.15654
+    │         Weight/Scale: 0.7844989979590299   Bias/Offset: 0.23221241549764232
     └ @ Main In[14]:15
-    ┌ Info:   Loss [701]: 0.01315
-    │         Avg displacement in data: 0.11466
-    │         Weight/Scale: 1.1321859919729775   Bias/Offset: -0.06554159583363273
+    ┌ Info:   Loss [701]: 0.02054
+    │         Avg displacement in data: 0.1433
+    │         Weight/Scale: 0.7815568611545257   Bias/Offset: 0.2276763035082252
     └ @ Main In[14]:15
-    ┌ Info:   Loss [751]: 0.01248
-    │         Avg displacement in data: 0.11172
-    │         Weight/Scale: 1.1308794589694675   Bias/Offset: -0.06491569061011455
+    ┌ Info:   Loss [751]: 0.01775
+    │         Avg displacement in data: 0.13323
+    │         Weight/Scale: 0.7782293876125358   Bias/Offset: 0.22259390253392786
     └ @ Main In[14]:15
-    ┌ Info:   Loss [801]: 0.01179
-    │         Avg displacement in data: 0.10858
-    │         Weight/Scale: 1.1284700887314623   Bias/Offset: -0.0657145151758684
+    ┌ Info:   Loss [801]: 0.01605
+    │         Avg displacement in data: 0.12669
+    │         Weight/Scale: 0.7750339742719601   Bias/Offset: 0.2172935230029692
     └ @ Main In[14]:15
-    ┌ Info:   Loss [851]: 0.01117
-    │         Avg displacement in data: 0.10569
-    │         Weight/Scale: 1.1260107352711644   Bias/Offset: -0.06656618924798287
+    ┌ Info:   Loss [851]: 0.01559
+    │         Avg displacement in data: 0.12485
+    │         Weight/Scale: 0.7737418532747102   Bias/Offset: 0.21537509834326932
     └ @ Main In[14]:15
-    ┌ Info:   Loss [901]: 0.01053
-    │         Avg displacement in data: 0.10259
-    │         Weight/Scale: 1.1236539384204183   Bias/Offset: -0.0673997838269285
+    ┌ Info:   Loss [901]: 0.01572
+    │         Avg displacement in data: 0.12536
+    │         Weight/Scale: 0.7739679038503342   Bias/Offset: 0.2165116055276674
     └ @ Main In[14]:15
-    ┌ Info:   Loss [951]: 0.0098
-    │         Avg displacement in data: 0.099
-    │         Weight/Scale: 1.1233763341165846   Bias/Offset: -0.06568730951104859
+    ┌ Info:   Loss [951]: 0.01506
+    │         Avg displacement in data: 0.12274
+    │         Weight/Scale: 0.7730088206185897   Bias/Offset: 0.2163316203576429
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1001]: 0.00906
-    │         Avg displacement in data: 0.09516
-    │         Weight/Scale: 1.1222822579556577   Bias/Offset: -0.06457160770425531
+    ┌ Info:   Loss [1001]: 0.0148
+    │         Avg displacement in data: 0.12166
+    │         Weight/Scale: 0.772004119527416   Bias/Offset: 0.21594497741124227
     └ @ Main In[14]:15
     ┌ Info: Run: 1/2  Epoch: 3/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [1051]: 0.00845
-    │         Avg displacement in data: 0.09195
-    │         Weight/Scale: 1.1211478422038375   Bias/Offset: -0.06401269115167135
+    ┌ Info:   Loss [1051]: 0.01446
+    │         Avg displacement in data: 0.12026
+    │         Weight/Scale: 0.7683625626309447   Bias/Offset: 0.21082500826760647
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1101]: 0.00776
-    │         Avg displacement in data: 0.08807
-    │         Weight/Scale: 1.1168711542268077   Bias/Offset: -0.06733259377376057
+    ┌ Info:   Loss [1101]: 0.01315
+    │         Avg displacement in data: 0.11466
+    │         Weight/Scale: 0.7651830111987297   Bias/Offset: 0.20575878480956503
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1151]: 0.00722
-    │         Avg displacement in data: 0.08495
-    │         Weight/Scale: 1.1132399886629987   Bias/Offset: -0.07028119054365171
+    ┌ Info:   Loss [1151]: 0.01397
+    │         Avg displacement in data: 0.11819
+    │         Weight/Scale: 0.7636138806661388   Bias/Offset: 0.20339378533347718
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1201]: 0.00677
-    │         Avg displacement in data: 0.08226
-    │         Weight/Scale: 1.1106178029684592   Bias/Offset: -0.07233907663283619
+    ┌ Info:   Loss [1201]: 0.01349
+    │         Avg displacement in data: 0.11617
+    │         Weight/Scale: 0.7618338476729756   Bias/Offset: 0.20075963153895074
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1251]: 0.00633
-    │         Avg displacement in data: 0.07955
-    │         Weight/Scale: 1.1089457935805602   Bias/Offset: -0.07335233570188636
+    ┌ Info:   Loss [1251]: 0.01359
+    │         Avg displacement in data: 0.11658
+    │         Weight/Scale: 0.759277814668437   Bias/Offset: 0.19630835413406816
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1301]: 0.00592
-    │         Avg displacement in data: 0.07696
-    │         Weight/Scale: 1.1075366928690222   Bias/Offset: -0.07401819941504754
+    ┌ Info:   Loss [1301]: 0.01274
+    │         Avg displacement in data: 0.11287
+    │         Weight/Scale: 0.7604012648465226   Bias/Offset: 0.19764166833355087
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1351]: 0.00557
-    │         Avg displacement in data: 0.07461
-    │         Weight/Scale: 1.1062843086524152   Bias/Offset: -0.07445133957871289
+    ┌ Info:   Loss [1351]: 0.01212
+    │         Avg displacement in data: 0.11009
+    │         Weight/Scale: 0.7590017913609226   Bias/Offset: 0.19632666262156273
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1401]: 0.00522
-    │         Avg displacement in data: 0.07226
-    │         Weight/Scale: 1.104853720065035   Bias/Offset: -0.07495434992833996
+    ┌ Info:   Loss [1401]: 0.0118
+    │         Avg displacement in data: 0.10862
+    │         Weight/Scale: 0.758122328637297   Bias/Offset: 0.19459760596350487
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1451]: 0.00489
-    │         Avg displacement in data: 0.06994
-    │         Weight/Scale: 1.102865549592031   Bias/Offset: -0.07596051455775897
+    ┌ Info:   Loss [1451]: 0.01159
+    │         Avg displacement in data: 0.10764
+    │         Weight/Scale: 0.7592906237938988   Bias/Offset: 0.1970160651375306
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1501]: 0.0046
-    │         Avg displacement in data: 0.06782
-    │         Weight/Scale: 1.101848534244069   Bias/Offset: -0.07617845320002499
+    ┌ Info:   Loss [1501]: 0.01142
+    │         Avg displacement in data: 0.10687
+    │         Weight/Scale: 0.7593329615710782   Bias/Offset: 0.19853185115006367
     └ @ Main In[14]:15
     ┌ Info: Run: 1/2  Epoch: 4/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [1551]: 0.00435
-    │         Avg displacement in data: 0.06594
-    │         Weight/Scale: 1.1010182006482503   Bias/Offset: -0.07639125118738038
+    ┌ Info:   Loss [1551]: 0.01178
+    │         Avg displacement in data: 0.10855
+    │         Weight/Scale: 0.7588701852604998   Bias/Offset: 0.19960313591551038
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1601]: 0.00406
-    │         Avg displacement in data: 0.06374
-    │         Weight/Scale: 1.098299915461368   Bias/Offset: -0.078652570235219
+    ┌ Info:   Loss [1601]: 0.01187
+    │         Avg displacement in data: 0.10895
+    │         Weight/Scale: 0.7575674288813233   Bias/Offset: 0.19976693878845794
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1651]: 0.00379
-    │         Avg displacement in data: 0.06158
-    │         Weight/Scale: 1.094253012282958   Bias/Offset: -0.08198939232523353
+    ┌ Info:   Loss [1651]: 0.012
+    │         Avg displacement in data: 0.10955
+    │         Weight/Scale: 0.756113284039509   Bias/Offset: 0.1996293584896335
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1701]: 0.0036
-    │         Avg displacement in data: 0.06003
-    │         Weight/Scale: 1.0903297318331586   Bias/Offset: -0.08498762001311538
+    ┌ Info:   Loss [1701]: 0.01226
+    │         Avg displacement in data: 0.11072
+    │         Weight/Scale: 0.754836707403587   Bias/Offset: 0.19944115329323944
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1751]: 0.00344
-    │         Avg displacement in data: 0.05869
-    │         Weight/Scale: 1.0865329532746983   Bias/Offset: -0.08762512501830362
+    ┌ Info:   Loss [1751]: 0.01214
+    │         Avg displacement in data: 0.1102
+    │         Weight/Scale: 0.753458205232668   Bias/Offset: 0.1998095385635743
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1801]: 0.00328
-    │         Avg displacement in data: 0.05723
-    │         Weight/Scale: 1.0834100115876923   Bias/Offset: -0.08951264432395406
+    ┌ Info:   Loss [1801]: 0.01251
+    │         Avg displacement in data: 0.11183
+    │         Weight/Scale: 0.7533249040819153   Bias/Offset: 0.2027025314268595
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1851]: 0.0031
-    │         Avg displacement in data: 0.05565
-    │         Weight/Scale: 1.0812910083523564   Bias/Offset: -0.09055115422784701
+    ┌ Info:   Loss [1851]: 0.01214
+    │         Avg displacement in data: 0.11019
+    │         Weight/Scale: 0.7510613004627918   Bias/Offset: 0.20263583707368665
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1901]: 0.00293
-    │         Avg displacement in data: 0.05415
-    │         Weight/Scale: 1.0797268208489306   Bias/Offset: -0.09125128722476535
+    ┌ Info:   Loss [1901]: 0.01129
+    │         Avg displacement in data: 0.10625
+    │         Weight/Scale: 0.7461265062862948   Bias/Offset: 0.19691199895980238
     └ @ Main In[14]:15
-    ┌ Info:   Loss [1951]: 0.00279
-    │         Avg displacement in data: 0.0528
-    │         Weight/Scale: 1.0783942260655184   Bias/Offset: -0.09189667330687001
+    ┌ Info:   Loss [1951]: 0.01069
+    │         Avg displacement in data: 0.10337
+    │         Weight/Scale: 0.7438045369876697   Bias/Offset: 0.19412877849957996
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2001]: 0.00266
-    │         Avg displacement in data: 0.05161
-    │         Weight/Scale: 1.0771516857620413   Bias/Offset: -0.09256887734391803
+    ┌ Info:   Loss [2001]: 0.01081
+    │         Avg displacement in data: 0.10398
+    │         Weight/Scale: 0.7447911363670117   Bias/Offset: 0.19729867489770186
     └ @ Main In[14]:15
     ┌ Info: Run: 1/2  Epoch: 5/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [2051]: 0.00255
-    │         Avg displacement in data: 0.05053
-    │         Weight/Scale: 1.0759361524587598   Bias/Offset: -0.093280299132748
+    ┌ Info:   Loss [2051]: 0.01056
+    │         Avg displacement in data: 0.10275
+    │         Weight/Scale: 0.7438215153427163   Bias/Offset: 0.1989696740172562
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2101]: 0.00245
-    │         Avg displacement in data: 0.04953
-    │         Weight/Scale: 1.0747397679659476   Bias/Offset: -0.09400992831876732
+    ┌ Info:   Loss [2101]: 0.00913
+    │         Avg displacement in data: 0.09554
+    │         Weight/Scale: 0.7396131005159379   Bias/Offset: 0.19357734206965932
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2151]: 0.00236
-    │         Avg displacement in data: 0.04861
-    │         Weight/Scale: 1.0735805898777373   Bias/Offset: -0.09473002875902053
+    ┌ Info:   Loss [2151]: 0.00862
+    │         Avg displacement in data: 0.09285
+    │         Weight/Scale: 0.7360537626846678   Bias/Offset: 0.1881235046568465
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2201]: 0.00228
-    │         Avg displacement in data: 0.04777
-    │         Weight/Scale: 1.0724764246677867   Bias/Offset: -0.09542249582378302
+    ┌ Info:   Loss [2201]: 0.00797
+    │         Avg displacement in data: 0.08925
+    │         Weight/Scale: 0.7357522170128395   Bias/Offset: 0.1878782265032057
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2251]: 0.00221
-    │         Avg displacement in data: 0.04697
-    │         Weight/Scale: 1.0714389827163004   Bias/Offset: -0.09607811476895074
+    ┌ Info:   Loss [2251]: 0.00739
+    │         Avg displacement in data: 0.08596
+    │         Weight/Scale: 0.7364570279654614   Bias/Offset: 0.1890258314672458
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2301]: 0.00214
-    │         Avg displacement in data: 0.04623
-    │         Weight/Scale: 1.0704759730964668   Bias/Offset: -0.09669222640128693
+    ┌ Info:   Loss [2301]: 0.00665
+    │         Avg displacement in data: 0.08157
+    │         Weight/Scale: 0.7359804760205491   Bias/Offset: 0.1882272496760998
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2351]: 0.00207
-    │         Avg displacement in data: 0.04553
-    │         Weight/Scale: 1.069590599864623   Bias/Offset: -0.09726329843392197
+    ┌ Info:   Loss [2351]: 0.00613
+    │         Avg displacement in data: 0.07828
+    │         Weight/Scale: 0.7327100312241857   Bias/Offset: 0.18288868822957566
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2401]: 0.00201
-    │         Avg displacement in data: 0.04488
-    │         Weight/Scale: 1.0687841949867043   Bias/Offset: -0.09779083071924752
+    ┌ Info:   Loss [2401]: 0.0055
+    │         Avg displacement in data: 0.07416
+    │         Weight/Scale: 0.7317309137726691   Bias/Offset: 0.18010566442359519
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2451]: 0.00196
-    │         Avg displacement in data: 0.04426
-    │         Weight/Scale: 1.0680548746701697   Bias/Offset: -0.09827524888716206
+    ┌ Info:   Loss [2451]: 0.0047
+    │         Avg displacement in data: 0.06858
+    │         Weight/Scale: 0.734141727759607   Bias/Offset: 0.18177505174338934
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2501]: 0.00191
-    │         Avg displacement in data: 0.04367
-    │         Weight/Scale: 1.067398588252793   Bias/Offset: -0.09871818892155704
+    ┌ Info:   Loss [2501]: 0.00406
+    │         Avg displacement in data: 0.0637
+    │         Weight/Scale: 0.7360841085762041   Bias/Offset: 0.18313987569650586
     └ @ Main In[14]:15
 
 
-    111.758919 seconds (211.82 M allocations: 153.157 GiB, 15.94% gc time, 2.60% compilation time)
+    1521.568972 seconds (13.85 G allocations: 728.562 GiB, 10.66% gc time, 0.19% compilation time)
 
 
 
@@ -1009,7 +977,7 @@ end
     
 
 
-    ┌ Info: Friction model 1 mse: 6.076064634503041
+    ┌ Info: Friction model 1 mse: 16.063471558144585
     └ @ Main In[18]:29
 
 
@@ -1027,217 +995,217 @@ end
 
     ┌ Info: Run: 2/2  Epoch: 1/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [2551]: 0.00186
-    │         Avg displacement in data: 0.04311
-    │         Weight/Scale: 1.0668086948844062   Bias/Offset: -0.09912319080256106
+    ┌ Info:   Loss [2551]: 0.00574
+    │         Avg displacement in data: 0.07574
+    │         Weight/Scale: 0.7394674283295187   Bias/Offset: 0.18696360353874708
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2601]: 0.00181
-    │         Avg displacement in data: 0.04259
-    │         Weight/Scale: 1.0662763613823163   Bias/Offset: -0.09949487161954748
+    ┌ Info:   Loss [2601]: 0.00342
+    │         Avg displacement in data: 0.05845
+    │         Weight/Scale: 0.7424288967630541   Bias/Offset: 0.190979551375045
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2651]: 0.00177
-    │         Avg displacement in data: 0.04208
-    │         Weight/Scale: 1.0657925239029225   Bias/Offset: -0.099838257029901
+    ┌ Info:   Loss [2651]: 0.00326
+    │         Avg displacement in data: 0.05713
+    │         Weight/Scale: 0.7437286551818307   Bias/Offset: 0.19317318414384385
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2701]: 0.00173
-    │         Avg displacement in data: 0.0416
-    │         Weight/Scale: 1.065348874984884   Bias/Offset: -0.100158164009002
+    ┌ Info:   Loss [2701]: 0.0031
+    │         Avg displacement in data: 0.05564
+    │         Weight/Scale: 0.744211235516614   Bias/Offset: 0.194257781590303
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2751]: 0.00169
-    │         Avg displacement in data: 0.04114
-    │         Weight/Scale: 1.0649389236109952   Bias/Offset: -0.10045846622704088
+    ┌ Info:   Loss [2751]: 0.00295
+    │         Avg displacement in data: 0.05434
+    │         Weight/Scale: 0.7448825375255161   Bias/Offset: 0.19564832322821127
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2801]: 0.00166
-    │         Avg displacement in data: 0.0407
-    │         Weight/Scale: 1.0645577412486122   Bias/Offset: -0.10074203308980646
+    ┌ Info:   Loss [2801]: 0.00293
+    │         Avg displacement in data: 0.05409
+    │         Weight/Scale: 0.7462396660709758   Bias/Offset: 0.198222280616724
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2851]: 0.00162
-    │         Avg displacement in data: 0.04027
-    │         Weight/Scale: 1.0642018598957625   Bias/Offset: -0.10101081761065459
+    ┌ Info:   Loss [2851]: 0.00288
+    │         Avg displacement in data: 0.05371
+    │         Weight/Scale: 0.7471327344519462   Bias/Offset: 0.20023498491166936
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2901]: 0.00159
-    │         Avg displacement in data: 0.03986
-    │         Weight/Scale: 1.063868168384065   Bias/Offset: -0.10126594371101752
+    ┌ Info:   Loss [2901]: 0.00289
+    │         Avg displacement in data: 0.05379
+    │         Weight/Scale: 0.7488109112385878   Bias/Offset: 0.20354612121388982
     └ @ Main In[14]:15
-    ┌ Info:   Loss [2951]: 0.00156
-    │         Avg displacement in data: 0.03946
-    │         Weight/Scale: 1.0635539079350567   Bias/Offset: -0.10150766728906602
+    ┌ Info:   Loss [2951]: 0.00274
+    │         Avg displacement in data: 0.05234
+    │         Weight/Scale: 0.7497055972126797   Bias/Offset: 0.205819696018191
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3001]: 0.00153
-    │         Avg displacement in data: 0.03908
-    │         Weight/Scale: 1.0632582884102648   Bias/Offset: -0.1017364557659113
+    ┌ Info:   Loss [3001]: 0.00254
+    │         Avg displacement in data: 0.05044
+    │         Weight/Scale: 0.7479897982290847   Bias/Offset: 0.20419315172920774
     └ @ Main In[14]:15
     ┌ Info: Run: 2/2  Epoch: 2/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [3051]: 0.0015
-    │         Avg displacement in data: 0.03871
-    │         Weight/Scale: 1.0629809103907257   Bias/Offset: -0.10195243437903909
+    ┌ Info:   Loss [3051]: 0.00225
+    │         Avg displacement in data: 0.04746
+    │         Weight/Scale: 0.7451072737806487   Bias/Offset: 0.20038343197792163
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3101]: 0.00147
-    │         Avg displacement in data: 0.03835
-    │         Weight/Scale: 1.062721528778951   Bias/Offset: -0.10215545323792298
+    ┌ Info:   Loss [3101]: 0.00218
+    │         Avg displacement in data: 0.04669
+    │         Weight/Scale: 0.7426574224064251   Bias/Offset: 0.19734917728526907
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3151]: 0.00144
-    │         Avg displacement in data: 0.03801
-    │         Weight/Scale: 1.0624797972426554   Bias/Offset: -0.1023454177086838
+    ┌ Info:   Loss [3151]: 0.00187
+    │         Avg displacement in data: 0.04329
+    │         Weight/Scale: 0.742354866981475   Bias/Offset: 0.19717671267933815
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3201]: 0.00142
-    │         Avg displacement in data: 0.03767
-    │         Weight/Scale: 1.062255412308162   Bias/Offset: -0.10252221466552379
+    ┌ Info:   Loss [3201]: 0.00165
+    │         Avg displacement in data: 0.04056
+    │         Weight/Scale: 0.7430744542977501   Bias/Offset: 0.198883236946974
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3251]: 0.00139
-    │         Avg displacement in data: 0.03734
-    │         Weight/Scale: 1.0620480119707691   Bias/Offset: -0.10268577282663094
+    ┌ Info:   Loss [3251]: 0.00154
+    │         Avg displacement in data: 0.03927
+    │         Weight/Scale: 0.7438723827824281   Bias/Offset: 0.2008166136817539
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3301]: 0.00137
-    │         Avg displacement in data: 0.03702
-    │         Weight/Scale: 1.0618571799310061   Bias/Offset: -0.10283613556064543
+    ┌ Info:   Loss [3301]: 0.00153
+    │         Avg displacement in data: 0.0391
+    │         Weight/Scale: 0.7438480228677498   Bias/Offset: 0.20131434253220434
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3351]: 0.00135
-    │         Avg displacement in data: 0.03671
-    │         Weight/Scale: 1.0616823544342593   Bias/Offset: -0.10297350613756423
+    ┌ Info:   Loss [3351]: 0.00146
+    │         Avg displacement in data: 0.03826
+    │         Weight/Scale: 0.7449410657035299   Bias/Offset: 0.20298156797745473
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3401]: 0.00133
-    │         Avg displacement in data: 0.03643
-    │         Weight/Scale: 1.061510530390365   Bias/Offset: -0.10305591604216134
+    ┌ Info:   Loss [3401]: 0.00132
+    │         Avg displacement in data: 0.03627
+    │         Weight/Scale: 0.7446185517512837   Bias/Offset: 0.20302871829414298
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3451]: 0.0013
-    │         Avg displacement in data: 0.0361
-    │         Weight/Scale: 1.0612942238227683   Bias/Offset: -0.10321470838713605
+    ┌ Info:   Loss [3451]: 0.00131
+    │         Avg displacement in data: 0.03622
+    │         Weight/Scale: 0.7447316069603234   Bias/Offset: 0.20359839204965716
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3501]: 0.00128
-    │         Avg displacement in data: 0.03582
-    │         Weight/Scale: 1.0611381461013012   Bias/Offset: -0.10332686185928314
+    ┌ Info:   Loss [3501]: 0.00127
+    │         Avg displacement in data: 0.03562
+    │         Weight/Scale: 0.7440932625523219   Bias/Offset: 0.2033972162354636
     └ @ Main In[14]:15
     ┌ Info: Run: 2/2  Epoch: 3/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [3551]: 0.00126
-    │         Avg displacement in data: 0.03553
-    │         Weight/Scale: 1.060996473988249   Bias/Offset: -0.10342731521757358
+    ┌ Info:   Loss [3551]: 0.00128
+    │         Avg displacement in data: 0.03578
+    │         Weight/Scale: 0.7432924289074272   Bias/Offset: 0.20305658587084313
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3601]: 0.00124
-    │         Avg displacement in data: 0.03525
-    │         Weight/Scale: 1.0608667639082852   Bias/Offset: -0.10351748457419499
+    ┌ Info:   Loss [3601]: 0.00119
+    │         Avg displacement in data: 0.03449
+    │         Weight/Scale: 0.7429236489307438   Bias/Offset: 0.20326848085161028
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3651]: 0.00131
-    │         Avg displacement in data: 0.0362
-    │         Weight/Scale: 1.0606770120806601   Bias/Offset: -0.10365785210034589
+    ┌ Info:   Loss [3651]: 0.00117
+    │         Avg displacement in data: 0.03419
+    │         Weight/Scale: 0.7425654634707787   Bias/Offset: 0.20357411966460162
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3701]: 0.0012
-    │         Avg displacement in data: 0.03471
-    │         Weight/Scale: 1.0605299610298031   Bias/Offset: -0.1036786883470669
+    ┌ Info:   Loss [3701]: 0.00109
+    │         Avg displacement in data: 0.03294
+    │         Weight/Scale: 0.7423634094267662   Bias/Offset: 0.20400466338235348
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3751]: 0.00119
-    │         Avg displacement in data: 0.03446
-    │         Weight/Scale: 1.0603941401538712   Bias/Offset: -0.10376279239854518
+    ┌ Info:   Loss [3751]: 0.00105
+    │         Avg displacement in data: 0.03238
+    │         Weight/Scale: 0.7421392518583046   Bias/Offset: 0.20448437562924815
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3801]: 0.00117
-    │         Avg displacement in data: 0.0342
-    │         Weight/Scale: 1.0602723379056083   Bias/Offset: -0.10383893660272045
+    ┌ Info:   Loss [3801]: 0.0011
+    │         Avg displacement in data: 0.03318
+    │         Weight/Scale: 0.7413746723004496   Bias/Offset: 0.20421693127723983
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3851]: 0.00115
-    │         Avg displacement in data: 0.03395
-    │         Weight/Scale: 1.0601592691509274   Bias/Offset: -0.10390859634761485
+    ┌ Info:   Loss [3851]: 0.001
+    │         Avg displacement in data: 0.0317
+    │         Weight/Scale: 0.7404970565920657   Bias/Offset: 0.20389231161167365
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3901]: 0.00114
-    │         Avg displacement in data: 0.0337
-    │         Weight/Scale: 1.060054578226171   Bias/Offset: -0.10397281175375585
+    ┌ Info:   Loss [3901]: 0.001
+    │         Avg displacement in data: 0.03155
+    │         Weight/Scale: 0.7410274386118592   Bias/Offset: 0.20505013042223483
     └ @ Main In[14]:15
-    ┌ Info:   Loss [3951]: 0.00112
-    │         Avg displacement in data: 0.03345
-    │         Weight/Scale: 1.0599131158860837   Bias/Offset: -0.10400166882967721
+    ┌ Info:   Loss [3951]: 0.00092
+    │         Avg displacement in data: 0.03026
+    │         Weight/Scale: 0.7411430172484441   Bias/Offset: 0.20582198645101407
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4001]: 0.0011
-    │         Avg displacement in data: 0.03321
-    │         Weight/Scale: 1.0597385771291812   Bias/Offset: -0.10410679757728769
+    ┌ Info:   Loss [4001]: 0.00092
+    │         Avg displacement in data: 0.03029
+    │         Weight/Scale: 0.73994054732983   Bias/Offset: 0.2050838378686791
     └ @ Main In[14]:15
     ┌ Info: Run: 2/2  Epoch: 4/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [4051]: 0.00109
-    │         Avg displacement in data: 0.03298
-    │         Weight/Scale: 1.0596246938539982   Bias/Offset: -0.10417764559518738
+    ┌ Info:   Loss [4051]: 0.00089
+    │         Avg displacement in data: 0.02985
+    │         Weight/Scale: 0.7395399400996491   Bias/Offset: 0.2050198345006221
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4101]: 0.00107
-    │         Avg displacement in data: 0.03275
-    │         Weight/Scale: 1.0595201290151535   Bias/Offset: -0.10424355037234778
+    ┌ Info:   Loss [4101]: 0.00095
+    │         Avg displacement in data: 0.03088
+    │         Weight/Scale: 0.7393288416270515   Bias/Offset: 0.20545447121845742
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4151]: 0.00106
-    │         Avg displacement in data: 0.03252
-    │         Weight/Scale: 1.0594245230643016   Bias/Offset: -0.1043048362327687
+    ┌ Info:   Loss [4151]: 0.00082
+    │         Avg displacement in data: 0.02861
+    │         Weight/Scale: 0.7402603762008543   Bias/Offset: 0.20706950807045416
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4201]: 0.00106
-    │         Avg displacement in data: 0.03254
-    │         Weight/Scale: 1.0593362057558378   Bias/Offset: -0.10430845317243581
+    ┌ Info:   Loss [4201]: 0.00092
+    │         Avg displacement in data: 0.03025
+    │         Weight/Scale: 0.7395741717711521   Bias/Offset: 0.20689471136237647
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4251]: 0.00103
-    │         Avg displacement in data: 0.03208
-    │         Weight/Scale: 1.0591216185977248   Bias/Offset: -0.10443780119434082
+    ┌ Info:   Loss [4251]: 0.00082
+    │         Avg displacement in data: 0.02866
+    │         Weight/Scale: 0.737114361746147   Bias/Offset: 0.20480237341002125
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4301]: 0.00102
-    │         Avg displacement in data: 0.03187
-    │         Weight/Scale: 1.0590151492513797   Bias/Offset: -0.10451327183501805
+    ┌ Info:   Loss [4301]: 0.00078
+    │         Avg displacement in data: 0.02786
+    │         Weight/Scale: 0.7367630270111356   Bias/Offset: 0.2053714655887574
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4351]: 0.001
-    │         Avg displacement in data: 0.03165
-    │         Weight/Scale: 1.058923045011262   Bias/Offset: -0.10458212091457411
+    ┌ Info:   Loss [4351]: 0.00073
+    │         Avg displacement in data: 0.02695
+    │         Weight/Scale: 0.7376546129263832   Bias/Offset: 0.20716502051184515
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4401]: 0.00099
-    │         Avg displacement in data: 0.03145
-    │         Weight/Scale: 1.0588433179423473   Bias/Offset: -0.10464528309822899
+    ┌ Info:   Loss [4401]: 0.00071
+    │         Avg displacement in data: 0.02672
+    │         Weight/Scale: 0.7394631033362079   Bias/Offset: 0.21011382986840174
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4451]: 0.00107
-    │         Avg displacement in data: 0.03271
-    │         Weight/Scale: 1.0588326281517397   Bias/Offset: -0.10463640531451984
+    ┌ Info:   Loss [4451]: 0.00068
+    │         Avg displacement in data: 0.02617
+    │         Weight/Scale: 0.7386981526726747   Bias/Offset: 0.20943313959896703
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4501]: 0.00096
-    │         Avg displacement in data: 0.03104
-    │         Weight/Scale: 1.0585836640070059   Bias/Offset: -0.10478089254415496
+    ┌ Info:   Loss [4501]: 0.00071
+    │         Avg displacement in data: 0.02663
+    │         Weight/Scale: 0.7398543360977708   Bias/Offset: 0.21018062142602664
     └ @ Main In[14]:15
     ┌ Info: Run: 2/2  Epoch: 5/5
     └ @ Main In[26]:3
-    ┌ Info:   Loss [4551]: 0.00095
-    │         Avg displacement in data: 0.03084
-    │         Weight/Scale: 1.0585005403610852   Bias/Offset: -0.1048548906112387
+    ┌ Info:   Loss [4551]: 0.00067
+    │         Avg displacement in data: 0.02593
+    │         Weight/Scale: 0.7407214908689865   Bias/Offset: 0.21055511369470342
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4601]: 0.00094
-    │         Avg displacement in data: 0.03065
-    │         Weight/Scale: 1.0584349213051993   Bias/Offset: -0.10492564349254259
+    ┌ Info:   Loss [4601]: 0.00062
+    │         Avg displacement in data: 0.02487
+    │         Weight/Scale: 0.7410498066117251   Bias/Offset: 0.21061450304937399
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4651]: 0.00093
-    │         Avg displacement in data: 0.03045
-    │         Weight/Scale: 1.058383932295903   Bias/Offset: -0.10499043891018421
+    ┌ Info:   Loss [4651]: 0.00081
+    │         Avg displacement in data: 0.02845
+    │         Weight/Scale: 0.7385930602843431   Bias/Offset: 0.20807095572263018
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4701]: 0.00092
-    │         Avg displacement in data: 0.03027
-    │         Weight/Scale: 1.0583481603307412   Bias/Offset: -0.10504943284207116
+    ┌ Info:   Loss [4701]: 0.00059
+    │         Avg displacement in data: 0.02419
+    │         Weight/Scale: 0.7392744593000797   Bias/Offset: 0.20927363827680145
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4751]: 0.0009
-    │         Avg displacement in data: 0.03008
-    │         Weight/Scale: 1.058223120285205   Bias/Offset: -0.10510872542085002
+    ┌ Info:   Loss [4751]: 0.0006
+    │         Avg displacement in data: 0.02448
+    │         Weight/Scale: 0.7398590799013566   Bias/Offset: 0.21092290992559515
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4801]: 0.00089
-    │         Avg displacement in data: 0.0299
-    │         Weight/Scale: 1.0581436627713   Bias/Offset: -0.10519919694566782
+    ┌ Info:   Loss [4801]: 0.00057
+    │         Avg displacement in data: 0.02381
+    │         Weight/Scale: 0.7393095559189226   Bias/Offset: 0.21104907855948993
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4851]: 0.00088
-    │         Avg displacement in data: 0.02972
-    │         Weight/Scale: 1.0581095995960585   Bias/Offset: -0.1052757625482944
+    ┌ Info:   Loss [4851]: 0.00056
+    │         Avg displacement in data: 0.02363
+    │         Weight/Scale: 0.7390001373136241   Bias/Offset: 0.21114028450845262
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4901]: 0.00087
-    │         Avg displacement in data: 0.02954
-    │         Weight/Scale: 1.0580891941654116   Bias/Offset: -0.10534790313494202
+    ┌ Info:   Loss [4901]: 0.00054
+    │         Avg displacement in data: 0.02318
+    │         Weight/Scale: 0.7389694225582392   Bias/Offset: 0.21148334225196466
     └ @ Main In[14]:15
-    ┌ Info:   Loss [4951]: 0.00086
-    │         Avg displacement in data: 0.02937
-    │         Weight/Scale: 1.0580831698928583   Bias/Offset: -0.10541519688135084
+    ┌ Info:   Loss [4951]: 0.00055
+    │         Avg displacement in data: 0.02347
+    │         Weight/Scale: 0.7390840093129217   Bias/Offset: 0.21183500472316327
     └ @ Main In[14]:15
-    ┌ Info:   Loss [5001]: 0.00101
-    │         Avg displacement in data: 0.03184
-    │         Weight/Scale: 1.0581614850341206   Bias/Offset: -0.10539398713829859
+    ┌ Info:   Loss [5001]: 0.00054
+    │         Avg displacement in data: 0.02321
+    │         Weight/Scale: 0.7391624660391095   Bias/Offset: 0.21199520589260332
     └ @ Main In[14]:15
 
 
-     98.484821 seconds (188.60 M allocations: 140.127 GiB, 17.09% gc time)
+    1163.842974 seconds (10.72 G allocations: 575.871 GiB, 10.71% gc time)
 
 
 
@@ -1264,9 +1232,9 @@ end
     
 
 
-    ┌ Info: Friction model 1 mse: 6.076064634503041
+    ┌ Info: Friction model 1 mse: 16.063471558144585
     └ @ Main In[18]:29
-    ┌ Info: Friction model 2 mse: 6.19198240945078
+    ┌ Info: Friction model 2 mse: 17.8039866811531
     └ @ Main In[18]:29
 
 

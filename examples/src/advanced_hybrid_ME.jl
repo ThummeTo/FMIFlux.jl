@@ -25,7 +25,7 @@ realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
-realSimData = fmiSimulate(realFMU, tStart, tStop; recordValues=vrs, saveat=tSave)
+realSimData = fmiSimulate(realFMU, (tStart, tStop); recordValues=vrs, saveat=tSave)
 fmiPlot(realSimData)
 
 posReal = fmi2GetSolutionValue(realSimData, "mass.s")
@@ -39,7 +39,7 @@ simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
 fmiInfo(simpleFMU)
 
 vrs = ["mass.s", "mass.v", "mass.a"]
-simpleSimData = fmiSimulate(simpleFMU, tStart, tStop; recordValues=vrs, saveat=tSave)
+simpleSimData = fmiSimulate(simpleFMU, (tStart, tStop); recordValues=vrs, saveat=tSave)
 fmiPlot(simpleSimData)
 
 posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
@@ -49,7 +49,7 @@ velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
 global horizon = 5
 function lossSum(p)
     global posReal, neuralFMU, horizon
-    solution = neuralFMU(x₀, tStart; p=p)
+    solution = neuralFMU(x₀; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
@@ -60,7 +60,7 @@ end
 
 function plotResults()
     global neuralFMU
-    solution = neuralFMU(x₀, tStart)
+    solution = neuralFMU(x₀)
 
     posNeural = fmi2GetSolutionState(solution, 1; isIndex=true)
     time = fmi2GetSolutionTime(solution)
@@ -137,7 +137,7 @@ net = Chain(
 
 neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
 
-solutionBefore = neuralFMU(x₀, tStart)
+solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 
 # train

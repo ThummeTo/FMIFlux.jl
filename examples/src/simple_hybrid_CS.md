@@ -28,7 +28,7 @@ The example is primarily intended for users who work in the field of first princ
 
 
 ## Other formats
-Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/simple_hybrid_CS.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/simple_hybrid_CS.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/simple_hybrid_CS.md) corresponding to the notebook.  
+Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_CS.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_CS.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_CS.md) corresponding to the notebook.  
 
 
 ## Getting started
@@ -97,14 +97,6 @@ referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
 fmiInfo(referenceFMU)
 ```
 
-    ┌ Info: fmi2Unzip(...): Successfully unzipped 153 files at `/tmp/fmijl_9jSt4u/SpringPendulumExtForce1D`.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:90
-    ┌ Info: fmi2Load(...): FMU resources location is `file:////tmp/fmijl_9jSt4u/SpringPendulumExtForce1D/resources`
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:221
-    ┌ Info: fmi2Load(...): FMU supports both CS and ME, using CS as default if nothing specified.
-    └ @ FMIImport /home/runner/.julia/packages/FMIImport/1Yngw/src/FMI2_ext.jl:224
-
-
     #################### Begin information for FMU ####################
     	Model name:			SpringPendulumExtForce1D
     	FMI-Version:			2.0
@@ -143,7 +135,7 @@ In the next steps the parameters are defined. The first parameter is the initial
 ```julia
 param = Dict("mass_s0" => 1.3, "mass.v" => 0.0)   # increase amplitude, invert phase
 vrs = ["mass.s", "mass.v", "mass.a"]
-referenceSimData = fmiSimulate(referenceFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
 fmiPlot(referenceSimData)
 ```
 
@@ -221,7 +213,7 @@ The following simulate and plot the *defaultFMU* just like the *referenceFMU*. T
 
 
 ```julia
-defaultSimData = fmiSimulate(defaultFMU, tStart, tStop; parameters=param, recordValues=vrs, saveat=tSave)
+defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
 fmiPlot(defaultSimData)
 ```
 
@@ -307,8 +299,8 @@ $$ mse = \frac{1}{n} \sum\limits_{i=0}^n (accReference[i] - accNet[i])^2 $$
 
 ```julia
 # loss function for training
-function lossSum()
-    solution = csNeuralFMU(extForce, tStep)
+function lossSum(p)
+    solution = csNeuralFMU(extForce, tStep; p=p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
@@ -331,11 +323,11 @@ To output the loss in certain time intervals, a callback is implemented as a fun
 ```julia
 # callback function for training
 global counter = 0
-function callb()
+function callb(p)
     global counter += 1
 
     if counter % 20 == 1
-        avgLoss = lossSum()
+        avgLoss = lossSum(p[1])
         @info "Loss [$counter]: $(round(avgLoss, digits=5))"
     end
 end
@@ -358,7 +350,13 @@ In the following, the topology of the CS-NeuralFMU is constructed. It consists o
 numInputs = length(defaultFMU.modelDescription.inputValueReferences)
 numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
 
-net = Chain(inputs -> fmiInputDoStepCSOutput(defaultFMU, tStep, inputs),
+function eval(u)
+    y, _ = defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences)
+    return y
+end
+
+
+net = Chain(inputs -> eval(inputs),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
@@ -415,38 +413,38 @@ For the training of the CS-NeuralFMU the parameters are extracted. The known ADA
 paramsNet = Flux.params(csNeuralFMU)
 
 optim = ADAM()
-Flux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=callb)
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
 ```
 
-    ┌ Info: Loss [1]: 1.31473
+    ┌ Info: Loss [1]: 3.47982
     └ @ Main In[12]:8
-    ┌ Info: Loss [21]: 0.13349
+    ┌ Info: Loss [21]: 0.90179
     └ @ Main In[12]:8
-    ┌ Info: Loss [41]: 0.07489
+    ┌ Info: Loss [41]: 0.12337
     └ @ Main In[12]:8
-    ┌ Info: Loss [61]: 0.04067
+    ┌ Info: Loss [61]: 0.06929
     └ @ Main In[12]:8
-    ┌ Info: Loss [81]: 0.02535
+    ┌ Info: Loss [81]: 0.05055
     └ @ Main In[12]:8
-    ┌ Info: Loss [101]: 0.01475
+    ┌ Info: Loss [101]: 0.03554
     └ @ Main In[12]:8
-    ┌ Info: Loss [121]: 0.00847
+    ┌ Info: Loss [121]: 0.02417
     └ @ Main In[12]:8
-    ┌ Info: Loss [141]: 0.00507
+    ┌ Info: Loss [141]: 0.0155
     └ @ Main In[12]:8
-    ┌ Info: Loss [161]: 0.00335
+    ┌ Info: Loss [161]: 0.00939
     └ @ Main In[12]:8
-    ┌ Info: Loss [181]: 0.00249
+    ┌ Info: Loss [181]: 0.00543
     └ @ Main In[12]:8
-    ┌ Info: Loss [201]: 0.002
+    ┌ Info: Loss [201]: 0.00307
     └ @ Main In[12]:8
-    ┌ Info: Loss [221]: 0.00168
+    ┌ Info: Loss [221]: 0.00177
     └ @ Main In[12]:8
-    ┌ Info: Loss [241]: 0.00144
+    ┌ Info: Loss [241]: 0.00111
     └ @ Main In[12]:8
-    ┌ Info: Loss [261]: 0.00124
+    ┌ Info: Loss [261]: 0.00078
     └ @ Main In[12]:8
-    ┌ Info: Loss [281]: 0.00108
+    ┌ Info: Loss [281]: 0.00062
     └ @ Main In[12]:8
 
 

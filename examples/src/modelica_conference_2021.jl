@@ -27,14 +27,14 @@ x₀ = [0.5, 0.0]
 params = Dict(zip(initStates, x₀))
 vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
 
-realSimData = fmiSimulate(realFMU, tStart, tStop; parameters=params, recordValues=vrs, saveat=tSave)
+realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordValues=vrs, saveat=tSave)
 posReal = fmi2GetSolutionValue(realSimData, "mass.s")
 velReal = fmi2GetSolutionValue(realSimData, "mass.v")
 fmiPlot(realSimData)
 
 function simulate(FMU, initStates, x₀, variables, tStart, tStop, tSave)
     params = Dict(zip(initStates, x₀))
-    return fmiSimulate(FMU, tStart, tStop; parameters=params, recordValues=variables, saveat=tSave)
+    return fmiSimulate(FMU, (tStart, tStop); parameters=params, recordValues=variables, saveat=tSave)
 end
 
 function extractPosVel(simData)
