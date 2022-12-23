@@ -25,6 +25,7 @@ include("deprecated.jl")
 include("batch.jl")
 include("losses.jl")
 include("scheduler.jl")
+#include("optimiser.jl")
 
 # from Plots.jl 
 # No export here, Plots.plot is extended if available.
