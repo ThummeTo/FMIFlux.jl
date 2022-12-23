@@ -416,36 +416,21 @@ optim = ADAM()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
 ```
 
-    ┌ Info: Loss [1]: 3.47982
-    └ @ Main In[12]:8
-    ┌ Info: Loss [21]: 0.90179
-    └ @ Main In[12]:8
-    ┌ Info: Loss [41]: 0.12337
-    └ @ Main In[12]:8
-    ┌ Info: Loss [61]: 0.06929
-    └ @ Main In[12]:8
-    ┌ Info: Loss [81]: 0.05055
-    └ @ Main In[12]:8
-    ┌ Info: Loss [101]: 0.03554
-    └ @ Main In[12]:8
-    ┌ Info: Loss [121]: 0.02417
-    └ @ Main In[12]:8
-    ┌ Info: Loss [141]: 0.0155
-    └ @ Main In[12]:8
-    ┌ Info: Loss [161]: 0.00939
-    └ @ Main In[12]:8
-    ┌ Info: Loss [181]: 0.00543
-    └ @ Main In[12]:8
-    ┌ Info: Loss [201]: 0.00307
-    └ @ Main In[12]:8
-    ┌ Info: Loss [221]: 0.00177
-    └ @ Main In[12]:8
-    ┌ Info: Loss [241]: 0.00111
-    └ @ Main In[12]:8
-    ┌ Info: Loss [261]: 0.00078
-    └ @ Main In[12]:8
-    ┌ Info: Loss [281]: 0.00062
-    └ @ Main In[12]:8
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 3.47982
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.90179
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.12337
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.06929
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.05055
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.03554
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.02417
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.0155
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.00939
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.00543
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00307
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.00177
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00111
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.00078
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.00062
 
 
 #### Comparison of the plots

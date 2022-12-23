@@ -443,36 +443,21 @@ optim = ADAM()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 ```
 
-    ┌ Info: Loss [1]: 14.31508   Avg displacement in data: 3.78353
-    └ @ Main In[11]:7
-    ┌ Info: Loss [21]: 2.0444   Avg displacement in data: 1.42982
-    └ @ Main In[11]:7
-    ┌ Info: Loss [41]: 0.36227   Avg displacement in data: 0.60188
-    └ @ Main In[11]:7
-    ┌ Info: Loss [61]: 0.11496   Avg displacement in data: 0.33906
-    └ @ Main In[11]:7
-    ┌ Info: Loss [81]: 0.0737   Avg displacement in data: 0.27148
-    └ @ Main In[11]:7
-    ┌ Info: Loss [101]: 0.06571   Avg displacement in data: 0.25633
-    └ @ Main In[11]:7
-    ┌ Info: Loss [121]: 0.06035   Avg displacement in data: 0.24567
-    └ @ Main In[11]:7
-    ┌ Info: Loss [141]: 0.05603   Avg displacement in data: 0.2367
-    └ @ Main In[11]:7
-    ┌ Info: Loss [161]: 0.05245   Avg displacement in data: 0.22902
-    └ @ Main In[11]:7
-    ┌ Info: Loss [181]: 0.04954   Avg displacement in data: 0.22257
-    └ @ Main In[11]:7
-    ┌ Info: Loss [201]: 0.04717   Avg displacement in data: 0.2172
-    └ @ Main In[11]:7
-    ┌ Info: Loss [221]: 0.04525   Avg displacement in data: 0.21273
-    └ @ Main In[11]:7
-    ┌ Info: Loss [241]: 0.0437   Avg displacement in data: 0.20903
-    └ @ Main In[11]:7
-    ┌ Info: Loss [261]: 0.04242   Avg displacement in data: 0.20596
-    └ @ Main In[11]:7
-    ┌ Info: Loss [281]: 0.04137   Avg displacement in data: 0.2034
-    └ @ Main In[11]:7
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 14.31508   Avg displacement in data: 3.78353
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 2.0444   Avg displacement in data: 1.42982
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.36226   Avg displacement in data: 0.60188
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.11495   Avg displacement in data: 0.33905
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.0737   Avg displacement in data: 0.27148
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0657   Avg displacement in data: 0.25633
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.06035   Avg displacement in data: 0.24567
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.05603   Avg displacement in data: 0.2367
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.05245   Avg displacement in data: 0.22902
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.04954   Avg displacement in data: 0.22257
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.04717   Avg displacement in data: 0.2172
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.04525   Avg displacement in data: 0.21273
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.04369   Avg displacement in data: 0.20903
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.04242   Avg displacement in data: 0.20596
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.04137   Avg displacement in data: 0.2034
 
 
 #### Comparison of the plots
@@ -520,76 +505,41 @@ Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth
 fig 
 ```
 
-    ┌ Info: Loss [301]: 0.0405   Avg displacement in data: 0.20125
-    └ @ Main In[11]:7
-    ┌ Info: Loss [321]: 0.03978   Avg displacement in data: 0.19945
-    └ @ Main In[11]:7
-    ┌ Info: Loss [341]: 0.03917   Avg displacement in data: 0.19792
-    └ @ Main In[11]:7
-    ┌ Info: Loss [361]: 0.03866   Avg displacement in data: 0.19662
-    └ @ Main In[11]:7
-    ┌ Info: Loss [381]: 0.03822   Avg displacement in data: 0.19551
-    └ @ Main In[11]:7
-    ┌ Info: Loss [401]: 0.03785   Avg displacement in data: 0.19455
-    └ @ Main In[11]:7
-    ┌ Info: Loss [421]: 0.03752   Avg displacement in data: 0.19371
-    └ @ Main In[11]:7
-    ┌ Info: Loss [441]: 0.03723   Avg displacement in data: 0.19296
-    └ @ Main In[11]:7
-    ┌ Info: Loss [461]: 0.03697   Avg displacement in data: 0.19229
-    └ @ Main In[11]:7
-    ┌ Info: Loss [481]: 0.03674   Avg displacement in data: 0.19167
-    └ @ Main In[11]:7
-    ┌ Info: Loss [501]: 0.03652   Avg displacement in data: 0.1911
-    └ @ Main In[11]:7
-    ┌ Info: Loss [521]: 0.03632   Avg displacement in data: 0.19057
-    └ @ Main In[11]:7
-    ┌ Info: Loss [541]: 0.03613   Avg displacement in data: 0.19007
-    └ @ Main In[11]:7
-    ┌ Info: Loss [561]: 0.03594   Avg displacement in data: 0.18959
-    └ @ Main In[11]:7
-    ┌ Info: Loss [581]: 0.03577   Avg displacement in data: 0.18912
-    └ @ Main In[11]:7
-    ┌ Info: Loss [601]: 0.03559   Avg displacement in data: 0.18866
-    └ @ Main In[11]:7
-    ┌ Info: Loss [621]: 0.03542   Avg displacement in data: 0.18821
-    └ @ Main In[11]:7
-    ┌ Info: Loss [641]: 0.03526   Avg displacement in data: 0.18777
-    └ @ Main In[11]:7
-    ┌ Info: Loss [661]: 0.03509   Avg displacement in data: 0.18732
-    └ @ Main In[11]:7
-    ┌ Info: Loss [681]: 0.03492   Avg displacement in data: 0.18687
-    └ @ Main In[11]:7
-    ┌ Info: Loss [701]: 0.03475   Avg displacement in data: 0.18642
-    └ @ Main In[11]:7
-    ┌ Info: Loss [721]: 0.03458   Avg displacement in data: 0.18596
-    └ @ Main In[11]:7
-    ┌ Info: Loss [741]: 0.03441   Avg displacement in data: 0.18549
-    └ @ Main In[11]:7
-    ┌ Info: Loss [761]: 0.03423   Avg displacement in data: 0.18501
-    └ @ Main In[11]:7
-    ┌ Info: Loss [781]: 0.03404   Avg displacement in data: 0.18451
-    └ @ Main In[11]:7
-    ┌ Info: Loss [801]: 0.03386   Avg displacement in data: 0.184
-    └ @ Main In[11]:7
-    ┌ Info: Loss [821]: 0.03366   Avg displacement in data: 0.18347
-    └ @ Main In[11]:7
-    ┌ Info: Loss [841]: 0.03346   Avg displacement in data: 0.18291
-    └ @ Main In[11]:7
-    ┌ Info: Loss [861]: 0.03325   Avg displacement in data: 0.18233
-    └ @ Main In[11]:7
-    ┌ Info: Loss [881]: 0.03302   Avg displacement in data: 0.18173
-    └ @ Main In[11]:7
-    ┌ Info: Loss [901]: 0.03279   Avg displacement in data: 0.18109
-    └ @ Main In[11]:7
-    ┌ Info: Loss [921]: 0.03255   Avg displacement in data: 0.18042
-    └ @ Main In[11]:7
-    ┌ Info: Loss [941]: 0.0323   Avg displacement in data: 0.17972
-    └ @ Main In[11]:7
-    ┌ Info: Loss [961]: 0.03203   Avg displacement in data: 0.17897
-    └ @ Main In[11]:7
-    ┌ Info: Loss [981]: 0.03175   Avg displacement in data: 0.17818
-    └ @ Main In[11]:7
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.0405   Avg displacement in data: 0.20125
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.03978   Avg displacement in data: 0.19945
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.03917   Avg displacement in data: 0.19792
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.03866   Avg displacement in data: 0.19662
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.03822   Avg displacement in data: 0.19551
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.03785   Avg displacement in data: 0.19455
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.03752   Avg displacement in data: 0.19371
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.03723   Avg displacement in data: 0.19296
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.03697   Avg displacement in data: 0.19229
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.03674   Avg displacement in data: 0.19167
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.03652   Avg displacement in data: 0.1911
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.03632   Avg displacement in data: 0.19057
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.03613   Avg displacement in data: 0.19007
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.03594   Avg displacement in data: 0.18959
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.03577   Avg displacement in data: 0.18912
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.03559   Avg displacement in data: 0.18866
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.03542   Avg displacement in data: 0.18821
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.03526   Avg displacement in data: 0.18777
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.03509   Avg displacement in data: 0.18732
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.03492   Avg displacement in data: 0.18687
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.03475   Avg displacement in data: 0.18642
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.03458   Avg displacement in data: 0.18596
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.03441   Avg displacement in data: 0.18549
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.03423   Avg displacement in data: 0.18501
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.03404   Avg displacement in data: 0.18451
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.03386   Avg displacement in data: 0.184
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.03366   Avg displacement in data: 0.18346
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.03346   Avg displacement in data: 0.18291
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.03324   Avg displacement in data: 0.18233
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.03302   Avg displacement in data: 0.18173
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.03279   Avg displacement in data: 0.18109
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.03255   Avg displacement in data: 0.18042
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.0323   Avg displacement in data: 0.17972
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.03203   Avg displacement in data: 0.17897
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.03175   Avg displacement in data: 0.17818
 
 
 
