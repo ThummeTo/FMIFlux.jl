@@ -7,7 +7,7 @@ module FMIFlux
 
 @debug "Debugging messages enabled for FMIFlux ..."
 
-using Requires
+using Requires, Flux 
 
 using FMIImport
 using FMIImport: fmi2ValueReference, FMU, FMU2, FMU2Component
@@ -18,6 +18,8 @@ using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicator
 using FMIImport: fmi2SampleJacobian, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
+include("convert.jl")
+include("flux_overload.jl")
 include("neural.jl")
 include("misc.jl")
 include("layers.jl")
