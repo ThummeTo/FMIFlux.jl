@@ -14,8 +14,8 @@ export Parallel
 
 # Float64 version of the Flux.glorot_uniform
 function glorot_uniform_64(rng::AbstractRNG, dims::Integer...; gain::Real=1)
-    scale = Float64(gain) * sqrt(24.0f0 / sum(nfan(dims...)))
-    (rand(rng, Float64, dims...) .- 0.5f0) .* scale
+    scale = Float64(gain) * sqrt(24.0 / sum(nfan(dims...)))
+    (rand(rng, Float64, dims...) .- 0.5) .* scale
 end
 glorot_uniform_64(dims::Integer...; kw...) = glorot_uniform_64(Flux.default_rng_value(), dims...; kw...)
 glorot_uniform_64(rng::AbstractRNG=Flux.default_rng_value(); init_kwargs...) = (dims...; kwargs...) -> glorot_uniform_64(rng, dims...; init_kwargs..., kwargs...)  
