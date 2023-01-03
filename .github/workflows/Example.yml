@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest] # , ubuntu-latest]
         file-name: [advanced_hybrid_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022]
         julia-version: ['1.7']
         julia-arch: [x64]
@@ -49,7 +49,7 @@ jobs:
           jupyter nbconvert --to markdown ${{ env.FILE }}
 
       - name: Archive examples artifacts
-        if: success() && matrix.os == 'ubuntu-latest'
+        if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3
         with:
           name: examples

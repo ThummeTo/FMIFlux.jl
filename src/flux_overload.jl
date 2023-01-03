@@ -8,13 +8,20 @@ import ChainRulesCore
 import Flux.Random: AbstractRNG
 import Flux.LinearAlgebra: I
 
-export Adam 
+# feed through
+params = Flux.params
 
+# exports
+export Adam 
 export Parallel
+
+# 
+Chain = Flux.Chain
+export Chain
 
 # Float64 version of the Flux.glorot_uniform
 function glorot_uniform_64(rng::AbstractRNG, dims::Integer...; gain::Real=1)
-    scale = Float64(gain) * sqrt(24.0 / sum(nfan(dims...)))
+    scale = Float64(gain) * sqrt(24.0 / sum(Flux.nfan(dims...)))
     (rand(rng, Float64, dims...) .- 0.5) .* scale
 end
 glorot_uniform_64(dims::Integer...; kw...) = glorot_uniform_64(Flux.default_rng_value(), dims...; kw...)
@@ -47,6 +54,3 @@ function Dense(W::AbstractMatrix, args...; init=glorot_uniform_64, kwargs...)
 end
 Dense(in::Integer, out::Integer, σ = identity; init=glorot_uniform_64, kwargs...) = Dense(in => out, σ; init=init, kwargs...)
 export Dense
-
-Chain = Flux.Chain
-export Chain
