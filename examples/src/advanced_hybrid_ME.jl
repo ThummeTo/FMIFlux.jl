@@ -7,7 +7,6 @@ using FMI
 using FMI.FMIImport: fmi2StringToValueReference, fmi2ValueReference, fmi2Real
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 using Statistics: mean, std
 import Plots
@@ -55,7 +54,7 @@ function lossSum(p)
     
     horizon = min(length(posNet), horizon)
 
-    Flux.Losses.mse(posReal[1:horizon], posNet[1:horizon])
+    FMIFlux.Losses.mse(posReal[1:horizon], posNet[1:horizon])
 end
 
 function plotResults()
@@ -141,9 +140,9 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 
 # train
-paramsNet = Flux.params(neuralFMU)
+paramsNet = FMIFlux.params(neuralFMU)
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
 
 # plot results mass.s

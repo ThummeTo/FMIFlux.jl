@@ -6,7 +6,6 @@
 using FMI
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
@@ -51,7 +50,7 @@ function lossSum(p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
-    Flux.Losses.mse(accReference, accNet)
+    FMIFlux.Losses.mse(accReference, accNet)
 end
 
 # callback function for training
@@ -87,9 +86,9 @@ accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
 Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 
 # train
-paramsNet = Flux.params(csNeuralFMU)
+paramsNet = FMIFlux.params(csNeuralFMU)
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
 
 # plot results mass.a

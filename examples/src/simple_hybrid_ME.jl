@@ -6,7 +6,6 @@
 using FMI
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
@@ -51,9 +50,8 @@ function lossSum(p)
     solution = neuralFMU(x₀; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    # velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
-
-    Flux.Losses.mse(posReal, posNet) #+ Flux.Losses.mse(velReal, velNet)
+    
+    FMIFlux.Losses.mse(posReal, posNet) 
 end
 
 # callback function for training
@@ -80,9 +78,9 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 
 # train
-paramsNet = Flux.params(neuralFMU)
+paramsNet = FMIFlux.params(neuralFMU)
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 
 # plot results mass.s
@@ -100,11 +98,11 @@ Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
 Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (300 epochs)", linewidth=2)
 fig 
 
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=()->callb(paramsNet)) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1200), optim; cb=()->callb(paramsNet)) 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀)
 posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
-Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1500 epochs)", linewidth=2)
 fig 
 
 fmiUnload(simpleFMU)

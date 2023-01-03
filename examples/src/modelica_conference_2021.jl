@@ -6,7 +6,6 @@
 using FMI
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
@@ -78,7 +77,7 @@ function lossSum(p)
 
     posNet, velNet = extractPosVel(solution)
 
-    (Flux.Losses.mse(posReal, posNet) + Flux.Losses.mse(velReal, velNet)) / 2.0
+    (FMIFlux.Losses.mse(posReal, posNet) + FMIFlux.Losses.mse(velReal, velNet)) / 2.0
 end
 
 # callback function for training
@@ -194,7 +193,7 @@ function plot_friction_model(realSimData, netBottom, forces)
         fricNeural[sortperm(fricNeural[:, 1]), :]
         Plots.plot!(fig, fricNeural[:,1], fricNeural[:,2], label="NeuralFMU ($(i*2500))", 
                     linewidth=2, linestyle=linestyles[i], linecolor=:green)
-        @info "Friction model $i mse: $(Flux.Losses.mse(fricNeural[:,2], fricReal[:,2]))"
+        @info "Friction model $i mse: $(FMIFlux.Losses.mse(fricNeural[:,2], fricReal[:,2]))"
     end
     flush(stderr)
 
@@ -249,7 +248,7 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 
 # train
-paramsNet = Flux.params(neuralFMU)
+paramsNet = FMIFlux.params(neuralFMU)
 
 for i in 1:length(paramsNet[1])
     if paramsNet[1][i] < 0.0 
@@ -257,7 +256,7 @@ for i in 1:length(paramsNet[1])
     end
 end
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
 
 solutionAfter = []

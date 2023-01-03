@@ -1,6 +1,8 @@
 # Creation and training of CS-NeuralFMUs
 Tutorial by Johannes Stoljar, Tobias Thummerer
 
+*Last edit: 03.01.2023*
+
 ## License
 
 
@@ -34,16 +36,15 @@ Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/exa
 ## Getting started
 
 ### Installation prerequisites
-|     | Description                       | Command                   | Alternative                                    |   
-|:----|:----------------------------------|:--------------------------|:-----------------------------------------------|
-| 1.  | Enter Package Manager via         | ]                         |                                                |
-| 2.  | Install FMI via                   | add FMI                   | add " https://github.com/ThummeTo/FMI.jl "     |
-| 3.  | Install FMIFlux via               | add FMIFlux               | add " https://github.com/ThummeTo/FMIFlux.jl " |
-| 4.  | Install FMIZoo via                | add FMIZoo                | add " https://github.com/ThummeTo/FMIZoo.jl "  |
-| 5.  | Install Flux via                  | add Flux                  |                                                |
-| 6.  | Install DifferentialEquations via | add DifferentialEquations |                                                |
-| 7.  | Install Plots via                 | add Plots                 |                                                |
-| 8.  | Install Random via                | add Random                |                                                |
+|     | Description                       | Command                   |  
+|:----|:----------------------------------|:--------------------------|
+| 1.  | Enter Package Manager via         | ]                         |
+| 2.  | Install FMI via                   | add FMI                   | 
+| 3.  | Install FMIFlux via               | add FMIFlux               | 
+| 4.  | Install FMIZoo via                | add FMIZoo                | 
+| 5.  | Install DifferentialEquations via | add DifferentialEquations | 
+| 6.  | Install Plots via                 | add Plots                 | 
+| 7.  | Install Random via                | add Random                | 
 
 ## Code section
 
@@ -55,7 +56,6 @@ To run the example, the previously installed packages must be included.
 using FMI
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
@@ -127,7 +127,7 @@ fmiInfo(referenceFMU)
     		Serialize State:	true
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
-
+    
 
 In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $1.3𝑚$. The second parameter is the initial velocity of the mass, which is initilized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *referenceFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *referenceFMU* can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.
 
@@ -294,7 +294,7 @@ end
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
 
 The loss function in this implementation consists of the mean squared error (mse) from the acceleration data of the *referenceFMU* simulation (`accReference`) and the acceleration data of the network (`accNet`).
-$$ mse = \frac{1}{n} \sum\limits_{i=0}^n (accReference[i] - accNet[i])^2 $$
+$$ e_{mse} = \frac{1}{n} \sum\limits_{i=0}^n (accReference[i] - accNet[i])^2 $$
 
 
 ```julia
@@ -304,7 +304,7 @@ function lossSum(p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
-    Flux.Losses.mse(accReference, accNet)
+    FMIFlux.Losses.mse(accReference, accNet)
 end
 ```
 
@@ -370,7 +370,7 @@ net = Chain(inputs -> eval(inputs),
       Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
       Dense(16 => 16, tanh),                [90m# 272 parameters[39m
       Dense(16 => 2),                       [90m# 34 parameters[39m
-    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
+    ) [90m                  # Total: 6 arrays, [39m354 parameters, 3.141 KiB.
 
 
 
@@ -405,33 +405,33 @@ Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 
 #### Training of the CS-NeuralFMU
 
-For the training of the CS-NeuralFMU the parameters are extracted. The known ADAM optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
+For the training of the CS-NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
 
 
 ```julia
 # train
-paramsNet = Flux.params(csNeuralFMU)
+paramsNet = FMIFlux.params(csNeuralFMU)
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 3.47982
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.90179
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.12337
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.06929
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.05055
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.03554
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.02417
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.0155
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.00939
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.00543
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00307
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.00177
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00111
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.00078
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.00062
-
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 1.54017
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.17445
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.07401
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.04483
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.03093
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.02044
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.01349
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.00901
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.00623
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.00455
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00354
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.00291
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00249
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.00217
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.00192
+    
 
 #### Comparison of the plots
 

@@ -1,6 +1,8 @@
 # Creation and training of ME-NeuralFMUs
 Tutorial by Johannes Stoljar, Tobias Thummerer
 
+*Last edit: 03.01.2023*
+
 ## License
 
 
@@ -34,16 +36,15 @@ Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/exa
 ## Getting started
 
 ### Installation prerequisites
-|     | Description                       | Command                   | Alternative                                    |   
-|:----|:----------------------------------|:--------------------------|:-----------------------------------------------|
-| 1.  | Enter Package Manager via         | ]                         |                                                |
-| 2.  | Install FMI via                   | add FMI                   | add " https://github.com/ThummeTo/FMI.jl "     |
-| 3.  | Install FMIFlux via               | add FMIFlux               | add " https://github.com/ThummeTo/FMIFlux.jl " |
-| 4.  | Install FMIZoo via                | add FMIZoo                | add " https://github.com/ThummeTo/FMIZoo.jl "  |
-| 5.  | Install Flux via                  | add Flux                  |                                                |
-| 6.  | Install DifferentialEquations via | add DifferentialEquations |                                                |
-| 7.  | Install Plots via                 | add Plots                 |                                                |
-| 8.  | Install Random via                | add Random                |                                                |
+|     | Description                       | Command                   |    
+|:----|:----------------------------------|:--------------------------|
+| 1.  | Enter Package Manager via         | ]                         |
+| 2.  | Install FMI via                   | add FMI                   |
+| 3.  | Install FMIFlux via               | add FMIFlux               |
+| 4.  | Install FMIZoo via                | add FMIZoo                |
+| 5.  | Install DifferentialEquations via | add DifferentialEquations |
+| 6.  | Install Plots via                 | add Plots                 |
+| 7.  | Install Random via                | add Random                |
 
 ## Code section
 
@@ -55,7 +56,6 @@ To run the example, the previously installed packages must be included.
 using FMI
 using FMIFlux
 using FMIZoo
-using Flux
 using DifferentialEquations: Tsit5
 import Plots
 
@@ -154,7 +154,7 @@ fmiInfo(realFMU)
     		Serialize State:	true
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
-
+    
 
 In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $0.5𝑚$. The second parameter is the initial velocity of the mass, which is initialized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *realFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
 
@@ -204,18 +204,18 @@ posReal = fmi2GetSolutionValue(realSimData, "mass.s")
      0.5261682148972211
      0.5311370185654775
      ⋮
-     1.0657564963230959
-     1.0669308626658962
-     1.0679715871563396
-     1.0688763033630924
-     1.069643408396874
-     1.070272565475436
-     1.0707609888490195
-     1.0711070756109329
-     1.0713093335814168
-     1.0713672542789878
-     1.071367254277987
-     1.0713672542769863
+     1.0657564963384756
+     1.066930862706352
+     1.0679715872270086
+     1.068876303469867
+     1.0696434085045978
+     1.0702725656148622
+     1.0707609890298837
+     1.071107075846018
+     1.0713093338869186
+     1.0713672546639146
+     1.0713672546629138
+     1.071367254661913
 
 
 
@@ -267,7 +267,7 @@ fmiPlot(simpleSimData)
     		Serialize State:	true
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
-
+    
 
 
 
@@ -326,7 +326,7 @@ posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
 In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
 
 The loss function in this implementation consists of the mean squared error (mse) from the real position of the *realFMU* simulation (posReal) and the position data of the network (posNet).
-$$ mse = \frac{1}{n} \sum\limits_{i=0}^n (posReal[i] - posNet[i])^2 $$
+$$ e_{mse} = \frac{1}{n} \sum\limits_{i=0}^n (posReal[i] - posNet[i])^2 $$
 
 As it is indicated with the comments, one could also additionally consider the mse from the real velocity (velReal) and the velocity from the network (velNet). The error in this case would be calculated from the sum of both errors.
 
@@ -338,9 +338,8 @@ function lossSum(p)
     solution = neuralFMU(x₀; p=p)
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    # velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
-
-    Flux.Losses.mse(posReal, posNet) #+ Flux.Losses.mse(velReal, velNet)
+    
+    FMIFlux.Losses.mse(posReal, posNet) 
 end
 ```
 
@@ -398,7 +397,7 @@ net = Chain(inputs -> fmiEvaluateME(simpleFMU, inputs),
       Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
       Dense(16 => 16, tanh),                [90m# 272 parameters[39m
       Dense(16 => 2),                       [90m# 34 parameters[39m
-    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
+    ) [90m                  # Total: 6 arrays, [39m354 parameters, 3.141 KiB.
 
 
 
@@ -432,33 +431,33 @@ fmiPlot(solutionBefore)
 
 #### Training of the NeuralFMU
 
-For the training of the NeuralFMU the parameters are extracted. The known ADAM optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
+For the training of the NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
 
 
 ```julia
 # train
-paramsNet = Flux.params(neuralFMU)
+paramsNet = FMIFlux.params(neuralFMU)
 
-optim = ADAM()
+optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 14.31508   Avg displacement in data: 3.78353
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 2.0444   Avg displacement in data: 1.42982
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.36226   Avg displacement in data: 0.60188
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.11495   Avg displacement in data: 0.33905
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.0737   Avg displacement in data: 0.27148
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0657   Avg displacement in data: 0.25633
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.06035   Avg displacement in data: 0.24567
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.05603   Avg displacement in data: 0.2367
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.05245   Avg displacement in data: 0.22902
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.04954   Avg displacement in data: 0.22257
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.04717   Avg displacement in data: 0.2172
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.04525   Avg displacement in data: 0.21273
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.04369   Avg displacement in data: 0.20903
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.04242   Avg displacement in data: 0.20596
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.04137   Avg displacement in data: 0.2034
-
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 22.23882   Avg displacement in data: 4.71581
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 2.24523   Avg displacement in data: 1.49841
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.09813   Avg displacement in data: 0.31326
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.05951   Avg displacement in data: 0.24394
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.05316   Avg displacement in data: 0.23057
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.05009   Avg displacement in data: 0.22382
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.04776   Avg displacement in data: 0.21855
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.04581   Avg displacement in data: 0.21403
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.04412   Avg displacement in data: 0.21005
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.04264   Avg displacement in data: 0.2065
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.04134   Avg displacement in data: 0.20333
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.04018   Avg displacement in data: 0.20046
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.03915   Avg displacement in data: 0.19787
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.03822   Avg displacement in data: 0.1955
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.03737   Avg displacement in data: 0.19332
+    
 
 #### Comparison of the plots
 
@@ -497,50 +496,75 @@ As can be seen from the previous figure, the plot of the NeuralFMU has not yet f
 
 
 ```julia
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 700), optim; cb=()->callb(paramsNet)) 
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1200), optim; cb=()->callb(paramsNet)) 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀)
 posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
-Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1000 epochs)", linewidth=2)
+Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1500 epochs)", linewidth=2)
 fig 
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.0405   Avg displacement in data: 0.20125
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.03978   Avg displacement in data: 0.19945
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.03917   Avg displacement in data: 0.19792
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.03866   Avg displacement in data: 0.19662
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.03822   Avg displacement in data: 0.19551
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.03785   Avg displacement in data: 0.19455
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.03752   Avg displacement in data: 0.19371
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.03723   Avg displacement in data: 0.19296
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.03697   Avg displacement in data: 0.19229
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.03674   Avg displacement in data: 0.19167
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.03652   Avg displacement in data: 0.1911
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.03632   Avg displacement in data: 0.19057
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.03613   Avg displacement in data: 0.19007
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.03594   Avg displacement in data: 0.18959
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.03577   Avg displacement in data: 0.18912
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.03559   Avg displacement in data: 0.18866
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.03542   Avg displacement in data: 0.18821
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.03526   Avg displacement in data: 0.18777
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.03509   Avg displacement in data: 0.18732
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.03492   Avg displacement in data: 0.18687
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.03475   Avg displacement in data: 0.18642
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.03458   Avg displacement in data: 0.18596
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.03441   Avg displacement in data: 0.18549
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.03423   Avg displacement in data: 0.18501
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.03404   Avg displacement in data: 0.18451
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.03386   Avg displacement in data: 0.184
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.03366   Avg displacement in data: 0.18346
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.03346   Avg displacement in data: 0.18291
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.03324   Avg displacement in data: 0.18233
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.03302   Avg displacement in data: 0.18173
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.03279   Avg displacement in data: 0.18109
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.03255   Avg displacement in data: 0.18042
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.0323   Avg displacement in data: 0.17972
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.03203   Avg displacement in data: 0.17897
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.03175   Avg displacement in data: 0.17818
-
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.03668   Avg displacement in data: 0.19153
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.03605   Avg displacement in data: 0.18988
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.0355   Avg displacement in data: 0.18841
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.03501   Avg displacement in data: 0.1871
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.03458   Avg displacement in data: 0.18594
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.03419   Avg displacement in data: 0.1849
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.03383   Avg displacement in data: 0.18393
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.0335   Avg displacement in data: 0.18302
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.03317   Avg displacement in data: 0.18213
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.03285   Avg displacement in data: 0.18123
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.03251   Avg displacement in data: 0.18031
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.03216   Avg displacement in data: 0.17933
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.03179   Avg displacement in data: 0.1783
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.03139   Avg displacement in data: 0.17717
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.03096   Avg displacement in data: 0.17596
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.0305   Avg displacement in data: 0.17463
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.02999   Avg displacement in data: 0.17319
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.02945   Avg displacement in data: 0.17161
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.02886   Avg displacement in data: 0.16989
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.02824   Avg displacement in data: 0.16804
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.02755   Avg displacement in data: 0.16598
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.02681   Avg displacement in data: 0.16374
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.02603   Avg displacement in data: 0.16133
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.0252   Avg displacement in data: 0.15873
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.0243   Avg displacement in data: 0.1559
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.02335   Avg displacement in data: 0.15279
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.02231   Avg displacement in data: 0.14936
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.02117   Avg displacement in data: 0.14551
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.01993   Avg displacement in data: 0.14117
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.01858   Avg displacement in data: 0.13631
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.01717   Avg displacement in data: 0.13103
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.01576   Avg displacement in data: 0.12552
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.0144   Avg displacement in data: 0.12001
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.01311   Avg displacement in data: 0.1145
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.01194   Avg displacement in data: 0.10926
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1001]: 0.01089   Avg displacement in data: 0.10434
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1021]: 0.0099   Avg displacement in data: 0.0995
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1041]: 0.00894   Avg displacement in data: 0.09453
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1061]: 0.00801   Avg displacement in data: 0.08948
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1081]: 0.00716   Avg displacement in data: 0.0846
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1101]: 0.00646   Avg displacement in data: 0.08039
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1121]: 0.00597   Avg displacement in data: 0.07724
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1141]: 0.00564   Avg displacement in data: 0.07511
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1161]: 0.00544   Avg displacement in data: 0.07378
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1181]: 0.0052   Avg displacement in data: 0.07209
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1201]: 0.00508   Avg displacement in data: 0.0713
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1221]: 0.00499   Avg displacement in data: 0.07066
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1241]: 0.0049   Avg displacement in data: 0.07
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1261]: 0.00482   Avg displacement in data: 0.06941
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1281]: 0.0047   Avg displacement in data: 0.06855
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1301]: 0.00467   Avg displacement in data: 0.06831
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1321]: 0.00461   Avg displacement in data: 0.06791
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1341]: 0.00453   Avg displacement in data: 0.06728
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1361]: 0.00447   Avg displacement in data: 0.06684
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1381]: 0.00431   Avg displacement in data: 0.06568
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1401]: 0.00424   Avg displacement in data: 0.06515
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1421]: 0.00419   Avg displacement in data: 0.06475
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1441]: 0.00414   Avg displacement in data: 0.06432
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1461]: 0.00405   Avg displacement in data: 0.06366
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1481]: 0.00404   Avg displacement in data: 0.06353
+    
 
 
 
