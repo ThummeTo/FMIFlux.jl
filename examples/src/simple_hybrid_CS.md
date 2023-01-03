@@ -413,7 +413,7 @@ For the training of the CS-NeuralFMU the parameters are extracted. The known Ada
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet))
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet))
 ```
 
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 1.54017
@@ -431,6 +431,41 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->ca
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00249
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.00217
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.00192
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.00171
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.00154
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.00139
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.00126
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.00115
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.00106
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.00098
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.00092
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.00086
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.00082
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.00077
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.00074
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.00071
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.00068
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.00066
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.00064
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.00062
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.0006
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.00058
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.00057
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.00055
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.00054
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.00053
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.00051
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.0005
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.00049
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.00048
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.00047
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.00046
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.00045
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.00044
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.00043
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.00042
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.00041
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.0004
     
 
 #### Comparison of the plots
@@ -451,7 +486,7 @@ accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 1; isIndex=true)
 
 Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
 Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
-Plots.plot!(fig, tSave, accNeuralFMU, label="CS-NeuralFMU (300 eps.)", linewidth=2)
+Plots.plot!(fig, tSave, accNeuralFMU, label="CS-NeuralFMU (1000 eps.)", linewidth=2)
 fig 
 ```
 
@@ -473,7 +508,7 @@ fmiUnload(defaultFMU)
 
 ### Summary
 
-Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 300 runs, the curves overlap very much, so no further training with more runs is needed.
+Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 1000 training steps, the curves overlap very much, so no further training with more runs is needed.
 
 ### Source
 
