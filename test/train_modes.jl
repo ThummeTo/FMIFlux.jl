@@ -4,7 +4,7 @@
 #
 
 using FMI
-using Flux
+import Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
@@ -101,12 +101,12 @@ for handleEvents in [true, false]
                 c3 = CacheLayer()
                 c4 = CacheRetrieveLayer(c3)
                 net = Chain(x -> c1(x),
-                            Dense(numStates, numStates, identity; init=Flux.identity_init),
+                            Dense(numStates, numStates, identity; init=FMIFlux.identity_init_64),
                             x -> c2([1], x[2], []),
                             states -> myFMU(;x=states)[2],
                             dx -> c3(dx),
-                            Dense(numStates, 16, tanh; init=Flux.identity_init),
-                            Dense(16, numStates, identity; init=Flux.identity_init),
+                            Dense(numStates, 16, tanh; init=FMIFlux.identity_init_64),
+                            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
                             dx -> c4([1], dx[2], []) )
                 
                 optim = Adam(1e-8)

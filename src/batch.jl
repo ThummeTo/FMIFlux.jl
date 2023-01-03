@@ -384,3 +384,4 @@ function batchDataEvaluation(train_t::AbstractArray{<:Real}, targets::AbstractAr
     return batch
 end
 
+

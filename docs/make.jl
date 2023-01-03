@@ -20,6 +20,7 @@ makedocs(sitename="FMIFlux.jl",
                     "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
                     "Advanced ME-NeuralFMU" => "examples/advanced_hybrid_ME.md"
                     "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
+                    "Physics-enhanced NeuralODEs in real-world applications" => "examples/mdpi_2022.md"
             ]
             "FAQ" => "faq.md"
             "Library Functions" => "library.md"

@@ -4,7 +4,7 @@
 #
 
 using FMI
-using Flux
+import Flux
 
 import Random 
 Random.seed!(1234);
@@ -66,9 +66,9 @@ function eval(u)
     return y
 end
 net = Chain(inputs -> eval(inputs),
-            Dense(numOutputs, 16, tanh; init=Flux.identity_init),
-            Dense(16, 16, tanh; init=Flux.identity_init),
-            Dense(16, numOutputs; init=Flux.identity_init))
+            Dense(numOutputs, 16, tanh; init=FMIFlux.identity_init_64),
+            Dense(16, 16, tanh; init=FMIFlux.identity_init_64),
+            Dense(16, numOutputs; init=FMIFlux.identity_init_64))
 
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
