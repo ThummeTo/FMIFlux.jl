@@ -17,7 +17,7 @@ The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modelin
 
 NeuralFMUs do not need to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
 
-![CS-NeuralFMU.svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/CSNeuralFMU.svg?raw=true)
+![CS-NeuralFMU.svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/CSNeuralFMU.svg?raw=true)
 
 *NeuralFMU (CS) from* [[1]](#Source).
 
@@ -68,7 +68,7 @@ After importing the packages, the path to the *Functional Mock-up Units* (FMUs) 
 
 The objec-orientated structure of the *SpringPendulumExtForce1D* can be seen in the following graphic. This model is a simple spring pendulum without friction, but with an external force. 
 
-![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/pics/SpringPendulumExtForce1D.svg?raw=true)
+![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/SpringPendulumExtForce1D.svg?raw=true)
 
 Next, the start time and end time of the simulation are set. Finally, a step size is specified to store the results of the simulation at these time steps.
 
