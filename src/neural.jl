@@ -1340,6 +1340,10 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
 
     to_differentiate = p -> loss(p)
 
+    if VERSION < v"1.7.0"
+        @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
+    end
+
     for i in 1:length(data)
 
         try
@@ -1356,7 +1360,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                             chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
                             
                         else
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*2
                             #grad = ForwardDiff.gradient(to_differentiate, params[j]);
                         end
 
