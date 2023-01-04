@@ -197,11 +197,11 @@ fmiSaveParameters(neuralFMU, paramsPath)
 fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NO_RESET
 FMIFlux.finishSolveFMU(neuralFMU.fmu, c, false, true)
 
-# Load parameters 
-# fmiLoadParameters(neuralFMU, paramsPath)
-
 # check what had been learned by the NeuralFMU, simulate it ...
 resultNFMU_train = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, recordValues=manipulatedDerVars, maxiters=1e7) # [120s]
+
+# Load parameters 
+fmiLoadParameters(neuralFMU, paramsPath)
 
 # are we better?
 mse_NFMU = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultNFMU_train, 6; isIndex=true))
