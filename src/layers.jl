@@ -63,7 +63,7 @@ struct ScaleShift{T}
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T}; indices=1:length(data)) where {T}
+    function ScaleShift(l::ShiftScale{T}; indices=1:length(l.scale)) where {T}
         return ScaleShift{T}(1.0 / l.scale[indices], -1.0 * l.shift[indices])
     end
 
@@ -140,10 +140,14 @@ struct CacheRetrieveLayer
 end
 export CacheRetrieveLayer
 
-function (l::CacheRetrieveLayer)(idxBefore, x, idxAfter=nothing)
+function (l::CacheRetrieveLayer)(idxBefore, x=nothing, idxAfter=nothing)
     # Zygote doesn't like empty arrays
-    if idxAfter == nothing
+    if idxAfter == nothing && x == nothing
+        return l.cacheLayer.cache[idxBefore]
+    elseif idxAfter == nothing
         return [l.cacheLayer.cache[idxBefore]..., x...]
+    elseif x == nothing
+        return [l.cacheLayer.cache[idxBefore]..., l.cacheLayer.cache[idxAfter]...]
     else
         return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
     end
