@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Statistics: mean, std
+using FMIFlux.Statistics: mean, std
 
 shift = [1.0, 2.0, 3.0]
 scale = [4.0, 5.0, 6.0]
