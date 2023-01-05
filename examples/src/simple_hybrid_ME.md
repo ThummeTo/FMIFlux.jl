@@ -64,15 +64,6 @@ import Random
 Random.seed!(42);
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMIFlux [fabad875-0d53-4e47-9446-963b74cae21f]
-    WARNING: Method definition rrule(Type{Array{T, N} where N where T}, CUDA.CuArray{T, N, B} where B where N where T) in module Flux at C:\Users\runneradmin\.julia\packages\Flux\v79Am\src\functor.jl:125 overwritten in module Lux at C:\Users\runneradmin\.julia\packages\Lux\6vByk\src\autodiff.jl:57.
-      ** incremental compilation may be fatally broken for this module **
-    
-    WARNING: Method definition (::Type{DiffEqFlux.DeterministicCNF{M, P, RE, D, T, A, K} where K where A where T where D where RE where P where M})(M, P, RE, D, T, A, K) where {M, P, RE, D, T, A, K} in module DiffEqFlux at deprecated.jl:70 overwritten at C:\Users\runneradmin\.julia\packages\DiffEqFlux\2IJEZ\src\ffjord.jl:41.
-      ** incremental compilation may be fatally broken for this module **
-    
-    
-
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The object-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
@@ -558,7 +549,7 @@ fig
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1141]: 0.00564   Avg displacement in data: 0.07511
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1161]: 0.00544   Avg displacement in data: 0.07378
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1181]: 0.0052   Avg displacement in data: 0.07209
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1201]: 0.00509   Avg displacement in data: 0.07132
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1201]: 0.00509   Avg displacement in data: 0.07133
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1221]: 0.00499   Avg displacement in data: 0.07066
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1241]: 0.0049   Avg displacement in data: 0.07001
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1261]: 0.00482   Avg displacement in data: 0.06941
