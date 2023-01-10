@@ -613,7 +613,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [441] for horizon 39 : 0.00054   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02323
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [461] for horizon 41 : 0.00089   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02979
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02981
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [481] for horizon 43 : 0.0005   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.0223
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [501] for horizon 45 : 0.00047   
@@ -621,7 +621,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [521] for horizon 47 : 0.00064   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02532
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [541] for horizon 49 : 0.001   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03166
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03164
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [561] for horizon 51 : 0.00144   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.03801
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [581] for horizon 51 : 0.00135   
@@ -641,7 +641,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [721] for horizon 51 : 0.00118   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.03429
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [741] for horizon 51 : 0.00117   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03422
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03423
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [761] for horizon 51 : 0.00116   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.03404
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [781] for horizon 51 : 0.00114   
