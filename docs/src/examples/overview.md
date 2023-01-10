@@ -1,11 +1,17 @@
 # Examples - Overview
 
-This section discusses the included examples of the FMIFlux.jl library. So you can execute them on your machine and get detailed information about all of the steps. If you require further information about the function calls, see [library functions](https://thummeto.github.io/FMIFlux.jl/dev/library/) section. For more information related to the setup and simulation of an FMU see [FMI.jl library](https://thummeto.github.io/FMI.jl/dev/).
+This section discusses the included examples of the FMIFlux.jl library. So you can execute them on your machine and get detailed information about all of the steps. 
+If you require further information about the function calls, see [library functions](https://thummeto.github.io/FMIFlux.jl/dev/library/) section. 
+For more information related to the setup and simulation of an FMU see [FMI.jl library](https://thummeto.github.io/FMI.jl/dev/).
 
-The examples are:
+The examples are primarily intended for users who work in the field of first principle and/or data driven modeling and are further interested in hybrid model building. 
+The examples show how to combine FMUs with machine learning and illustrates the advantages of this approach.
 
-- [__Simple CS-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_CS/): Showing how to train a Neural CS FMU.
-- [__Simple ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_ME/): Showing how to train a Neural ME FMU.
-- [__Advanced ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/advanced_hybrid_ME/): Showing how to train an Neural ME FMU in an advanced way.
-- [__Modelica Conference 2021__](https://thummeto.github.io/FMIFlux.jl/dev/examples/modelica_conference_2021/): Showing how to train a Neural ME FMU.
-- [__Physics-enhanced NeuralODEs in real-world applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/mdpi_2022/): An example for a NeuralODE in a real world modeling scenario.
+## Examples
+- [__Simple CS-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_CS/): Showing how to train a NeuralFMU in Co-Simulation-Mode.
+- [__Simple ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_ME/): Showing how to train a NeuralFMU in Model-Excahnge-Mode.
+- [__Advanced ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/advanced_hybrid_ME/): Advanced training techniques for a ME-NeuralFMU.
+
+## Advanced examples: Demo applications
+- [__Modelica Conference 2021__](https://thummeto.github.io/FMIFlux.jl/dev/examples/modelica_conference_2021/): Showing basics on how to train a NeuralFMU (Contribution for the *Modelica Conference 2021*).
+- [__Physics-enhanced NeuralODEs in real-world applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/mdpi_2022/): An example for a NeuralODE in a real world modeling scenario (Contribution in *MDPI Electronics 2022*).
