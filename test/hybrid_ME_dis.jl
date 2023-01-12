@@ -4,7 +4,7 @@
 #
 
 using FMI
-using Flux
+import Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
@@ -40,7 +40,7 @@ function losssum(p)
     # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
+    return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -74,20 +74,20 @@ c4 = CacheRetrieveLayer(c3)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
-            Dense(numStates, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []),
             x -> realFMU(;x=x)[2], 
             x -> c3(x),
-            Dense(numStates, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c4([1], x[2], []))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
 net = Chain(x -> realFMU(;x=x)[2], 
             x -> c1(x),
-            Dense(numStates, 16, identity; init=Flux.identity_init),
-            Dense(16, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []))
 push!(nets, net)
 
@@ -97,32 +97,32 @@ function eval3(x)
     return dx
 end
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity, init=Flux.identity_init),
-            Dense(16, 16, identity, init=Flux.identity_init),
-            Dense(16, numStates, identity, init=Flux.identity_init),
+            Dense(numStates, 16, identity, init=FMIFlux.identity_init_64),
+            Dense(16, 16, identity, init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity, init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []),
             x -> eval3(x))
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []),
             x -> realFMU(;x=x)[2], 
             x -> c3(x),
-            Dense(numStates, 16, identity, init=Flux.identity_init),
-            Dense(16, 16, identity, init=Flux.identity_init),
-            Dense(16, numStates, identity, init=Flux.identity_init),
+            Dense(numStates, 16, identity, init=FMIFlux.identity_init_64),
+            Dense(16, 16, identity, init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity, init=FMIFlux.identity_init_64),
             x -> c4([1], x[2], []))
 push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states -> realFMU(;x=states, t=0.0)[2],
             x -> c1(x),
-            Dense(numStates, 8, identity; init=Flux.identity_init),
-            Dense(8, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 8, identity; init=FMIFlux.identity_init_64),
+            Dense(8, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []))
 push!(nets, net)
 
@@ -135,9 +135,9 @@ function eval6(x)
 end
 net = Chain(x -> eval6(x), 
             x -> c1(x),
-            Dense(numStates+numGetVRs, 8, identity; init=Flux.identity_init),
-            Dense(8, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates+numGetVRs, 8, identity; init=FMIFlux.identity_init_64),
+            Dense(8, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []))
 push!(nets, net)
 
@@ -150,9 +150,9 @@ function eval7(x)
 end
 net = Chain(x -> eval7(x), 
             x -> c1(x),
-            Dense(numStates, 8, identity; init=Flux.identity_init),
-            Dense(8, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 8, identity; init=FMIFlux.identity_init_64),
+            Dense(8, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []))
 push!(nets, net)
 
@@ -163,9 +163,9 @@ function eval8(x)
 end
 net = Chain(x -> eval8(x),
             x -> c1(x),
-            Dense(numStates+numGetVRs, 8, identity; init=Flux.identity_init),
-            Dense(8, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
+            Dense(numStates+numGetVRs, 8, identity; init=FMIFlux.identity_init_64),
+            Dense(8, 16, identity; init=FMIFlux.identity_init_64),
+            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []))
 push!(nets, net)
 

@@ -4,7 +4,7 @@
 #
 
 using FMI
-using Flux
+import Flux
 using DifferentialEquations: Tsit5
 
 import Random 
@@ -79,9 +79,9 @@ net = Chain(
         inputs -> eval(1, inputs[1:1]),
         inputs -> eval(2, inputs[2:2])
     ),
-    Dense(total_fmu_outdim, 16, tanh; init=Flux.identity_init),
-    Dense(16, 16, tanh; init=Flux.identity_init),
-    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=Flux.identity_init),
+    Dense(total_fmu_outdim, 16, tanh; init=FMIFlux.identity_init_64),
+    Dense(16, 16, tanh; init=FMIFlux.identity_init_64),
+    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=FMIFlux.identity_init_64),
 )
 
 problem = CS_NeuralFMU(fmus, net, (t_start, t_stop); saveat=tData)

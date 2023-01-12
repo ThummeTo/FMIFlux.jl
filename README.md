@@ -2,7 +2,7 @@
 # FMIFlux.jl
 
 ## What is FMIFlux.jl?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs just like NeuralODEs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard AD training process.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs just like NeuralODEs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard (or custom) FluxML training process.
 
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
 [![Run Tests](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml)
@@ -18,18 +18,18 @@
 
 2\. Install  [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-(@v1.6) pkg> add FMIFlux
+(@v1.x) pkg> add FMIFlux
 ```
 
 3\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-(@v1.6) pkg> test FMIFlux
+(@v1.x) pkg> test FMIFlux
 ```
 
 4\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
 
 ## What is currently supported in FMIFlux.jl?
-- building and training ME-NeuralFMUs (event-handling is BETA) with the default Flux-Front-End
+- building and training ME-NeuralFMUs (event-handling is supported) with the default Flux-Front-End
 - building and training CS-NeuralFMUs with the default Flux-Front-End
 - ...
 
@@ -37,7 +37,6 @@
 - performance optimizations
 - different modes for sensitivity estimation
 - improved documentation
-- explicitely time-dependent systems
 - more examples
 - ...
 

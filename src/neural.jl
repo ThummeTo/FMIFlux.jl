@@ -773,64 +773,11 @@ function ME_NeuralFMU(fmu::FMU2,
                       alg=nothing; 
                       saveat=[], 
                       recordValues = nothing, 
-                      convertParams::Union{Nothing, Bool}=nothing,
-                      #abstol::Real = 1e-6, 
-                      #reltol::Real = 1e-3,
-                      #dtmin::Real = 1e-16,
-                      #force_dtmin::Bool = false,
                       kwargs...)
 
+    #@assert !need_convert(Float64, model) "Model needs to be converted to Float64 in order to beeing used as ME-NeuralFMU. This can be done via [1] `model = convert(Float64, model)` or [2] by translating layer parameters to Float64 by yourself or [3] using `FMIFlux.Chain` instead of `Flux.Chain` in your code."
+
     nfmu = ME_NeuralFMU()
-   
-    layers = []
-
-    if convertParams === nothing
-        convertParams = isa(model, Chain) 
-    end
-    
-    for layer in model 
-        typ = typeof(layer)
-        if hasfield(typ, :weight) && hasfield(typ, :bias)
-            bitsWeight = Int(sizeof(layer.weight)/length(layer.weight)*8)
-            bitsBias = Int(sizeof(layer.bias)/length(layer.bias)*8)
-            if bitsWeight != 64 || bitsBias != 64
-                if convertParams
-                    args = [] 
-                    # Dict{Symbol, Any}()
-                    for f in fieldnames(typ)
-                        key = f 
-                        value = getfield(layer, f)
-
-                        if key == :weight 
-                            value = Matrix{Float64}(value)
-                        elseif key == :bias 
-                            if typeof(value) != Bool
-                                value = Vector{Float64}(value)
-                            end
-                        end
-
-                        push!(args, value)
-                        #args[key] = value
-                    end
-            
-                    newlayer = typ.name.wrapper(args...)
-                    push!(layers, newlayer)
-                    logInfo(fmu, "ME_NeuralFMU(...): Succesfully converted layer of type `$typ` to `$(typeof(newlayer))`.")
-                else
-                    logWarn(fmu, "ME_NeuralFMU(...): Layer of type `$typ` has parameters in $(bitsWeight)-bits (weights) / $(bitsBias)-bits (biases), but FMUs require 64-bit for propper event handling. Please use Float64-bit weights or use the keyword `convertParams=true`.")
-                end
-            end
-        else
-            if convertParams
-                push!(layers, layer)
-            end
-        end
-    end
-
-    if convertParams
-        model = Chain(layers...)
-        logInfo(fmu, "ME_NeuralFMU(...): Succesfully converted model to Float64.")
-    end
 
     ######
 
@@ -1382,6 +1329,10 @@ A function analogous to Flux.train! but with additional features and explicit pa
 function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Float32}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false)
 
     to_differentiate = p -> loss(p)
+
+    if VERSION < v"1.7.0"
+        @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
+    end
 
     for i in 1:length(data)
 
