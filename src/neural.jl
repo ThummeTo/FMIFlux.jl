@@ -1347,10 +1347,11 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                         # chunk size heuristics: as large as the RAM allows it (estimate)
                         # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
                         if VERSION >= v"1.7.0"
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*16
-                            
+                            # chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*16
+                            chunk_size = ceil(Int, sqrt( 16) ) * 64
                         else
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                            # chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                            chunk_size = ceil(Int, sqrt( 16 ))* 64
                             #grad = ForwardDiff.gradient(to_differentiate, params[j]);
                         end
 
