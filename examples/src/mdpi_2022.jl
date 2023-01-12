@@ -12,18 +12,20 @@ using JLD2                                  # data format for saving/loading par
 
 # plotting
 import Plots        # default plotting framework
-import PlotlyJS     # plotting (interactive)
-Plots.plotlyjs()    # actiavte PlotlyJS as default plotting backend
+
+# for interactive plotting
+# import PlotlyJS     # plotting (interactive)
+# Plots.plotlyjs()    # actiavte PlotlyJS as default plotting backend
 
 # Let's fix the random seed to make our program determinsitic (ANN layers are initialized indeterminsitic otherwise)
 import Random 
 Random.seed!(1234)
 
 # we use the Tsit5 solver for ODEs here 
-solver = Tsit5()    
+solver = Tsit5();   
 
 # load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
-fmu = fmiLoad("VLDM", "Dymola", "2022x"; type=:ME, logLevel=FMI.FMIImport.FMULogLevelInfo)
+fmu = fmiLoad("VLDM", "Dymola", "2022x"; type=:ME, logLevel=FMI.FMIImport.FMULogLevelInfo)  # `FMULogLevelInfo` = "Log everything that might be interesting!", default is `FMULogLevelWarn`
 
 # let's have a look on the model meta data
 fmiInfo(fmu)
@@ -36,7 +38,6 @@ tSave = data.consumption_t
 
 # have a look on the FMU parameters (these are the file paths to the characteristic maps)
 data.params
-
 
 # let's run a simulation from `tStart` to `tStop`, use the parameters we just viewed for the simulation run
 resultFMU = fmiSimulate(fmu, (tStart, tStop); parameters=data.params) 
@@ -58,10 +59,10 @@ manipulatedDerVars = ["der(dynamics.accelerationCalculation.integrator.y)",
 # alternative: manipulatedDerVars = fmu.modelDescription.derivativeValueReferences[4:6]
 
 # reference simulation to record the derivatives 
-resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=data.params, recordValues=:derivatives, saveat=tSave) # [29s]
+resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=data.params, recordValues=:derivatives, saveat=tSave) 
 vals = fmiGetSolutionValue(resultFMU, manipulatedDerVars)
 
-# what happens without propper transformation between FMU- and ML-domain?
+# what happens without propper transformation between FMU- and ANN-domain?
 Plots.plot(resultFMU.values.t, vals[1,:][1]; label="vehicle velocity");
 Plots.plot!(resultFMU.values.t, tanh.(vals[1,:][1]); label="tanh(velocity)")
 
@@ -75,6 +76,8 @@ Plots.plot!(resultFMU.values.t, tanh.(testVals); label="tanh(velocity)")
 
 # add some additional "buffer"
 preProcess.scale[:] *= 0.5 
+
+# and check again what it's doing now ...
 testVals = collect(preProcess(collect(val[t] for val in vals))[1] for t in 1:length(resultFMU.values.t))
 Plots.plot(resultFMU.values.t, testVals; label="velocity (pre-processed)");
 Plots.plot!(resultFMU.values.t, tanh.(testVals); label="tanh(velocity)")
@@ -85,7 +88,7 @@ Plots.plot(resultFMU.values.t, testVals; label="vehicle consumption (pre-process
 Plots.plot!(resultFMU.values.t, tanh.(testVals); label="tanh(consumption)")
 
 # setup scale/shift layer (inverse transformation) for post-processing
-# we don't an inverse transform for the entire preProcess, only for the second element (acceleration)
+# we don't an inverse transform for the entire preProcess, only for the 2nd element (acceleration)
 postProcess = ScaleShift(preProcess; indices=2:2)
 
 # setup cache layers 
@@ -138,7 +141,7 @@ c, _ = FMIFlux.prepareSolveFMU(neuralFMU.fmu, nothing, neuralFMU.fmu.type, true,
 
 # batch the data (time, targets), train only on model output index 6, plot batch elements
 batch = batchDataSolution(neuralFMU, t -> FMIZoo.getStateVector(data, t), train_t, train_data;
-    batchDuration=10.0, indicesModel=6:6, plot=true, parameters=data.params, showProgress=true)
+    batchDuration=10.0, indicesModel=6:6, plot=false, parameters=data.params, showProgress=false) # try `plot=true` to show the batch elements, try `showProgress=true` to display simulation progress
 
 # limit the maximum number of solver steps to 1e5 and maximum simulation/training duration to 30 minutes
 solverKwargsTrain = Dict{Symbol, Any}(:maxiters => 1e5, :max_execution_duration => 10.0*60.0)
@@ -149,20 +152,19 @@ lossFct = (a, b) -> FMIFlux.Losses.mse_last_element_rel(a, b, 0.5)
 lossFct([1.0, 2.0], [0.0, 0.0]) # (1.0)^2 * 0.75 + (2.0)^2 * 0.25
 
 # initialize a "worst error growth scheduler" (updates all batch losses, pick the batch element with largest error increase)
-scheduler = LossAccumulationScheduler(neuralFMU, batch, lossFct; applyStep=1, plotStep=5, updateStep=5)
-logLoss = false
+# apply the scheduler after every training step, plot the current status every 25 steps and update all batch element losses every 5 steps
+scheduler = LossAccumulationScheduler(neuralFMU, batch, lossFct; applyStep=1, plotStep=25, updateStep=5)
 updateScheduler = () -> update!(scheduler)
-#scheduler = SequentialScheduler(neuralFMU, batch)
-#logLoss = true 
 
 # defines a loss for the entire batch (accumulate error of batch elements)
 batch_loss = p -> FMIFlux.Losses.batch_loss(neuralFMU, batch; 
-    showProgress=true, p=p, parameters=data.params, update=true, lossFct=lossFct, logLoss=true, solverKwargsTrain...) # [120s]
+    showProgress=false, p=p, parameters=data.params, update=true, lossFct=lossFct, logLoss=true, solverKwargsTrain...) # try `showProgress=true` to display simulation progress
 
 # loss for training, take element from the worst element scheduler
 loss = p -> FMIFlux.Losses.loss(neuralFMU, batch; 
-    showProgress=true, p=p, parameters=data.params, lossFct=lossFct, batchIndex=scheduler.elementIndex, logLoss=logLoss, solverKwargsTrain...)
+    showProgress=false, p=p, parameters=data.params, lossFct=lossFct, batchIndex=scheduler.elementIndex, logLoss=false, solverKwargsTrain...) # try `showProgress=true` to display simulation progress
 
+# we start with a slightly opended ANN gate (1%) and a almost completely opened FMU gate (99%)
 gates.scale[:] = [0.99, 0.01] 
 
 # gather the parameters from the NeuralFMU
@@ -171,20 +173,15 @@ params = FMIFlux.params(neuralFMU)
 params[1][end-1] = 0.99
 params[1][end] = 0.01
 
-# for training, we use the Adam optimizer (with exponential decay) 
+# for training, we use the Adam optimizer with step size 1e-3
 optim = Adam(1e-3) 
 
 # initialize the scheduler 
-initialize!(scheduler; parameters=data.params, p=params[1], showProgress=true) # [120s]
+initialize!(scheduler; parameters=data.params, p=params[1], showProgress=false)
 
-batch_loss(params[1])
-FMIFlux.train!(loss, params, Iterators.repeated((), length(batch)), optim; chunk_size=length(params[1]), cb=updateScheduler) 
-
-optim.eta *= 0.5
-FMIFlux.train!(loss, params, Iterators.repeated((), length(batch)), optim; chunk_size=length(params[1]), cb=updateScheduler) 
+# let's check the loss we are starting with ...
 batch_loss(params[1])
 
-optim.eta *= 0.5
 FMIFlux.train!(loss, params, Iterators.repeated((), length(batch)), optim; chunk_size=length(params[1]), cb=updateScheduler) 
 batch_loss(params[1])
 
@@ -208,7 +205,9 @@ mse_NFMU = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultNF
 mse_FMU  = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultFMU, 6; isIndex=true))
 
 # ... and plot it
-fig = fmiPlot(resultNFMU_nipt; stateIndices=6:6, stateEvents=false, label="NeuralFMU (NIPT)", title="Training Data");
-fmiPlot!(fig, resultNFMU_train; stateIndices=6:6, stateEvents=false, values=false, label="NeuralFMU (Train)");
+fig = fmiPlot(resultNFMU_train; stateIndices=6:6, values=false, stateEvents=false, label="NeuralFMU", title="Training Data");
 fmiPlot!(fig, resultFMU; stateIndices=6:6, stateEvents=false, values=false, label="FMU");
 Plots.plot!(fig, train_t, data.consumption_val, label="Data", ribbon=data.consumption_dev, fillalpha=0.3)
+
+# clean-up
+fmiUnload(fmu) 
