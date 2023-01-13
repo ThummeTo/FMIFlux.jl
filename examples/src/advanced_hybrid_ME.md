@@ -603,69 +603,69 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [341] for horizon 29 : 0.00066   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02577
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [361] for horizon 31 : 0.00065   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02546
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02548
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [381] for horizon 33 : 0.00071   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02662
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02661
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [401] for horizon 35 : 0.00067   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02581
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02579
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [421] for horizon 37 : 0.00058   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02413
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [441] for horizon 39 : 0.00054   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02323
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [461] for horizon 41 : 0.00089   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02981
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02978
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [481] for horizon 43 : 0.0005   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.0223
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02226
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [501] for horizon 45 : 0.00047   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02158
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02165
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [521] for horizon 47 : 0.00064   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02532
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [541] for horizon 49 : 0.001   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03164
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02531
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [541] for horizon 49 : 0.00101   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03178
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [561] for horizon 51 : 0.00144   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03801
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03798
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [581] for horizon 51 : 0.00135   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03675
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03679
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [601] for horizon 51 : 0.00129   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03595
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03591
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [621] for horizon 51 : 0.00125   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.0354
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [641] for horizon 51 : 0.00123   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03506
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [661] for horizon 51 : 0.00118   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03439
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [681] for horizon 51 : 0.0012   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03466
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03541
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [641] for horizon 51 : 0.00122   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03499
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [661] for horizon 51 : 0.00121   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03474
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [681] for horizon 51 : 0.00119   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03453
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [701] for horizon 51 : 0.00119   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03446
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03449
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [721] for horizon 51 : 0.00118   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03429
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03432
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [741] for horizon 51 : 0.00117   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03423
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03427
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [761] for horizon 51 : 0.00116   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03404
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [781] for horizon 51 : 0.00114   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03382
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [801] for horizon 51 : 0.00113   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.0336
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [821] for horizon 51 : 0.00111   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03336
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [841] for horizon 51 : 0.0011   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03314
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [861] for horizon 51 : 0.00108   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03288
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [881] for horizon 51 : 0.00106   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03258
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03409
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [781] for horizon 51 : 0.00115   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03388
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [801] for horizon 51 : 0.00114   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03372
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [821] for horizon 51 : 0.00112   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03346
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [841] for horizon 51 : 0.00111   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03329
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [861] for horizon 51 : 0.00109   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03302
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [881] for horizon 51 : 0.00107   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03273
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [901] for horizon 51 : 0.00105   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.0324
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [921] for horizon 51 : 0.00103   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03217
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [941] for horizon 51 : 0.00102   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03189
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03208
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [941] for horizon 51 : 0.00101   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03181
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [961] for horizon 51 : 0.001   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03158
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [981] for horizon 51 : 0.00094   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03066
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03155
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [981] for horizon 51 : 0.00097   
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03122
     
 
 #### Comparison of the plots
