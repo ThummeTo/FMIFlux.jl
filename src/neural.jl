@@ -3,11 +3,12 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Flux, DiffEqFlux
+using Flux
 using DiffEqCallbacks
-using Interpolations: interpolate, LinearInterpolation
 
-using DiffEqFlux: ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, InterpolatingAdjoint, solve
+using DifferentialEquations: ODEFunction, ODEProblem, solve
+using SciMLSensitivity: ZygoteVJP, InterpolatingAdjoint, ForwardDiffSensitivity
+using Flux.Zygote
 
 import ForwardDiff
 import Optim
@@ -25,6 +26,8 @@ using FMIImport: logInfo, logWarn, logError
 import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
+zero_tgrad(u,p,t) = zero(u)
+
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
 """
@@ -33,8 +36,13 @@ abstract type NeuralFMU end
 """
 Structure definition for a NeuralFMU, that runs in mode `Model Exchange` (ME).
 """
-mutable struct ME_NeuralFMU <: NeuralFMU
-    neuralODE::NeuralODE
+mutable struct ME_NeuralFMU{M, P, R} <: NeuralFMU
+
+    model::M
+    p::P
+    re::R
+    kwargs
+
     fmu::FMU
 
     currentComponent::Union{FMU2Component, Nothing}
@@ -76,8 +84,12 @@ mutable struct ME_NeuralFMU <: NeuralFMU
 
     solveCycle::UInt
 
-    function ME_NeuralFMU()
+    function ME_NeuralFMU{M, P, R}(model::M, p::P, re::R) where {M, P, R}
         inst = new()
+        inst.model = model 
+        inst.p = p 
+        inst.re = re 
+
         inst.currentComponent = nothing
         inst.progressMeter = nothing
         inst.modifiedState = true
@@ -440,7 +452,7 @@ function condition(nfmu::ME_NeuralFMU, out::SubArray{<:ForwardDiff.Dual{T, V, N}
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #nfmu.fmu.components[end].t = t # this will auto-set time via fx-call!
-    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+    nfmu.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(nfmu.fmu, t)
 
     out_tmp = zeros(nfmu.fmu.modelDescription.numberOfEventIndicators)
@@ -468,7 +480,7 @@ function condition(nfmu::ME_NeuralFMU, out, _x, t, integrator) # Event when even
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #nfmu.fmu.components[end].t = t # this will auto-set time via fx-call!
-    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+    nfmu.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(nfmu.fmu, t)
 
     fmi2GetEventIndicators!(nfmu.fmu.components[end], out)
@@ -505,7 +517,7 @@ function conditionSingle(nfmu::ME_NeuralFMU, index, _x, t, integrator)
     
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #nfmu.fmu.components[end].t = t # this will auto-set time via fx-call!
-    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+    nfmu.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(nfmu.fmu, t)
 
     fmi2GetEventIndicators!(nfmu.fmu.components[end], lastIndicator)
@@ -515,7 +527,7 @@ end
 
 function f_optim(x, nfmu, right_x_fmu) # , idx, direction::Real)
     # propagete the new state-guess `x` through the NeuralFMU
-    nfmu.neuralODE.model(x)
+    nfmu.model(x)
     #indicators = fmi2GetEventIndicators(nfmu.fmu)
     return Flux.Losses.mse(right_x_fmu, fmi2GetContinuousStates(nfmu.fmu)) # - min(-direction*indicators[idx], 0.0)
 end
@@ -536,7 +548,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, integrator, idx)
     mode = c.fmu.executionConfig.force
     c.fmu.executionConfig.force = true
 
-    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+    nfmu.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(c, t)
 
     c.fmu.executionConfig.force = mode
@@ -698,7 +710,7 @@ function saveValues(nfmu, c::FMU2Component, recordValues, _x, t, integrator)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
-    nfmu.neuralODE.model(x) # evaluate NeuralFMU (set new states)
+    nfmu.model(x) # evaluate NeuralFMU (set new states)
     fmi2SetTime(c, t)
     
     # Todo set inputs
@@ -737,7 +749,7 @@ function fx(nfmu,
     end
 
     #nfmu.fmu.components[end].t = t 
-    dx = nfmu.neuralODE.re(p)(x)
+    dx = nfmu.re(p)(x)
 
     ignore_derivatives() do
 
@@ -779,7 +791,8 @@ function ME_NeuralFMU(fmu::FMU2,
 
     #@assert !need_convert(Float64, model) "Model needs to be converted to Float64 in order to beeing used as ME-NeuralFMU. This can be done via [1] `model = convert(Float64, model)` or [2] by translating layer parameters to Float64 by yourself or [3] using `FMIFlux.Chain` instead of `Flux.Chain` in your code."
 
-    nfmu = ME_NeuralFMU()
+    p, re = Flux.destructure(model)
+    nfmu = ME_NeuralFMU{typeof(model), typeof(p), typeof(re)}(model, p, re)
 
     ######
 
@@ -790,10 +803,10 @@ function ME_NeuralFMU(fmu::FMU2,
     nfmu.recordValues = prepareValueReference(fmu, recordValues)
 
     # abstol=abstol, reltol=reltol, dtmin=dtmin, force_dtmin=force_dtmin, 
-    nfmu.neuralODE = NeuralODE(model, tspan, alg; saveat=saveat, kwargs...)
-
+    
     nfmu.tspan = tspan
     nfmu.saveat = saveat
+    nfmu.kwargs = kwargs
 
     ######
     
@@ -931,7 +944,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     instantiate::Union{Bool, Nothing} = nothing,
     freeInstance::Union{Bool, Nothing} = nothing,
     terminate::Union{Bool, Nothing} = nothing,
-    p=nothing,
+    p=nfmu.p,
     saveEventPositions::Bool=false,
     max_execution_duration::Real=-1.0,
     recordValues::fmi2ValueReferenceFormat=nfmu.recordValues,
@@ -943,12 +956,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     saving = (length(recordValues) > 0)
     sense = nfmu.fmu.executionConfig.sensealg
     inPlace = nfmu.fmu.executionConfig.inPlace
-    #tspan = getfield(nfmu.neuralODE, :tspan)
-
-    # setup problem and parameters
-    if p == nothing
-        p = nfmu.neuralODE.p
-    end
 
     t_start = tspan[1]
     t_stop = tspan[end]
@@ -1100,8 +1107,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
                     fds_chunk_size = 1
                 end
 
-                #sense = ForwardDiffSensitivity(;convert_tspan=true)
-                sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
+                sense = ForwardDiffSensitivity(;convert_tspan=true)
+                #sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
+                
                 #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
 
                 if (nfmu.fmu.hasStateEvents && nfmu.fmu.executionConfig.handleStateEvents) || (nfmu.fmu.hasTimeEvents && nfmu.fmu.executionConfig.handleTimeEvents)
@@ -1131,17 +1139,17 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         prob = ODEProblem{true}(ff, nfmu.x0, nfmu.tspan, p)
     else 
         ff = ODEFunction{false}((x, p, t) -> fx(nfmu, x, p, t), 
-                                tgrad=nothing) # basic_tgrad)
+                                tgrad=nothing) # zero_tgrad)
         prob = ODEProblem{false}(ff, nfmu.x0, nfmu.tspan, p)
     end
 
     # if (length(nfmu.callbacks) == 2) # only start and stop callback, so the system is pure continuous
     #     startCallback(nfmu, nfmu.tspan[1])
-    #     nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.neuralODE.kwargs...)
+    #     nfmu.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.kwargs...)
     #     stopCallback(nfmu, nfmu.tspan[end])
     # else
-    #nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs...)
-    nfmu.solution.states = solve(prob, nfmu.neuralODE.args...; saveat=nfmu.saveat, callback=CallbackSet(nfmu.callbacks...), nfmu.neuralODE.kwargs..., kwargs...) 
+    #nfmu.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(nfmu.callbacks...), nfmu.kwargs...)
+    nfmu.solution.states = solve(prob; saveat=nfmu.saveat, callback=CallbackSet(nfmu.callbacks...), nfmu.kwargs..., kwargs...) 
     
     #end
 
@@ -1285,17 +1293,16 @@ end
 # adapting the Flux functions
 function Flux.params(nfmu::ME_NeuralFMU; destructure::Bool=false)
     if destructure 
-        p, nfmu.re = Flux.destructure(nfmu.neuralODE)
-        return p
-    else
-        return Flux.params(nfmu.neuralODE)
+        nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
     end
+
+    return Flux.params(nfmu.p)
 end
 
 function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=true)
     if destructure 
         p, nfmu.re = Flux.destructure(nfmu.model)
-        return Flux.params([p])
+        return Flux.params(p)
     else
         return Flux.params(nfmu.model)
     end
@@ -1336,7 +1343,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-algorithms)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Float32}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false)
 
     to_differentiate = p -> loss(p)
 
@@ -1356,15 +1363,16 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, Vector{Vector{Fl
                         
                         # chunk size heuristics: as large as the RAM allows it (estimate)
                         # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
-                        if VERSION >= v"1.7.0"
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                        # if VERSION >= v"1.7.0"
+                        #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
                             
-                        else
-                            chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
-                            #grad = ForwardDiff.gradient(to_differentiate, params[j]);
-                        end
+                        # else
+                        #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+                        # end
+                        #grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                        #grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
 
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j]);
                         grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
 
                     else
@@ -1413,4 +1421,9 @@ end
 function train!(loss, neuralFMU::ME_NeuralFMU, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
     params = Flux.params(neuralFMU)   
     train!(loss, params, data, optim; kwargs...)
+end
+
+function train!(loss, params::Union{AbstractVector{<:Float32}, AbstractVector{<:Float64}}, args...; kwargs...)
+    params = Flux.params(params)
+    train!(loss, params, args...; kwargs...)
 end

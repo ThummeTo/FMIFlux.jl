@@ -181,6 +181,7 @@ for i in 1:length(nets)
 
         # train it ...
         p_net = Flux.params(problem)
+        @test length(p_net) == 1
 
         iterCB = 0
         lastLoss = losssum(p_net[1])

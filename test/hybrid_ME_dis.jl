@@ -169,7 +169,7 @@ net = Chain(x -> eval8(x),
             x -> c2([1], x[2], []))
 push!(nets, net)
 
-optim = Adam(1e-8)
+optim = Adam(1e-4)
 for i in 1:length(nets)
     @testset "Net setup $(i)/$(length(nets))" begin
         global nets, problem, lastLoss, iterCB
