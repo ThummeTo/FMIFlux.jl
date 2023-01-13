@@ -182,7 +182,8 @@ initialize!(scheduler; parameters=data.params, p=params[1], showProgress=false)
 # let's check the loss we are starting with ...
 batch_loss(params[1])
 
-FMIFlux.train!(loss, params, Iterators.repeated((), length(batch)), optim; chunk_size=length(params[1]), cb=updateScheduler) 
+batchLen = length(batch)
+FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; chunk_size=length(params[1]), cb=updateScheduler) 
 batch_loss(params[1])
 
 # save the parameters (so we can use them tomorrow again)
