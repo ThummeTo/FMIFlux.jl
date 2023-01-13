@@ -75,7 +75,7 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
         inst.applyStep = applyStep
         inst.plotStep = plotStep
         inst.updateStep = updateStep
-
+        
         inst.printMsg = ""
         inst.lossAccu = zeros(length(batch))
 
