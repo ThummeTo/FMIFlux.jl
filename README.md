@@ -5,8 +5,8 @@
 [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs just like NeuralODEs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard (or custom) FluxML training process.
 
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
-[![Test (latest)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml)
-[![Test (LTS)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLTS.yml)
+[![Test (latest)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml)
+[![Test (LTS)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLTS.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLTS.yml)
 [![Examples](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml)
 [![Build Docs](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Documentation.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Documentation.yml)
 [![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl)
