@@ -5,8 +5,9 @@
 [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs just like NeuralODEs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard (or custom) FluxML training process.
 
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
-[![Run Tests](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Test.yml)
-[![Run Examples](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml)
+[![Test (latest)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml)
+[![Test (LTS)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLTS.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLTS.yml)
+[![Examples](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Example.yml)
 [![Build Docs](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Documentation.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Documentation.yml)
 [![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
@@ -41,9 +42,10 @@
 - ...
 
 ## What Platforms are supported?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6 LTS* and *latest* on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
-However, please use Julia versions *>= 1.7* if possible, because [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) runs **a lot** faster with these Julia versions.
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) currnetly only works with FMI2-FMUs.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6* (LTS) and *1.8* (latest) on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+However, please use Julia versions *>= 1.7* if possible, because [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) runs **a lot** faster with these newer Julia versions.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) currently only works with FMI2-FMUs. 
+All shipped examples are tested under Julia version *1.8* (latest) on Windows (latest).
 
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png?raw=true "FMI.jl Family")
