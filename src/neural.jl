@@ -26,6 +26,8 @@ using FMIImport: logInfo, logWarn, logError
 import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
+import Folds
+
 zero_tgrad(u,p,t) = zero(u)
 
 """
@@ -1340,10 +1342,12 @@ A function analogous to Flux.train! but with additional features and explicit pa
 # Keywords 
 - `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff` (default) and `:Zygote`
 - `cb` a custom callback function that is called after every training step
-- `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-algorithms)
+- `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-methods)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
+- `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
+- `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
 
     to_differentiate = p -> loss(p)
 
