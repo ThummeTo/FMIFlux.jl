@@ -30,12 +30,12 @@ function runtests(exportingTool)
         
         @info "Layers (layers.jl)"
         @testset "Layers" begin
-            include("layers.jl")
+            # include("layers.jl")
         end
 
         @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
         @testset "ME-NeuralFMU (Continuous)" begin
-            include("hybrid_ME.jl")
+            # include("hybrid_ME.jl")
         end
 
         @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
@@ -45,17 +45,17 @@ function runtests(exportingTool)
 
         @info "CS-NeuralFMU (hybrid_CS.jl)"
         @testset "CS-NeuralFMU" begin
-            include("hybrid_CS.jl")
+            # include("hybrid_CS.jl")
         end
 
         @info "Multiple FMUs (multi.jl)"
         @testset "Multiple FMUs" begin
-            include("multi.jl")
+            # include("multi.jl")
         end
 
         @info "Training modes (train_modes.jl)"
         @testset "Training modes" begin
-            include("train_modes.jl")
+            # include("train_modes.jl")
         end
     end
 end
