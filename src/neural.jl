@@ -1352,8 +1352,8 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
     to_differentiate = p -> loss(p)
 
     ram = ceil(Int, Sys.total_memory()/(2^30))
-    auto_chunk_size = sqrt(ram) * 8
-    chunk_size_times = Dict{Integer, Real}
+    auto_chunk_size = round(Integer, sqrt(ram) * 8)
+    chunk_size_times = Dict{Integer, Real}()
 
     for i in 1:length(data)
 
