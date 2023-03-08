@@ -64,6 +64,9 @@ import Random
 Random.seed!(1234);
 ```
 
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling Plots [91a5bcdd-55d7-5caf-9e0b-520d859cae80]
+    
+
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The objec-orientated structure of the *SpringPendulumExtForce1D* can be seen in the following graphic. This model is a simple spring pendulum without friction, but with an external force. 
