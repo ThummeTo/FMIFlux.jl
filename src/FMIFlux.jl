@@ -7,6 +7,10 @@ module FMIFlux
 
 @debug "Debugging messages enabled for FMIFlux ..."
 
+if VERSION < v"1.7.0"
+    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
+end
+
 using Requires, Flux 
 
 using FMIImport

@@ -15,7 +15,7 @@ import Optim
 import ProgressMeter
 
 import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!, terminate!
-import SciMLBase: ContinuousCallback, VectorContinuousCallback
+import SciMLBase: ContinuousCallback, VectorContinuousCallback, ReturnCode
 
 using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
 import ChainRulesCore: ignore_derivatives
@@ -26,7 +26,7 @@ using FMIImport: logInfo, logWarn, logError
 import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
-import Folds
+#import Folds
 
 zero_tgrad(u,p,t) = zero(u)
 
@@ -1158,7 +1158,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
     ignore_derivatives() do
         
-        nfmu.solution.success = (nfmu.solution.states.retcode == :Success)
+        nfmu.solution.success = (nfmu.solution.states.retcode == ReturnCode.Success)
 
     end # ignore_derivatives
 
@@ -1279,7 +1279,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     valueStack = simStep.(model_input)
 
     ignore_derivatives() do
-        nfmu.solution.success = true
+        nfmu.solution.success = true # ToDo: Check successful simulation!
     end 
     
     nfmu.solution.values = SavedValues{typeof(ts[1]), typeof(valueStack[1])}(ts, valueStack)
@@ -1347,13 +1347,13 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Nothing}=nothing, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
 
     to_differentiate = p -> loss(p)
 
-    if VERSION < v"1.7.0"
-        @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
-    end
+    ram = ceil(Int, Sys.total_memory()/(2^30))
+    auto_chunk_size = sqrt(ram) * 8
+    chunk_size_times = Dict{Integer, Real}
 
     for i in 1:length(data)
 
@@ -1363,7 +1363,12 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
 
                 if gradient == :ForwardDiff
 
-                    if chunk_size == nothing
+                    if chunk_size == :auto_forwarddiff
+                        
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j]);
+                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+
+                    elseif chunk_size == :auto_fmiflux
                         
                         # chunk size heuristics: as large as the RAM allows it (estimate)
                         # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
@@ -1373,11 +1378,14 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
                         # else
                         #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
                         # end
-                        #grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-                        #grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
 
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j]);
+                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(auto_chunk_size, length(params[j]))}());
+
+                        st = time()
                         grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                        dt = time()-st
+
+                        chunk_size_times[auto_chunk_size] = dt
 
                     else
                         grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
