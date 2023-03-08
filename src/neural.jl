@@ -26,7 +26,7 @@ using FMIImport: logInfo, logWarn, logError
 import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
-#import Folds
+import Folds
 
 zero_tgrad(u,p,t) = zero(u)
 
@@ -1352,8 +1352,16 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
     to_differentiate = p -> loss(p)
 
     ram = ceil(Int, Sys.total_memory()/(2^30))
-    auto_chunk_size = round(Integer, sqrt(ram) * 8)
+    auto_chunk_size = floor(Integer, sqrt(ram) * 8)
+
+    if islinux()
+        auto_chunk_size = round(Integer, auto_chunk_size/2)
+    end
+    
     chunk_size_times = Dict{Integer, Real}()
+
+    dir = 1
+    last_dt = Inf
 
     for i in 1:length(data)
 
@@ -1381,11 +1389,20 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
 
                         grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(auto_chunk_size, length(params[j]))}());
 
-                        st = time()
+                        # st = time()
                         grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
-                        dt = time()-st
+                        # dt = time()-st
 
-                        chunk_size_times[auto_chunk_size] = dt
+                        # if dt > last_dt # bad choice
+                        #     dir = -dir # switch direction
+                        # else # good choice 
+                        #     auto_chunk_size += dir 
+                        #     @info "New chunk_size=$(auto_chunk_size)"
+                        # end
+
+                        # last_dt = dt
+
+                        #chunk_size_times[auto_chunk_size] = dt
 
                     else
                         grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
