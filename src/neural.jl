@@ -1327,6 +1327,58 @@ end
 #     return y, fmi2EvaluateME_pullback
 # end
 
+function computeGradient(loss, params, gradient, chunk_size)
+
+    if gradient == :ForwardDiff
+
+        if chunk_size == :auto_forwarddiff
+            
+            grad_conf = ForwardDiff.GradientConfig(loss, params);
+            return ForwardDiff.gradient(loss, params, grad_conf);
+
+        elseif chunk_size == :auto_fmiflux
+            
+            # chunk size heuristics: as large as the RAM allows it (estimate)
+            # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
+            # if VERSION >= v"1.7.0"
+            #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
+                
+            # else
+            #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
+            # end
+
+            grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+
+            # st = time()
+            return ForwardDiff.gradient(loss, params, grad_conf);
+            # dt = time()-st
+
+            # if dt > last_dt # bad choice
+            #     dir = -dir # switch direction
+            # else # good choice 
+            #     auto_chunk_size += dir 
+            #     @info "New chunk_size=$(auto_chunk_size)"
+            # end
+
+            # last_dt = dt
+
+            #chunk_size_times[auto_chunk_size] = dt
+
+        else
+            grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+            return ForwardDiff.gradient(loss, params, grad_conf);
+        end
+
+    elseif gradient == :Zygote 
+        return Zygote.gradient(
+            loss,
+            params)[1]
+    else
+        @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
+    end
+
+end
+
 """
 
     train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Integer=64, printStep::Bool=false)
@@ -1349,19 +1401,19 @@ A function analogous to Flux.train! but with additional features and explicit pa
 """
 function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
 
-    to_differentiate = p -> loss(p)
+    if chunk_size == :auto_fmiflux
+        ram = ceil(Int, Sys.total_memory()/(2^30))
+        chunk_size = floor(Integer, sqrt(ram) * 8)
 
-    ram = ceil(Int, Sys.total_memory()/(2^30))
-    auto_chunk_size = floor(Integer, sqrt(ram) * 8)
+        if Sys.islinux()
+            chunk_size = round(Integer, chunk_size/2)
+        end
 
-    if islinux()
-        auto_chunk_size = round(Integer, auto_chunk_size/2)
+        chunk_size_times = Dict{Integer, Real}()
     end
-    
-    chunk_size_times = Dict{Integer, Real}()
 
-    dir = 1
-    last_dt = Inf
+    #dir = 1
+    #last_dt = Inf
 
     for i in 1:length(data)
 
@@ -1369,56 +1421,20 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
             
             for j in 1:length(params)
 
-                if gradient == :ForwardDiff
+                grad = computeGradient(loss, params[j], gradient, chunk_size)
 
-                    if chunk_size == :auto_forwarddiff
-                        
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j]);
-                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
+                grads = nothing
 
-                    elseif chunk_size == :auto_fmiflux
-                        
-                        # chunk size heuristics: as large as the RAM allows it (estimate)
-                        # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
-                        # if VERSION >= v"1.7.0"
-                        #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
-                            
-                        # else
-                        #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
-                        # end
-
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(auto_chunk_size, length(params[j]))}());
-
-                        # st = time()
-                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
-                        # dt = time()-st
-
-                        # if dt > last_dt # bad choice
-                        #     dir = -dir # switch direction
-                        # else # good choice 
-                        #     auto_chunk_size += dir 
-                        #     @info "New chunk_size=$(auto_chunk_size)"
-                        # end
-
-                        # last_dt = dt
-
-                        #chunk_size_times[auto_chunk_size] = dt
-
-                    else
-                        grad_conf = ForwardDiff.GradientConfig(to_differentiate, params[j], ForwardDiff.Chunk{min(chunk_size, length(params[j]))}());
-                        grad = ForwardDiff.gradient(to_differentiate, params[j], grad_conf);
-                    end
-
-                elseif gradient == :Zygote 
-                    grad = Zygote.gradient(
-                        to_differentiate,
-                        params[j])[1]
+                if numThreads > 1
+                    grads = Folds.collect(computeGradient(loss, params[j], gradient, chunk_size) for i in 1:4)
                 else
-                    @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
+                    grads = [computeGradient(loss, params[j], gradient, chunk_size)]
                 end
 
-                step = Flux.Optimise.apply!(optim, params[j], grad)
-                params[j] .-= step
+                for grad in grads
+                    step = Flux.Optimise.apply!(optim, params[j], grad)
+                    params[j] .-= step
+                end
 
                 if printStep
                     @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
