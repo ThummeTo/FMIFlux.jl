@@ -1426,7 +1426,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
                 grads = nothing
 
                 if numThreads > 1
-                    grads = Folds.collect(computeGradient(loss, params[j], gradient, chunk_size) for i in 1:4)
+                    grads = Folds.collect(computeGradient(loss, params[j], gradient, chunk_size) for i in 1:numThreads)
                 else
                     grads = [computeGradient(loss, params[j], gradient, chunk_size)]
                 end
