@@ -1405,9 +1405,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
         ram = ceil(Int, Sys.total_memory()/(2^30))
         chunk_size = floor(Integer, sqrt(ram) * 8)
 
-        if Sys.islinux()
-            chunk_size = round(Integer, chunk_size/2)
-        end
+        chunk_size = min(32, chunk_size)
 
         chunk_size_times = Dict{Integer, Real}()
     end
