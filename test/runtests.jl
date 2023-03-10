@@ -40,7 +40,7 @@ function runtests(exportingTool)
 
         @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
         @testset "ME-NeuralFMU (Discontinuous)" begin
-            # include("hybrid_ME_dis.jl")
+            include("hybrid_ME_dis.jl")
         end
 
         @info "CS-NeuralFMU (hybrid_CS.jl)"
