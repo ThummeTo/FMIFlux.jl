@@ -118,10 +118,11 @@ Flux.@functor ScaleSum (scale, )
 ### CACHE ### 
 
 mutable struct CacheLayer
-    cache::AbstractArray
+    cache::AbstractArray{<:AbstractArray}
 
     function CacheLayer()
         inst = new()
+        inst.cache = Array{Array,1}(undef, Threads.nthreads())
         return inst
     end
 end
@@ -129,7 +130,8 @@ export CacheLayer
 
 function (l::CacheLayer)(x)
 
-    l.cache = x
+    tid = Threads.threadid()
+    l.cache[tid] = x
     
     return x
 end
@@ -147,14 +149,16 @@ end
 export CacheRetrieveLayer
 
 function (l::CacheRetrieveLayer)(idxBefore, x=nothing, idxAfter=nothing)
+    tid = Threads.threadid()
+
     # Zygote doesn't like empty arrays
     if idxAfter == nothing && x == nothing
-        return l.cacheLayer.cache[idxBefore]
+        return l.cacheLayer.cache[tid][idxBefore]
     elseif idxAfter == nothing
-        return [l.cacheLayer.cache[idxBefore]..., x...]
+        return [l.cacheLayer.cache[tid][idxBefore]..., x...]
     elseif x == nothing
-        return [l.cacheLayer.cache[idxBefore]..., l.cacheLayer.cache[idxAfter]...]
+        return [l.cacheLayer.cache[tid][idxBefore]..., l.cacheLayer.cache[tid][idxAfter]...]
     else
-        return [l.cacheLayer.cache[idxBefore]..., x..., l.cacheLayer.cache[idxAfter]...]
+        return [l.cacheLayer.cache[tid][idxBefore]..., x..., l.cacheLayer.cache[tid][idxAfter]...]
     end
 end
