@@ -1399,15 +1399,14 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, numThreads::Integer=1)
 
     if chunk_size == :auto_fmiflux
-        ram = ceil(Int, Sys.total_memory()/(2^30))
-        chunk_size = floor(Integer, sqrt(ram) * 8)
-
-        chunk_size = min(32, chunk_size)
-
-        chunk_size_times = Dict{Integer, Real}()
+        #ram = ceil(Int, Sys.total_memory()/(2^30))
+        #chunk_size = floor(Integer, sqrt(ram) * 8)
+        #chunk_size = min(32, chunk_size)
+        #chunk_size_times = Dict{Integer, Real}()
+        chunk_size = 32
     end
 
     #dir = 1
