@@ -1406,7 +1406,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
         #chunk_size = floor(Integer, sqrt(ram) * 8)
         #chunk_size = min(32, chunk_size)
         #chunk_size_times = Dict{Integer, Real}()
-        chunk_size = 32
+        chunk_size = 16
     end
 
     #dir = 1
