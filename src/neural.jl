@@ -7,7 +7,7 @@ using Flux
 using DiffEqCallbacks
 
 using DifferentialEquations: ODEFunction, ODEProblem, solve
-using SciMLSensitivity: ZygoteVJP, InterpolatingAdjoint, ForwardDiffSensitivity
+using SciMLSensitivity: ZygoteVJP, InterpolatingAdjoint, ForwardDiffSensitivity, ReverseDiffVJP
 using Flux.Zygote
 
 import ForwardDiff
@@ -23,7 +23,7 @@ import ChainRulesCore: ignore_derivatives
 using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange, FMU2Component
 using FMIImport: logInfo, logWarn, logError
 
-import FMIImport: undual, isdual, fd_eltypes, assert_integrator_valid, fd_set!
+import FMIImport: unsense, isdual, fd_eltypes, assert_integrator_valid, fd_set!
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
 import ThreadPools
@@ -147,7 +147,7 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
 
         nfmu.execution_start = time()
 
-        t = undual(t)
+        t = unsense(t)
 
         @assert t == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
         
@@ -172,7 +172,7 @@ function stopCallback(nfmu::ME_NeuralFMU, c::FMU2Component, t)
     ignore_derivatives() do
         #@debug "[$(nfmu.solveCycle)][LAST STEP]"
 
-        t = undual(t)
+        t = unsense(t)
 
         @assert t == nfmu.tspan[end] "stopCallback(...): Called for non-start-point t=$(t)"
 
@@ -229,8 +229,8 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Forward
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
 
-    t = undual(t)
-    x = undual(_x)
+    t = unsense(t)
+    x = unsense(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
@@ -258,8 +258,8 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out, _x, t, integrator)
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
 
-    t = undual(t)
-    x = undual(_x)
+    t = unsense(t)
+    x = unsense(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
@@ -288,8 +288,8 @@ function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, _x, t, int
         return 1.0
     end
 
-    t = undual(t)
-    x = undual(_x)
+    t = unsense(t)
+    x = unsense(_x)
 
     global lastIndicator # , lastIndicatorX, lastIndicatorT
 
@@ -324,8 +324,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...): Must be in continuous time mode!"
 
-    t = undual(integrator.t)
-    x = undual(integrator.u)
+    t = unsense(integrator.t)
+    x = unsense(integrator.u)
 
     # there are fx-evaluations before the event is handled, reset the FMU state to the current integrator step
     mode = c.force
@@ -455,11 +455,11 @@ end
 # Does one step in the simulation.
 function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, tStart, tStop)
 
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    #@assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @debug assert_integrator_valid(integrator)
 
     #@debug "Step"
-    # there might be no component!
+    # there might be no component (in Zygote)!
     # @assert c.state == fmi2ComponentStateContinuousTimeMode "stepCompleted(...): Must be in continuous time mode."
 
     if nfmu.progressMeter !== nothing
@@ -489,8 +489,8 @@ end
 # save FMU values 
 function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, t, integrator)
 
-    t = undual(t) 
-    x = undual(_x)
+    t = unsense(t) 
+    x = unsense(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
@@ -506,8 +506,8 @@ function fx(nfmu::ME_NeuralFMU,
     c::FMU2Component,
     dx,#::Array{<:Real},
     x,#::Array{<:Real},
-    p::Array,
-    t::Real) 
+    p,#::Array,
+    t)#::Real) 
 
     #nanx = !any(isnan.(collect(any(isnan.(ForwardDiff.partials.(x[i]).values)) for i in 1:length(x))))
     #nanu = !any(isnan(ForwardDiff.partials(t)))
@@ -524,8 +524,8 @@ end
 function fx(nfmu::ME_NeuralFMU,
     c::FMU2Component,
     x,#::Array{<:Real},
-    p::Array,
-    t::Real) 
+    p,#::Array,
+    t)#::Real) 
     
     if c === nothing
         # this should never happen!
@@ -537,7 +537,7 @@ function fx(nfmu::ME_NeuralFMU,
 
     ignore_derivatives() do
 
-        t = undual(t)
+        t = unsense(t)
         fmi2SetTime(c, t)
 
         #@debug "fx($t, $(collect(ForwardDiff.value(xs) for xs in x))) = $(collect(ForwardDiff.value(xs) for xs in dx))"
@@ -788,42 +788,44 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         # auto pick sensealg
 
         if sense === nothing
-
-            p_len = length(p[1])
-
-            # in Julia 1.6,  Callbacks only working with ForwardDiff for discontinuous systems
-            if c.fmu.hasStateEvents || c.fmu.hasTimeEvents # p_len < 100 
-                
-                # fds_chunk_size = p_len
-                # # limit to 256 because of RAM usage
-                # if fds_chunk_size > 256
-                #     fds_chunk_size = 256
-                # end
-                # if fds_chunk_size < 1
-                #     fds_chunk_size = 1
-                # end
-
-                sense = ForwardDiffSensitivity(;convert_tspan=true)
-                #sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
-                
-                #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
-
-                if (c.fmu.hasStateEvents && c.fmu.executionConfig.handleStateEvents) || (c.fmu.hasTimeEvents && c.fmu.executionConfig.handleTimeEvents)
-                    if inPlace === true
-                        #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `ForwardDiff` for discontinuous NeuralFMUs. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
-                        inPlace = false # ForwardDiff only works for out-of-place (currently), overwriting `dx` leads to issues like `dt < dtmin`
-                    end
-                end
-        
-            else
-                sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
-
-                if inPlace === true
-                    #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `Zygote`. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
-                    inPlace = false # Zygote only works for out-of-place (currently)
-                end
-            end
+            sense = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false))
         end
+
+        #     p_len = length(p[1])
+
+        #     # in Julia 1.6,  Callbacks only working with ForwardDiff for discontinuous systems
+        #     if c.fmu.hasStateEvents || c.fmu.hasTimeEvents # p_len < 100 
+                
+        #         # fds_chunk_size = p_len
+        #         # # limit to 256 because of RAM usage
+        #         # if fds_chunk_size > 256
+        #         #     fds_chunk_size = 256
+        #         # end
+        #         # if fds_chunk_size < 1
+        #         #     fds_chunk_size = 1
+        #         # end
+
+        #         sense = ForwardDiffSensitivity(;convert_tspan=true)
+        #         #sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
+                
+        #         #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
+
+        #         if (c.fmu.hasStateEvents && c.fmu.executionConfig.handleStateEvents) || (c.fmu.hasTimeEvents && c.fmu.executionConfig.handleTimeEvents)
+        #             if inPlace === true
+        #                 #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `ForwardDiff` for discontinuous NeuralFMUs. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
+        #                 inPlace = false # ForwardDiff only works for out-of-place (currently), overwriting `dx` leads to issues like `dt < dtmin`
+        #             end
+        #         end
+        
+        #     else
+        #         sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
+
+        #         if inPlace === true
+        #             #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `Zygote`. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
+        #             inPlace = false # Zygote only works for out-of-place (currently)
+        #         end
+        #     end
+        # end
 
     end # ignore_derivatives
 
@@ -847,9 +849,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     #c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
 
     if isnothing(solver)
-        c.solution.states = solve(prob;         saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+        c.solution.states = solve(prob;         saveat=nfmu.saveat, sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
     else 
-        c.solution.states = solve(prob, solver; saveat=nfmu.saveat, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+        c.solution.states = solve(prob, solver; saveat=nfmu.saveat, sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
     end
     #end
 
@@ -1134,7 +1136,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ForwardDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."

@@ -114,28 +114,28 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (not pre-compiled): $(dt)s"
 
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (pre-compiled): $(dt)s"
 

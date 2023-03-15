@@ -128,7 +128,7 @@ for handleEvents in [true, false]
                 lastInstCount = length(problem.fmu.components)
 
                 @info "[ $(iterCB)] Loss: $lastLoss"
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)
