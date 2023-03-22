@@ -70,8 +70,7 @@ end
 total_fmu_outdim = sum(map(x->length(x.modelDescription.outputValueReferences), fmus))
 
 function eval(i, u)
-    y, _ = fmus[i](;u_refs=fmus[i].modelDescription.inputValueReferences, u=u, y_refs=fmus[i].modelDescription.outputValueReferences)
-    return y
+    fmus[i](;u_refs=fmus[i].modelDescription.inputValueReferences, u=u, y_refs=fmus[i].modelDescription.outputValueReferences)
 end
 net = Chain(
     Parallel(
@@ -98,4 +97,6 @@ FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"]
 # check results
 solutionAfter = problem(extForce, t_step)
 
-fmiUnload(myFMU)
+for i in 1:length(fmus)
+    fmiUnload(fmus[i])
+end

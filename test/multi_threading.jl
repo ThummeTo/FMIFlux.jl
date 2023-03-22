@@ -77,7 +77,7 @@ net = Chain(x -> c1(x),
             Dense(numStates, 16, identity; init=FMIFlux.identity_init_64),
             Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
             x -> c2([1], x[2], []),
-            x -> realFMU(;x=x)[2], 
+            x -> realFMU(;x=x), 
             x -> c3(x),
             Dense(numStates, 16, identity, init=FMIFlux.identity_init_64),
             Dense(16, 16, identity, init=FMIFlux.identity_init_64),
@@ -85,13 +85,13 @@ net = Chain(x -> c1(x),
             x -> c4([1], x[2], []))
 push!(nets, net)
 
-optim = Adam(1e-4)
 for i in 1:length(nets)
     @testset "Net setup $(i)/$(length(nets))" begin
         global nets, problem, lastLoss, iterCB
 
         net = nets[i]
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), Rosenbrock23(autodiff=false); saveat=tData)
+        solver = Tsit5()
+        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), solver; saveat=tData)
         
         @test problem !== nothing
 
@@ -114,6 +114,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
+        optim = Adam(1e-4)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
@@ -121,6 +122,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
+        optim = Adam(1e-4)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (pre-compiled): $(dt)s"
@@ -128,6 +130,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
+        optim = Adam(1e-4)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (not pre-compiled): $(dt)s"
@@ -135,6 +138,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
+        optim = Adam(1e-4)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (pre-compiled): $(dt)s"

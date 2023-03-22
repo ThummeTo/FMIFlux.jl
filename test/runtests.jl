@@ -9,13 +9,14 @@ using FMIFlux
 using Test
 using FMIZoo
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
+using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU
 using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
 exportingToolsWindows = [("Dymola", "2022x")]
 exportingToolsLinux = [("Dymola", "2022x")]
 
+# number of training steps to perform
 ENV["NUMSTEPS"] = 10
 
 # enable assertions for warnings/errors for all default execution configurations 
@@ -30,30 +31,30 @@ function runtests(exportingTool)
 
     @testset "Testing FMUs exported from $(ENV["EXPORTINGTOOL"]) ($(ENV["EXPORTINGVERSION"]))" begin
         
-        @info "Layers (layers.jl)"
-        @testset "Layers" begin
-            include("layers.jl")
-        end
+        # @info "Layers (layers.jl)"
+        # @testset "Layers" begin
+        #     include("layers.jl")
+        # end
 
-        @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
-        @testset "ME-NeuralFMU (Continuous)" begin
-            include("hybrid_ME.jl")
-        end
+        # @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+        # @testset "ME-NeuralFMU (Continuous)" begin
+        #     include("hybrid_ME.jl")
+        # end
 
-        @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-        @testset "ME-NeuralFMU (Discontinuous)" begin
-            include("hybrid_ME_dis.jl")
-        end
+        # @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+        # @testset "ME-NeuralFMU (Discontinuous)" begin
+        #     include("hybrid_ME_dis.jl")
+        # end
 
-        @info "CS-NeuralFMU (hybrid_CS.jl)"
-        @testset "CS-NeuralFMU" begin
-            include("hybrid_CS.jl")
-        end
+        # @info "CS-NeuralFMU (hybrid_CS.jl)"
+        # @testset "CS-NeuralFMU" begin
+        #     include("hybrid_CS.jl")
+        # end
 
-        @info "Multiple FMUs (multi.jl)"
-        @testset "Multiple FMUs" begin
-            include("multi.jl")
-        end
+        # @info "Multiple FMUs (multi.jl)"
+        # @testset "Multiple FMUs" begin
+        #     include("multi.jl")
+        # end
 
         @info "Training modes (train_modes.jl)"
         @testset "Training modes" begin

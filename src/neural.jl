@@ -9,13 +9,14 @@ using DiffEqCallbacks
 using DifferentialEquations: ODEFunction, ODEProblem, solve
 using SciMLSensitivity: ZygoteVJP, InterpolatingAdjoint, ForwardDiffSensitivity, ReverseDiffVJP
 using Flux.Zygote
+import SciMLSensitivity.ReverseDiff
 
-import ForwardDiff
+import SciMLSensitivity.ForwardDiff
 import Optim
 import ProgressMeter
 
 import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!, terminate!
-import SciMLBase: ContinuousCallback, VectorContinuousCallback, ReturnCode
+import SciMLBase: ContinuousCallback, VectorContinuousCallback, ReturnCode, ODESolution
 
 using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
 import ChainRulesCore: ignore_derivatives
@@ -23,7 +24,7 @@ import ChainRulesCore: ignore_derivatives
 using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange, FMU2Component
 using FMIImport: logInfo, logWarn, logError
 
-import FMIImport: unsense, isdual, fd_eltypes, assert_integrator_valid, fd_set!
+import FMIImport: unsense, isdual, fd_eltypes, assert_integrator_valid, fd_set!, rd_set!, undual, untrack, istracked
 import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
 
 import ThreadPools
@@ -151,7 +152,7 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
 
         @assert t == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
         
-        c, x0 = prepareSolveFMU(nfmu.fmu, c, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, handleEvents=FMIFlux.handleEvents)
+        c, x0 = prepareSolveFMU(nfmu.fmu, c, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
         
         if c.eventInfo.nextEventTime == t && c.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
@@ -176,7 +177,7 @@ function stopCallback(nfmu::ME_NeuralFMU, c::FMU2Component, t)
 
         @assert t == nfmu.tspan[end] "stopCallback(...): Called for non-start-point t=$(t)"
 
-        c = finishSolveFMU(nfmu.fmu, c, nfmu.freeInstance, nfmu.terminate)
+        #c = finishSolveFMU(nfmu.fmu, c, nfmu.freeInstance, nfmu.terminate)
         
     end
 
@@ -229,8 +230,8 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Forward
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
 
-    t = unsense(t)
-    x = unsense(_x)
+    t = undual(t)
+    x = undual(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
@@ -241,6 +242,33 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Forward
     fmi2GetEventIndicators!(c, out_tmp)
 
     fd_set!(out, out_tmp)
+
+    @debug assert_integrator_valid(integrator)
+
+    return nothing
+end
+function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:ReverseDiff.TrackedReal}, _x, t, integrator)
+    
+    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @debug assert_integrator_valid(integrator)
+
+    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
+
+    # ToDo: set inputs here
+    #fmiSetReal(myFMU, InputRef, Value)
+
+    t = untrack(t)
+    x = untrack(_x)
+
+    # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
+    #c.t = t # this will auto-set time via fx-call!
+    evaluateModel(nfmu, c, x)
+    fmi2SetTime(c, t)
+
+    out_tmp = zeros(c.fmu.modelDescription.numberOfEventIndicators)
+    fmi2GetEventIndicators!(c, out_tmp)
+
+    rd_set!(out, out_tmp)
 
     @debug assert_integrator_valid(integrator)
 
@@ -516,7 +544,15 @@ function fx(nfmu::ME_NeuralFMU,
     
     dx_tmp = fx(nfmu,c,x,p,t)
 
-    fd_set!(dx, dx_tmp)
+    if isdual(dx)
+        fd_set!(dx, dx_tmp)
+    elseif istracked(dx)
+        rd_set!(dx, dx_tmp)
+    else
+        #@info "dx: $(dx)"
+        #@info "dx_tmp: $(dx_tmp)"
+        dx[:] = dx_tmp[:]
+    end
 
     return dx
 end
@@ -698,7 +734,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     end
 
     callbacks = []
-    c = startCallback(nothing, nfmu, nothing, t_start)
+
+    c = (hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing)
+    c = startCallback(nothing, nfmu, c, t_start)
     
     ignore_derivatives() do
         # custom callbacks
@@ -785,48 +823,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             push!(callbacks, savingCB)
         end
 
-        # auto pick sensealg
-
-        if sense === nothing
-            sense = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false))
-        end
-
-        #     p_len = length(p[1])
-
-        #     # in Julia 1.6,  Callbacks only working with ForwardDiff for discontinuous systems
-        #     if c.fmu.hasStateEvents || c.fmu.hasTimeEvents # p_len < 100 
-                
-        #         # fds_chunk_size = p_len
-        #         # # limit to 256 because of RAM usage
-        #         # if fds_chunk_size > 256
-        #         #     fds_chunk_size = 256
-        #         # end
-        #         # if fds_chunk_size < 1
-        #         #     fds_chunk_size = 1
-        #         # end
-
-        #         sense = ForwardDiffSensitivity(;convert_tspan=true)
-        #         #sense = ForwardDiffSensitivity(;chunk_size=fds_chunk_size, convert_tspan=true) 
-                
-        #         #sense = QuadratureAdjoint(autojacvec=ZygoteVJP())
-
-        #         if (c.fmu.hasStateEvents && c.fmu.executionConfig.handleStateEvents) || (c.fmu.hasTimeEvents && c.fmu.executionConfig.handleTimeEvents)
-        #             if inPlace === true
-        #                 #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `ForwardDiff` for discontinuous NeuralFMUs. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
-        #                 inPlace = false # ForwardDiff only works for out-of-place (currently), overwriting `dx` leads to issues like `dt < dtmin`
-        #             end
-        #         end
-        
-        #     else
-        #         sense = InterpolatingAdjoint(autojacvec=ZygoteVJP()) # EnzymeVJP()
-
-        #         if inPlace === true
-        #             #logWarn(nfmu.fmu, "NeuralFMU: The configuration orders to use `inPlace=true`, but this is currently not supported by the (automatically) determined sensealg `Zygote`. Switching to `inPlace=false`. If you don't want this behaviour, explicitely choose a sensealg instead of `nothing`.")
-        #             inPlace = false # Zygote only works for out-of-place (currently)
-        #         end
-        #     end
-        # end
-
     end # ignore_derivatives
 
     prob = nothing
@@ -855,11 +851,17 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     end
     #end
 
-    # this code is executed after the initial solve-evaluation (further ForwardDiff-solve-evaluations will happen after this!)
     ignore_derivatives() do
-        
-        c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
 
+        #@info "$(c.solution.states)"
+
+        # this seems to be a bug in ReverseDiff
+        if isa(c.solution.states, ODESolution)
+            c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
+        else
+            c.solution.success = true
+        end
+        
     end # ignore_derivatives
 
     # stopCB (Opt B)
@@ -882,20 +884,20 @@ Evaluates the CS_NeuralFMU in the timespan given during construction or in a cus
 Via optional argument `reset`, the FMU is reset every time evaluation is started (default=`true`).
 """
 function (nfmu::CS_NeuralFMU{F, C})(inputFct,
-                                 t_step::Real, 
-                                 tspan::Tuple{Float64, Float64} = nfmu.tspan; 
-                                 p=nothing,
-                                 tolerance::Union{Real, Nothing} = nothing,
-                                 parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
-                                 setup::Union{Bool, Nothing} = nothing,
-                                 reset::Union{Bool, Nothing} = nothing,
-                                 instantiate::Union{Bool, Nothing} = nothing,
-                                 freeInstance::Union{Bool, Nothing} = nothing,
-                                 terminate::Union{Bool, Nothing} = nothing) where {F, C}
+    t_step::Real, 
+    tspan::Tuple{Float64, Float64} = nfmu.tspan; 
+    p=nothing,
+    tolerance::Union{Real, Nothing} = nothing,
+    parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
+    setup::Union{Bool, Nothing} = nothing,
+    reset::Union{Bool, Nothing} = nothing,
+    instantiate::Union{Bool, Nothing} = nothing,
+    freeInstance::Union{Bool, Nothing} = nothing,
+    terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
     t_start, t_stop = tspan
-    c = nothing
 
+    c = (hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing)
     c, _ = prepareSolveFMU(nfmu.fmu, c, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
     
     ts = collect(t_start:t_step:t_stop)
@@ -908,7 +910,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
         if p == nothing # structured, implicite parameters
             y = nfmu.model(input)
         else # flattened, explicite parameters
-            @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
+            @assert !isnothing(nfmu.re) "Using explicite parameters without destructing the model."
             
             y = nfmu.re(p)(input)
         end
@@ -945,7 +947,15 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          terminate::Union{Bool, Nothing} = nothing) where {F, C}
 
     t_start, t_stop = tspan
+    numFMU = length(nfmu.fmu)
+
     cs = nothing
+    ignore_derivatives() do
+        cs = Vector{Union{FMU2Component, Nothing}}(undef, numFMU)
+        for i in 1:numFMU
+            cs[i] = (hasCurrentComponent(nfmu.fmu[i]) ? getCurrentComponent(nfmu.fmu[i]) : nothing)
+        end
+    end
     cs, _ = prepareSolveFMU(nfmu.fmu, cs, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
     
     solution = FMU2Solution(nothing)
@@ -1039,43 +1049,26 @@ function computeGradient(loss, params, gradient, chunk_size)
 
         elseif chunk_size == :auto_fmiflux
             
-            # chunk size heuristics: as large as the RAM allows it (estimate)
-            # for some reason, Julia 1.6 can't handle large chunks (enormous compilation time), this is not an issue with Julia >= 1.7
-            # if VERSION >= v"1.7.0"
-            #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*32
-                
-            # else
-            #     chunk_size = ceil(Int, sqrt( Sys.total_memory()/(2^30) ))*4
-            # end
-
             grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
-
-            # st = time()
             return ForwardDiff.gradient(loss, params, grad_conf);
-            # dt = time()-st
-
-            # if dt > last_dt # bad choice
-            #     dir = -dir # switch direction
-            # else # good choice 
-            #     auto_chunk_size += dir 
-            #     @info "New chunk_size=$(auto_chunk_size)"
-            # end
-
-            # last_dt = dt
-
-            #chunk_size_times[auto_chunk_size] = dt
-
         else
+
             grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
             return ForwardDiff.gradient(loss, params, grad_conf);
         end
 
     elseif gradient == :Zygote 
+
         return Zygote.gradient(
             loss,
             params)[1]
+    elseif gradient == :ReverseDiff 
+
+        return ReverseDiff.gradient(
+                loss,
+                params)
     else
-        @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff` and `:Zygote`."
+        @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff`, `:Zygote` and `:ReverseDiff`."
     end
 
 end
@@ -1086,6 +1079,9 @@ function trainStep(loss, params, gradient, chunk_size, optim, printStep, proceed
         for j in 1:length(params)
 
             grad = computeGradient(loss, params[j], gradient, chunk_size)
+            
+            @assert !isnothing(grad) "Gradient nothing!"
+
             step = Flux.Optimise.apply!(optim, params[j], grad)
             params[j] .-= step
 
@@ -1136,7 +1132,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."

@@ -62,8 +62,7 @@ numInputs = length(myFMU.modelDescription.inputValueReferences)
 numOutputs = length(myFMU.modelDescription.outputValueReferences)
 
 function eval(u)
-    y, _ = myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences)
-    return y
+    myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences)
 end
 net = Chain(inputs -> eval(inputs),
             Dense(numOutputs, 16, tanh; init=FMIFlux.identity_init_64),
