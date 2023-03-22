@@ -609,8 +609,10 @@ function ME_NeuralFMU(fmu::FMU2,
                       recordValues = nothing, 
                       kwargs...)
 
-    #@assert !need_convert(Float64, model) "Model needs to be converted to Float64 in order to beeing used as ME-NeuralFMU. This can be done via [1] `model = convert(Float64, model)` or [2] by translating layer parameters to Float64 by yourself or [3] using `FMIFlux.Chain` instead of `Flux.Chain` in your code."
-
+    if !is64(model)
+        model = convert64(model)
+    end
+    
     p, re = Flux.destructure(model)
     nfmu = ME_NeuralFMU{typeof(model), typeof(p), typeof(re)}(model, p, re)
 
@@ -651,6 +653,10 @@ function CS_NeuralFMU(fmu::Union{FMU2, Vector{<:FMU2}},
                       saveat=[], 
                       recordValues = [])
 
+    if !is64(model)
+        model = convert64(model)
+    end
+
     nfmu = nothing
     if typeof(fmu) == FMU2
         nfmu = CS_NeuralFMU{FMU2, FMU2Component}()
@@ -668,7 +674,7 @@ function CS_NeuralFMU(fmu::Union{FMU2, Vector{<:FMU2}},
     nfmu
 end
 
-function checkExecTime(integrator, nfmu::ME_NeuralFMU, max_execution_duration::Real)
+function checkExecTime(integrator, nfmu::ME_NeuralFMU, c, max_execution_duration::Real)
     dist = max(nfmu.execution_start + max_execution_duration - time(), 0.0)
     
     if dist <= 0.0
@@ -1125,7 +1131,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `optim` the optimizer used for training 
 
 # Keywords 
-- `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff` (default) and `:Zygote`
+- `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff`, `:Zygote` (default) and :ReverseDiff (currently failing)
 - `cb` a custom callback function that is called after every training step
 - `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-methods)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
@@ -1136,6 +1142,11 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
+    end
+
+    if length(params) <= 0 || length(params[1]) <= 0 
+        @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
+        return 
     end
 
     if chunk_size == :auto_fmiflux

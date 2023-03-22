@@ -4,7 +4,7 @@
 #
 
 using FMI
-import Flux
+using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
@@ -74,14 +74,14 @@ c4 = CacheRetrieveLayer(c3)
 
 # 1. Discontinuous ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity; init=FMIFlux.identity_init_64),
-            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
+            Dense(numStates, 16, identity; init=Flux.identity_init),
+            Dense(16, numStates, identity; init=Flux.identity_init),
             x -> c2([1], x[2], []),
             x -> realFMU(;x=x), 
             x -> c3(x),
-            Dense(numStates, 16, identity, init=FMIFlux.identity_init_64),
-            Dense(16, 16, identity, init=FMIFlux.identity_init_64),
-            Dense(16, numStates, identity, init=FMIFlux.identity_init_64),
+            Dense(numStates, 16, identity, init=Flux.identity_init),
+            Dense(16, 16, identity, init=Flux.identity_init),
+            Dense(16, numStates, identity, init=Flux.identity_init),
             x -> c4([1], x[2], []))
 push!(nets, net)
 

@@ -4,7 +4,7 @@
 #
 
 using FMI
-import Flux
+using Flux
 using DifferentialEquations: Tsit5
 
 import Random 
@@ -16,7 +16,7 @@ t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeCoSimulation)
+myFMU = fmiLoad("SpringPendulumExtForce1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:CS)
 parameters = Dict("mass_s0" => 1.3)
 realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
 fmiUnload(myFMU)
@@ -78,9 +78,9 @@ net = Chain(
         inputs -> eval(1, inputs[1:1]),
         inputs -> eval(2, inputs[2:2])
     ),
-    Dense(total_fmu_outdim, 16, tanh; init=FMIFlux.identity_init_64),
-    Dense(16, 16, tanh; init=FMIFlux.identity_init_64),
-    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=FMIFlux.identity_init_64),
+    Dense(total_fmu_outdim, 16, tanh; init=Flux.identity_init),
+    Dense(16, 16, tanh; init=Flux.identity_init),
+    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=Flux.identity_init),
 )
 
 problem = CS_NeuralFMU(fmus, net, (t_start, t_stop); saveat=tData)
@@ -92,7 +92,10 @@ solutionBefore = problem(extForce, t_step)
 p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
+
+# ToDo: In CS-Mode, each training step takes longer than the previuous one... this is a very strange behaviour.
+# Because this can only be cured by restarting Julia (not by reevaluation of code/constructors), this may be a error somewhere deeper than in FMIFlux.jl 
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=()->callb(p_net))
 
 # check results
 solutionAfter = problem(extForce, t_step)
