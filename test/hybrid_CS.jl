@@ -4,14 +4,14 @@
 #
 
 using FMI
-import Flux
+using Flux
 
 import Random 
 Random.seed!(1234);
 
 t_start = 0.0
 t_step = 0.01
-t_stop = 1.0 # 5.0
+t_stop = 1.0 
 tData = t_start:t_step:t_stop
 
 # generate traing data
@@ -61,14 +61,10 @@ end
 numInputs = length(myFMU.modelDescription.inputValueReferences)
 numOutputs = length(myFMU.modelDescription.outputValueReferences)
 
-function eval(u)
-    y, _ = myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences)
-    return y
-end
-net = Chain(inputs -> eval(inputs),
-            Dense(numOutputs, 16, tanh; init=FMIFlux.identity_init_64),
-            Dense(16, 16, tanh; init=FMIFlux.identity_init_64),
-            Dense(16, numOutputs; init=FMIFlux.identity_init_64))
+net = Chain(u -> myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences),
+            Dense(numOutputs, 16, tanh; init=Flux.identity_init),
+            Dense(16, 16, tanh; init=Flux.identity_init),
+            Dense(16, numOutputs; init=Flux.identity_init))
 
 problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 @test problem != nothing
@@ -78,7 +74,9 @@ p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
+# ToDo: In CS-Mode, each training step takes longer than the previuous one... this is a very strange behaviour.
+# Because this can only be cured by restarting Julia (not by reevaluation of code/constructors), this may be a error somewhere deeper than in FMIFlux.jl 
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=()->callb(p_net))
 
 @test length(myFMU.components) <= 1
 

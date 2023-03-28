@@ -3,18 +3,19 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-start_time = time()
-
 using FMIFlux
 using Test
 using FMIZoo
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference
+using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU
 using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
 exportingToolsWindows = [("Dymola", "2022x")]
 exportingToolsLinux = [("Dymola", "2022x")]
+
+# number of training steps to perform
+ENV["NUMSTEPS"] = 10
 
 # enable assertions for warnings/errors for all default execution configurations 
 for exec in [FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET]
@@ -43,6 +44,16 @@ function runtests(exportingTool)
             include("hybrid_ME_dis.jl")
         end
 
+        @info "Training modes (train_modes.jl)"
+        @testset "Training modes" begin
+            include("train_modes.jl")
+        end
+
+        @info "Multi-threading (multi_threading.jl)"
+        @testset "Multi-threading" begin
+            include("multi_threading.jl")
+        end
+
         @info "CS-NeuralFMU (hybrid_CS.jl)"
         @testset "CS-NeuralFMU" begin
             include("hybrid_CS.jl")
@@ -51,11 +62,6 @@ function runtests(exportingTool)
         @info "Multiple FMUs (multi.jl)"
         @testset "Multiple FMUs" begin
             include("multi.jl")
-        end
-
-        @info "Training modes (train_modes.jl)"
-        @testset "Training modes" begin
-            include("train_modes.jl")
         end
     end
 end
@@ -75,5 +81,3 @@ end
         @warn "Test-sets are currrently using Windows- and Linux-FMUs, automated testing for macOS is currently not supported."
     end
 end
-
-@info "Finished tests after $(round(time()-start_time; digits=2))s"

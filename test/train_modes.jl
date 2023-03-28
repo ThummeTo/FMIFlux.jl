@@ -4,8 +4,9 @@
 #
 
 using FMI
-import Flux
+using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
+import FMI.FMIImport: fmi2FreeInstance!
 
 import Random 
 Random.seed!(5678);
@@ -66,12 +67,14 @@ numStates = fmiGetNumberOfStates(myFMU)
 # some NeuralFMU setups
 nets = [] 
 
+global comp
+comp = nothing
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
-        for config in [FMU2_EXECUTION_CONFIGURATION_RESET, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_NO_FREEING]
+        for config in [FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET, FMU2_EXECUTION_CONFIGURATION_NO_FREEING]
             @testset "config: $config" begin
                 
-                global problem, lastLoss, iterCB
+                global problem, lastLoss, iterCB, comp
 
                 myFMU.executionConfig = config
                 myFMU.executionConfig.handleStateEvents = handleEvents
@@ -81,36 +84,26 @@ for handleEvents in [true, false]
                 myFMU.executionConfig.assertOnError = true
                 myFMU.executionConfig.assertOnWarning = true
 
-                @info "handleEvents: $(handleEvents) | instantiate: $(myFMU.executionConfig.instantiate) | reset: $(myFMU.executionConfig.reset) | freeInstance: $(myFMU.executionConfig.freeInstance)"
+                @info "handleEvents: $(handleEvents) | instantiate: $(myFMU.executionConfig.instantiate) | reset: $(myFMU.executionConfig.reset)  | terminate: $(myFMU.executionConfig.terminate) | freeInstance: $(myFMU.executionConfig.freeInstance)"
 
-                if myFMU.executionConfig.instantiate == false 
-                    #@info "instantiate = false, instantiating..."
-
-                    comp = FMI.fmi2Instantiate!(myFMU; loggingOn=false)
-                    FMI.fmi2SetupExperiment(comp, t_start, t_stop)
-                    FMI.fmi2EnterInitializationMode(comp)
-                    FMI.fmi2ExitInitializationMode(comp)
-
-                    FMIFlux.handleEvents(comp)
-
-                    FMI.fmi2Terminate(comp)
-                end
+                # if myFMU.executionConfig.instantiate == false 
+                #     @info "instantiate = false, instantiating..."
+                #     instantiate = true
+                #     comp, _ = prepareSolveFMU(myFMU, comp, fmi2TypeModelExchange, instantiate, nothing, nothing, nothing, nothing, nothing, t_start, t_stop, nothing; x0=x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+                # end
 
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
-                c3 = CacheLayer()
-                c4 = CacheRetrieveLayer(c3)
-                net = Chain(x -> c1(x),
-                            Dense(numStates, numStates, identity; init=FMIFlux.identity_init_64),
-                            x -> c2([1], x[2], []),
-                            states -> myFMU(;x=states)[2],
-                            dx -> c3(dx),
-                            Dense(numStates, 16, tanh; init=FMIFlux.identity_init_64),
-                            Dense(16, numStates, identity; init=FMIFlux.identity_init_64),
-                            dx -> c4([1], dx[2], []) )
+                net = Chain(states -> myFMU(;x=states),
+                            dx -> c1(dx),
+                            Dense(numStates, 16, tanh; init=Flux.identity_init),
+                            Dense(16, 1, identity; init=Flux.identity_init),
+                            dx -> c2([1], dx[1], []) )
                 
                 optim = Adam(1e-8)
-                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), Tsit5(); saveat=tData)
+                solver = Tsit5()
+
+                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), solver; saveat=tData)
                 @test problem != nothing
                 
                 solutionBefore = problem(x0)
@@ -128,7 +121,7 @@ for handleEvents in [true, false]
                 lastInstCount = length(problem.fmu.components)
 
                 @info "[ $(iterCB)] Loss: $lastLoss"
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), 15), optim; cb=()->callb(p_net))
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)
@@ -138,10 +131,11 @@ for handleEvents in [true, false]
                     @test solutionAfter.states.t[end] == t_stop
                 end
 
-                # clean-up the dead components
+                # this is not possible, because some pullbacks are evaluated after simulation end
                 while length(problem.fmu.components) > 1 
-                    fmiFreeInstance!(problem.fmu)
+                    fmi2FreeInstance!(problem.fmu.components[end])
                 end
+
             end
               
         end
