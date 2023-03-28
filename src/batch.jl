@@ -100,29 +100,33 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; l
 
         function startStateCallback(fmu, batchElement)
             #print("Setting state ... ")
+
+            c = getCurrentComponent(fmu)
             
             if batchElement.initialState != nothing
-                fmi2SetFMUstate(fmu.threadComponents[Threads.threadid()], batchElement.initialState)
-                fmu.threadComponents[Threads.threadid()].eventInfo = deepcopy(batchElement.initialEventInfo)
-                fmu.threadComponents[Threads.threadid()].t = batchElement.tStart
+                fmi2SetFMUstate(c, batchElement.initialState)
+                c.eventInfo = deepcopy(batchElement.initialEventInfo)
+                c.t = batchElement.tStart
             else
-                batchElement.initialState = fmi2GetFMUstate(fmu.threadComponents[Threads.threadid()])
-                batchElement.initialEventInfo = deepcopy(fmu.threadComponents[Threads.threadid()].eventInfo)
+                batchElement.initialState = fmi2GetFMUstate(c)
+                batchElement.initialEventInfo = deepcopy(c.eventInfo)
                 @warn "Batch element does not provide a `initialState`, I try to simulate anyway. InitialState is overwritten."
             end
         end
 
         function stopStateCallback(fmu, batchElement)
             #print("\nGetting state ... ")
+
+            c = getCurrentComponent(fmu)
            
             if batchElement.initialState != nothing
-                fmi2GetFMUstate!(fmu.threadComponents[Threads.threadid()], Ref(batchElement.initialState))
+                fmi2GetFMUstate!(c, Ref(batchElement.initialState))
             else
-                batchElement.initialState = fmi2GetFMUstate(fmu.threadComponents[Threads.threadid()])
+                batchElement.initialState = fmi2GetFMUstate(c)
             end
-            batchElement.initialEventInfo = deepcopy(fmu.threadComponents[Threads.threadid()].eventInfo)
+            batchElement.initialEventInfo = deepcopy(c.eventInfo)
             
-            #println("done @ $(batchElement.initialState) in componentState: $(fmu.threadComponents[Threads.threadid()].state)!")
+            #println("done @ $(batchElement.initialState) in componentState: $(c.state)!")
         end
 
         neuralFMU.customCallbacksAfter = []

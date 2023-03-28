@@ -3,31 +3,30 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Flux
-using DiffEqCallbacks
-
-using DifferentialEquations: ODEFunction, ODEProblem, solve
-using SciMLSensitivity: ZygoteVJP, InterpolatingAdjoint, ForwardDiffSensitivity, ReverseDiffVJP
-using Flux.Zygote
-import SciMLSensitivity.ReverseDiff
-
-import SciMLSensitivity.ForwardDiff
+import ChainRulesCore: ignore_derivatives
+import FMIImport: assert_integrator_valid, fd_eltypes, fd_set!, finishSolveFMU,
+    handleEvents, isdual, istracked, prepareSolveFMU, rd_set!, undual, unsense, untrack
 import Optim
 import ProgressMeter
-
-import SciMLBase: RightRootFind, CallbackSet, u_modified!, set_u!, terminate!
-import SciMLBase: ContinuousCallback, VectorContinuousCallback, ReturnCode, ODESolution
-
-using FMIImport: fmi2ComponentState, fmi2ComponentStateInstantiated, fmi2ComponentStateInitializationMode, fmi2ComponentStateEventMode, fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateTerminated, fmi2ComponentStateError, fmi2ComponentStateFatal
-import ChainRulesCore: ignore_derivatives
-
-using FMIImport: fmi2StatusOK, FMU2Solution, FMU2Event, fmi2Type, fmi2TypeCoSimulation, fmi2TypeModelExchange, FMU2Component
-using FMIImport: logInfo, logWarn, logError
-
-import FMIImport: unsense, isdual, fd_eltypes, assert_integrator_valid, fd_set!, rd_set!, undual, untrack, istracked
-import FMIImport: prepareSolveFMU, finishSolveFMU, handleEvents
-
+import SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
+    VectorContinuousCallback, set_u!, terminate!, u_modified!
+import SciMLSensitivity.ForwardDiff
+import SciMLSensitivity.ReverseDiff
+import SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
+
+using DiffEqCallbacks
+using DifferentialEquations: ODEFunction, ODEProblem, solve
+using FMIImport: FMU2Component, FMU2Event, FMU2Solution, fmi2ComponentState,
+    fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateError,
+    fmi2ComponentStateEventMode, fmi2ComponentStateFatal,
+    fmi2ComponentStateInitializationMode, fmi2ComponentStateInstantiated,
+    fmi2ComponentStateTerminated, fmi2StatusOK, fmi2Type, fmi2TypeCoSimulation,
+    fmi2TypeModelExchange, logError, logInfo, logWarn
+using Flux
+using Flux.Zygote
+using SciMLSensitivity:
+    ForwardDiffSensitivity, InterpolatingAdjoint, ReverseDiffVJP, ZygoteVJP
 
 zero_tgrad(u,p,t) = zero(u)
 
@@ -711,6 +710,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     saveat=nfmu.saveat, # ToDo: Data type 
     kwargs...)
 
+    @assert saveat[1] == tspan[1] "NeuralFMU changed time interval, start time is $(tspan[1]), but saveat from constructor gives $(saveat[1]). Please provide correct `saveat` via keyword with matching start/stop time."
+    @assert saveat[end] == tspan[end] "NeuralFMU changed time interval, stop time is $(tspan[end]), but saveat from constructor gives $(saveat[end]). Please provide correct `saveat` via keyword with matching start/stop time."
+
     recordValues = prepareValueReference(nfmu.fmu, recordValues)
 
     saving = (length(recordValues) > 0)
@@ -719,6 +721,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     t_start = tspan[1]
     t_stop = tspan[end]
+
+    nfmu.tspan = tspan
+    nfmu.x0 = x_start
 
     ignore_derivatives() do
         @debug "ME_NeuralFMU..."
@@ -734,9 +739,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         nfmu.terminate = terminate
        
         nfmu.progressMeter = nothing
-        
-        nfmu.tspan = (t_start, t_stop)
-        nfmu.x0 = x_start
     end
 
     callbacks = []
@@ -818,7 +820,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             c.solution.values = SavedValues(Float64, Tuple{collect(Float64 for i in 1:length(recordValues))...})
             c.solution.valueReferences = recordValues
 
-            if nfmu.saveat === nothing
+            if isnothing(saveat)
                 savingCB = SavingCallback((x, t, integrator) -> saveValues(nfmu, c, recordValues, x, t, integrator),
                                 c.solution.values)
             else
@@ -843,6 +845,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         prob = ODEProblem{false}(ff, nfmu.x0, nfmu.tspan, p)
     end
 
+    if isnothing(sense)
+        sense = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false))
+    end
+
     # if (length(callbacks) == 2) # only start and stop callback, so the system is pure continuous
     #     startCallback(nfmu, nfmu.tspan[1])
     #     c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.kwargs...)
@@ -850,23 +856,20 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     # else
     #c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
 
-    if isnothing(solver)
-        c.solution.states = solve(prob;         saveat=nfmu.saveat, sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
-    else 
-        c.solution.states = solve(prob, solver; saveat=nfmu.saveat, sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+    kwargs = Dict{Symbol, Any}(kwargs...)
+
+    if !isnothing(saveat)
+        kwargs[:saveat] = saveat
     end
+        
+    c.solution.states = solve(prob, nfmu.solver; sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+
     #end
 
     ignore_derivatives() do
 
         #@info "$(c.solution.states)"
-
-        # this seems to be a bug in ReverseDiff
-        if isa(c.solution.states, ODESolution)
-            c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
-        else
-            c.solution.success = true
-        end
+        c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
         
     end # ignore_derivatives
 
