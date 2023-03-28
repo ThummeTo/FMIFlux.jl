@@ -68,13 +68,7 @@ end
 numInputs = length(defaultFMU.modelDescription.inputValueReferences)
 numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
 
-function eval(u)
-    y, _ = defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences)
-    return y
-end
-
-
-net = Chain(inputs -> eval(inputs),
+net = Chain(u -> defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))

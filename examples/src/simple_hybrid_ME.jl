@@ -67,7 +67,7 @@ end
 # NeuralFMU setup
 numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(inputs -> fmiEvaluateME(simpleFMU, inputs),
+net = Chain(x -> simpleFMU(x=x),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))

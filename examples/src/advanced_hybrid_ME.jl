@@ -121,8 +121,7 @@ additionalVRs = [fmi2StringToValueReference(simpleFMU, "mass.m")]
 numAdditionalVRs = length(additionalVRs)
 
 net = Chain(
-    inputs -> fmiEvaluateME(simpleFMU, inputs, -1.0, zeros(fmi2ValueReference, 0), 
-                            zeros(fmi2Real, 0), additionalVRs),
+    x -> simpleFMU(x=x, y_refs=additionalVRs),
     preProc!,
     Dense(numStates+numAdditionalVRs, 16, tanh),
     postProc!,

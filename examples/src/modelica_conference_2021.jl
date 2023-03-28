@@ -235,9 +235,8 @@ for i in 1:numStates
     initW[i,i] = 1
 end
 
-net = Chain(# Dense(initW, zeros(numStates),  identity),
-            Dense(numStates, numStates,  identity),
-            inputs -> fmiEvaluateME(simpleFMU, inputs),
+net = Chain(Dense(numStates, numStates,  identity),
+            x -> simpleFMU(x=x),
             Dense(numStates, 8, identity),
             Dense(8, 8, tanh),
             Dense(8, numStates))

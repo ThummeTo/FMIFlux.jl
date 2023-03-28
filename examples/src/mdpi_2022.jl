@@ -3,9 +3,10 @@
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 # Loading in the required libraries
-using FMIFlux   # for NeuralFMUs
-using FMI       # import FMUs into Julia 
-using FMIZoo    # a collection of demo models, including the VLDM
+using FMIFlux       # for NeuralFMUs
+using FMI           # import FMUs into Julia 
+using FMIZoo        # a collection of demo models, including the VLDM
+using FMIFlux.Flux  # Machine Learning in Julia
 
 import FMI.DifferentialEquations: Tsit5     # import the Tsit5-solver
 using JLD2                                  # data format for saving/loading parameters
@@ -97,14 +98,8 @@ cacheRetrieve = CacheRetrieveLayer(cache)
 
 gates = ScaleSum([1.0, 0.0]) # signal from FMU (#1 = 1.0), signal from ANN (#2 = 0.0)
 
-# evaluate the FMU by calling it, we are only interessted in `dx` in this case
-function evalFMU(x)
-    y, dx = fmu(; x=x)
-    return dx 
-end
-
 # setup the NeuralFMU topology
-net = Chain(x -> evalFMU(x),                    # take `x`, put it into the FMU, retrieve `dx`
+net = Chain(x -> fmu(; x=x),                    # take `x`, put it into the FMU, retrieve `dx`
             dx -> cache(dx),                    # cache `dx`
             dx -> dx[4:6],                      # forward only dx[4, 5, 6]
             preProcess,                         # pre-process `dx`
@@ -134,7 +129,7 @@ Plots.plot!(fig, data.speed_t, data.speed_val, label="Data")
 train_data = collect([d] for d in data.consumption_val)
 train_t = data.consumption_t 
 
-# switch to a more efficient execution configuration, allocate only a singel FMU instance, see:
+# switch to a more efficient execution configuration, allocate only a single FMU instance, see:
 # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
 fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NOTHING
 c, _ = FMIFlux.prepareSolveFMU(neuralFMU.fmu, nothing, neuralFMU.fmu.type, true, false, false, false, true, data.params; x0=x0)
@@ -176,15 +171,18 @@ params[1][end] = 0.01
 # for training, we use the Adam optimizer with step size 1e-3
 optim = Adam(1e-3) 
 
+# let's check the loss we are starting with ...
+loss_before = batch_loss(params[1])
+
 # initialize the scheduler 
 initialize!(scheduler; parameters=data.params, p=params[1], showProgress=false)
 
-# let's check the loss we are starting with ...
-batch_loss(params[1])
-
 batchLen = length(batch)
-FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; chunk_size=length(params[1]), cb=updateScheduler) 
-batch_loss(params[1])
+
+# we use ForwardDiff for gradinet determination, because the FMU throws multiple events per time instant (this is not supported by reverse mode AD)
+# the chunk_size controls the nuber of forward evaluations of the model (the bigger, the less evaluations)
+FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; gradient=:ForwardDiff, chunk_size=32, cb=updateScheduler) 
+loss_after = batch_loss(params[1])
 
 # save the parameters (so we can use them tomorrow again)
 paramsPath = joinpath(@__DIR__, "params_$(scheduler.step)steps.jld2")
