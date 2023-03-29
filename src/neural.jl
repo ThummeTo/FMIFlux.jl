@@ -9,9 +9,10 @@ import FMIImport: assert_integrator_valid, fd_eltypes, fd_set!, finishSolveFMU,
 import Optim
 import ProgressMeter
 import SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
-    VectorContinuousCallback, set_u!, terminate!, u_modified!
+    VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
 import SciMLSensitivity.ForwardDiff
 import SciMLSensitivity.ReverseDiff
+using SciMLSensitivity.ReverseDiff: TrackedArray
 import SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
 
@@ -867,9 +868,19 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     #end
 
     ignore_derivatives() do
+        # ReverseDiff returns an array instead of an ODESolution, this needs to be corrected
+        if isa(c.solution.states, TrackedArray)
+           
+            t = collect(saveat)
+            u = c.solution.states
+            c.solution.success = (size(u)[2] == length(t)) 
 
-        #@info "$(c.solution.states)"
-        c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
+            if c.solution.success
+                c.solution.states = build_solution(prob, nfmu.solver, t, collect(u[:,i] for i in 1:size(u)[2]))
+            end
+        else
+            c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
+        end
         
     end # ignore_derivatives
 
@@ -1057,7 +1068,8 @@ function computeGradient(loss, params, gradient, chunk_size)
             return ForwardDiff.gradient(loss, params, grad_conf);
 
         elseif chunk_size == :auto_fmiflux
-            
+
+            chunk_size = 32
             grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
             return ForwardDiff.gradient(loss, params, grad_conf);
         else
@@ -1134,14 +1146,14 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `optim` the optimizer used for training 
 
 # Keywords 
-- `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff`, `:Zygote` (default) and :ReverseDiff (currently failing)
+- `gradient` a symbol determining the AD-library for gradient computation, available are `:ForwardDiff`, `:Zygote` and :ReverseDiff (default)
 - `cb` a custom callback function that is called after every training step
 - `chunk_size` the chunk size for AD using ForwardDiff (ignored for other AD-methods)
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:Zygote, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
@@ -1150,15 +1162,6 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
     if length(params) <= 0 || length(params[1]) <= 0 
         @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
         return 
-    end
-
-    if chunk_size == :auto_fmiflux
-        ram = ceil(Int, Sys.total_memory()/(2^30))
-        chunk_size = floor(Integer, sqrt(ram) * 8)
-
-        chunk_size = min(32, chunk_size)
-        
-        chunk_size_times = Dict{Integer, Real}()
     end
 
     _trainStep = (i,) -> trainStep(loss, params, gradient, chunk_size, optim, printStep, proceed_on_assert, cb)
@@ -1171,12 +1174,10 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Fl
 
 end
 
-function train!(loss, neuralFMU::ME_NeuralFMU, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
+"""
+    ToDo.
+"""
+function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
     params = Flux.params(neuralFMU)   
     train!(loss, params, data, optim; kwargs...)
-end
-
-function train!(loss, params::Union{AbstractVector{<:Float32}, AbstractVector{<:Float64}}, args...; kwargs...)
-    params = Flux.params(params)
-    train!(loss, params, args...; kwargs...)
 end

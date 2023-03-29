@@ -178,7 +178,7 @@ for i in 1:length(nets)
         iterCB = 0
         lastLoss = losssum(p_net[1])
         @info "[ $(iterCB)] Loss: $lastLoss"
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ReverseDiff)
 
         # check results
         solutionAfter = problem(x0)
