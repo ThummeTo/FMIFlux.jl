@@ -8,7 +8,7 @@ import FMIImport: assert_integrator_valid, fd_eltypes, fd_set!, finishSolveFMU,
     handleEvents, isdual, istracked, prepareSolveFMU, rd_set!, undual, unsense, untrack
 import Optim
 import ProgressMeter
-import SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
+import SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
     VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
 import SciMLSensitivity.ForwardDiff
 import SciMLSensitivity.ReverseDiff
@@ -921,11 +921,20 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     c, _ = prepareSolveFMU(nfmu.fmu, c, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
     
     ts = collect(t_start:t_step:t_stop)
-    c.skipNextDoStep = true # skip first fim2DoStep-call
+    #c.skipNextDoStep = true # skip first fim2DoStep-call
     model_input = inputFct.(ts)
 
+    firstStep = true
     function simStep(input)
         y = nothing 
+
+        if !firstStep
+            ignore_derivatives() do
+                fmi2DoStep(c, t_step)
+            end
+        else
+            firstStep = false
+        end
 
         if p == nothing # structured, implicite parameters
             y = nfmu.model(input)
@@ -934,9 +943,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
             
             y = nfmu.re(p)(input)
         end
-        ignore_derivatives() do
-            fmi2DoStep(c, t_step)
-        end
+        
         return y
     end
 
@@ -981,13 +988,22 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     solution = FMU2Solution(nothing)
 
     ts = collect(t_start:t_step:t_stop)
-    for c in cs
-        c.skipNextDoStep = true
-    end
+    # for c in cs
+    #     c.skipNextDoStep = true
+    # end
     model_input = inputFct.(ts)
 
+    firstStep = true
     function simStep(input)
         y = nothing
+
+        if !firstStep
+            ignore_derivatives() do
+                fmi2DoStep(c, t_step)
+            end
+        else
+            firstStep = false
+        end
 
         if p == nothing # structured, implicite parameters
             y = nfmu.model(input)
@@ -1001,11 +1017,6 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
             end
         end
 
-        ignore_derivatives() do
-            for c in cs
-                fmi2DoStep(c, t_step)
-            end
-        end
         return y
     end
 
