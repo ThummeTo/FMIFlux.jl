@@ -72,11 +72,11 @@ problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam(1e-6)
+optim = Adam(1e-4)
 
 # ToDo: In CS-Mode, each training step takes longer than the previuous one... this is a very strange behaviour.
 # Because this can only be cured by restarting Julia (not by reevaluation of code/constructors), this may be a error somewhere deeper than in FMIFlux.jl 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=()->callb(p_net))
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
 
 @test length(myFMU.components) <= 1
 

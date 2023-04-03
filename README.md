@@ -33,11 +33,11 @@
 ## What is currently supported in FMIFlux.jl?
 - building and training ME-NeuralFMUs (event-handling is supported) with the default Flux-Front-End
 - building and training CS-NeuralFMUs with the default Flux-Front-End
+- different AD-frameworks: ForwardDiff.jl, ReverseDiff.jl (default setting) and Zygote.jl
 - ...
 
 ## What is under development in FMIFlux.jl?
 - performance optimizations
-- different modes for sensitivity estimation
 - improved documentation
 - more examples
 - ...
