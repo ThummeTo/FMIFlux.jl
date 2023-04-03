@@ -999,7 +999,9 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
 
         if !firstStep
             ignore_derivatives() do
-                fmi2DoStep(c, t_step)
+                for c in cs
+                    fmi2DoStep(c, t_step)
+                end
             end
         else
             firstStep = false
