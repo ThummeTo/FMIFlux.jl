@@ -13,109 +13,26 @@ import Random
 Random.seed!(1234);</code></pre><p>After importing the packages, the path to the <em>Functional Mock-up Units</em> (FMUs) is set. The FMU is a model exported meeting the <em>Functional Mock-up Interface</em> (FMI) Standard. The FMI is a free standard (<a href="http://fmi-standard.org/">fmi-standard.org</a>) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. </p><p>The objec-orientated structure of the <em>SpringPendulumExtForce1D</em> can be seen in the following graphic. This model is a simple spring pendulum without friction, but with an external force. </p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/SpringPendulumExtForce1D.svg?raw=true" alt="svg"/></p><p>Next, the start time and end time of the simulation are set. Finally, a step size is specified to store the results of the simulation at these time steps.</p><pre><code class="language-julia hljs">tStart = 0.0
 tStep = 0.01
 tStop = 5.0
-tSave = tStart:tStep:tStop</code></pre><pre><code class="nohighlight hljs">0.0:0.01:5.0</code></pre><h3 id="ReferenceFMU"><a class="docs-heading-anchor" href="#ReferenceFMU">ReferenceFMU</a><a id="ReferenceFMU-1"></a><a class="docs-heading-anchor-permalink" href="#ReferenceFMU" title="Permalink"></a></h3><p>In the next lines of code the FMU of the <em>referenceFMU</em> model is loaded from <em>FMIZoo.jl</em> and the information about the FMU is shown.  </p><pre><code class="language-julia hljs">referenceFMU = fmiLoad(&quot;SpringPendulumExtForce1D&quot;, &quot;Dymola&quot;, &quot;2022x&quot;)
-fmiInfo(referenceFMU)</code></pre><pre><code class="nohighlight hljs">#################### Begin information for FMU ####################
-	Model name:			SpringPendulumExtForce1D
-	FMI-Version:			2.0
-	GUID:				{df5ebe46-3c86-42a5-a68a-7d008395a7a3}
-	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
-	Generation time:		2022-05-19T06:54:33Z
-	Var. naming conv.:		structured
-	Event indicators:		0
-	Inputs:				1
-		352321536 [&quot;extForce&quot;]
-	Outputs:			2
-		335544320 [&quot;accSensor.v&quot;, &quot;der(accSensor.flange.s)&quot;, &quot;v&quot;, &quot;der(speedSensor.flange.s)&quot;, &quot;speedSensor.v&quot;]
-		335544321 [&quot;der(accSensor.v)&quot;, &quot;a&quot;, &quot;accSensor.a&quot;]
-	States:				2
-		33554432 [&quot;mass.s&quot;]
-		33554433 [&quot;mass.v&quot;]
-	Supports Co-Simulation:		true
-		Model identifier:	SpringPendulumExtForce1D
-		Get/Set State:		true
-		Serialize State:	true
-		Dir. Derivatives:	true
-		Var. com. steps:	true
-		Input interpol.:	true
-		Max order out. der.:	1
-	Supports Model-Exchange:	true
-		Model identifier:	SpringPendulumExtForce1D
-		Get/Set State:		true
-		Serialize State:	true
-		Dir. Derivatives:	true
-##################### End information for FMU #####################</code></pre><p>In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with <span>$1.3𝑚$</span>. The second parameter is the initial velocity of the mass, which is initilized with <span>$0\frac{m}{s}$</span>. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the <em>referenceFMU</em> is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the <em>referenceFMU</em> can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.</p><pre><code class="language-julia hljs">param = Dict(&quot;mass_s0&quot; =&gt; 1.3, &quot;mass.v&quot; =&gt; 0.0)   # increase amplitude, invert phase
+tSave = tStart:tStep:tStop</code></pre><h3 id="ReferenceFMU"><a class="docs-heading-anchor" href="#ReferenceFMU">ReferenceFMU</a><a id="ReferenceFMU-1"></a><a class="docs-heading-anchor-permalink" href="#ReferenceFMU" title="Permalink"></a></h3><p>In the next lines of code the FMU of the <em>referenceFMU</em> model is loaded from <em>FMIZoo.jl</em> and the information about the FMU is shown.  </p><pre><code class="language-julia hljs">referenceFMU = fmiLoad(&quot;SpringPendulumExtForce1D&quot;, &quot;Dymola&quot;, &quot;2022x&quot;)
+fmiInfo(referenceFMU)</code></pre><p>In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with <span>$1.3𝑚$</span>. The second parameter is the initial velocity of the mass, which is initilized with <span>$0\frac{m}{s}$</span>. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the <em>referenceFMU</em> is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the <em>referenceFMU</em> can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.</p><pre><code class="language-julia hljs">param = Dict(&quot;mass_s0&quot; =&gt; 1.3, &quot;mass.v&quot; =&gt; 0.0)   # increase amplitude, invert phase
 vrs = [&quot;mass.s&quot;, &quot;mass.v&quot;, &quot;mass.a&quot;]
 referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
-fmiPlot(referenceSimData)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg" alt="svg"/></p><p>The data from the simulation of the <em>referenceFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. </p><pre><code class="language-julia hljs">posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
+fmiPlot(referenceSimData)</code></pre><p>The data from the simulation of the <em>referenceFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. </p><pre><code class="language-julia hljs">posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
 velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
-accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])</code></pre><pre><code class="nohighlight hljs">501-element Vector{Float64}:
- -1.9999999999999996
- -1.9988827275812904
- -1.9958127258179004
- -1.9907908533763607
- -1.9837918439669844
- -1.9748258342855118
- -1.963890162864621
- -1.9510089134488018
- -1.9361810148909009
- -1.9194099484303728
- -1.9007374108186537
- -1.8801634598739092
- -1.8576990114645708
-  ⋮
-  1.9971927754348462
-  2.0126501310664713
-  2.026070116129912
-  2.037424725618772
-  2.0467236772128947
-  2.0541004250985972
-  2.0594240680173828
-  2.062679095787284
-  2.0638499982263325
-  2.0629212651525553
-  2.059877386383986
-  2.0548550901379925</code></pre><h3 id="DefaultFMU"><a class="docs-heading-anchor" href="#DefaultFMU">DefaultFMU</a><a id="DefaultFMU-1"></a><a class="docs-heading-anchor-permalink" href="#DefaultFMU" title="Permalink"></a></h3><p>The following is a renaming for the <em>referenceFMU</em> to <em>defaultFMU</em>. The previous initial position of the mass is now set to the default position of the <em>defaultFMU</em>. The initial position of the mass is initilized with <span>$0.5𝑚$</span> and initial velocity of the mass is initialized with <span>$0\frac{m}{s}$</span>.</p><pre><code class="language-julia hljs">defaultFMU = referenceFMU
-param = Dict(&quot;mass_s0&quot; =&gt; 0.5, &quot;mass.v&quot; =&gt; 0.0)</code></pre><pre><code class="nohighlight hljs">Dict{String, Float64} with 2 entries:
-  &quot;mass_s0&quot; =&gt; 0.5
-  &quot;mass.v&quot;  =&gt; 0.0</code></pre><p>The following simulate and plot the <em>defaultFMU</em> just like the <em>referenceFMU</em>. The differences between both systems can be clearly seen from the plots. In the plots for the <em>defaultFMU</em> you can see that other oscillations occur due to the different starting positions. On the one hand the oscillation of the <em>defaultFMU</em> starts in the opposite direction of the <em>referenceFMU</em> and on the other hand the graphs for the velocity and acceleration differ clearly in the amplitude. In the following we try to learn the initial shift of the position so that the graphs for the acceleration of both graphs match.</p><pre><code class="language-julia hljs">defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
-fmiPlot(defaultSimData)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_17_0.svg" alt="svg"/></p><p>The data from the simualtion of the <em>defaultFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later.</p><pre><code class="language-julia hljs">posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
+accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])</code></pre><h3 id="DefaultFMU"><a class="docs-heading-anchor" href="#DefaultFMU">DefaultFMU</a><a id="DefaultFMU-1"></a><a class="docs-heading-anchor-permalink" href="#DefaultFMU" title="Permalink"></a></h3><p>The following is a renaming for the <em>referenceFMU</em> to <em>defaultFMU</em>. The previous initial position of the mass is now set to the default position of the <em>defaultFMU</em>. The initial position of the mass is initilized with <span>$0.5𝑚$</span> and initial velocity of the mass is initialized with <span>$0\frac{m}{s}$</span>.</p><pre><code class="language-julia hljs">defaultFMU = referenceFMU
+param = Dict(&quot;mass_s0&quot; =&gt; 0.5, &quot;mass.v&quot; =&gt; 0.0)</code></pre><p>The following simulate and plot the <em>defaultFMU</em> just like the <em>referenceFMU</em>. The differences between both systems can be clearly seen from the plots. In the plots for the <em>defaultFMU</em> you can see that other oscillations occur due to the different starting positions. On the one hand the oscillation of the <em>defaultFMU</em> starts in the opposite direction of the <em>referenceFMU</em> and on the other hand the graphs for the velocity and acceleration differ clearly in the amplitude. In the following we try to learn the initial shift of the position so that the graphs for the acceleration of both graphs match.</p><pre><code class="language-julia hljs">defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
+fmiPlot(defaultSimData)</code></pre><p>The data from the simualtion of the <em>defaultFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later.</p><pre><code class="language-julia hljs">posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
 velDefault = fmi2GetSolutionValue(defaultSimData, vrs[2])
-accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])</code></pre><pre><code class="nohighlight hljs">501-element Vector{Float64}:
-  6.0
-  5.996872980925033
-  5.987824566254761
-  5.9728274953129645
-  5.95187583433241
-  5.9249872805026715
-  5.892169834645022
-  5.853465119227542
-  5.808892969264781
-  5.75851573503067
-  5.702370188387734
-  5.640527685538739
-  5.573049035471661
-  ⋮
- -5.842615646003006
- -5.884869953422783
- -5.921224800662572
- -5.9516502108284985
- -5.976144547672481
- -5.994659284032171
- -6.007174453690571
- -6.013675684067705
- -6.014154196220591
- -6.008606804843264
- -5.997055285530499
- -5.979508813705998</code></pre><h2 id="CS-NeuralFMU"><a class="docs-heading-anchor" href="#CS-NeuralFMU">CS-NeuralFMU</a><a id="CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#CS-NeuralFMU" title="Permalink"></a></h2><p>In this section, the <em>defaultFMU</em> is inserted into a CS-NeuralFMU architecture. It has the goal to learn the initial state of the <em>referenceFMU</em>.</p><p>For the external force, a simple function is implemented that always returns a force of <span>$0N$</span> at each time point. Also, all other functions and implementations would be possible here. Only for simplification reasons the function was chosen so simply.</p><pre><code class="language-julia hljs">function extForce(t)
+accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])</code></pre><h2 id="CS-NeuralFMU"><a class="docs-heading-anchor" href="#CS-NeuralFMU">CS-NeuralFMU</a><a id="CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#CS-NeuralFMU" title="Permalink"></a></h2><p>In this section, the <em>defaultFMU</em> is inserted into a CS-NeuralFMU architecture. It has the goal to learn the initial state of the <em>referenceFMU</em>.</p><p>For the external force, a simple function is implemented that always returns a force of <span>$0N$</span> at each time point. Also, all other functions and implementations would be possible here. Only for simplification reasons the function was chosen so simply.</p><pre><code class="language-julia hljs">function extForce(t)
     return [0.0]
-end </code></pre><pre><code class="nohighlight hljs">extForce (generic function with 1 method)</code></pre><h4 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h4><p>In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.</p><p>The loss function in this implementation consists of the mean squared error (mse) from the acceleration data of the <em>referenceFMU</em> simulation (<code>accReference</code>) and the acceleration data of the network (<code>accNet</code>). $ e<em>{mse} = \frac{1}{n} \sum\limits</em>{i=0}^n (accReference[i] - accNet[i])^2 $</p><pre><code class="language-julia hljs"># loss function for training
+end </code></pre><h4 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h4><p>In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.</p><p>The loss function in this implementation consists of the mean squared error (mse) from the acceleration data of the <em>referenceFMU</em> simulation (<code>accReference</code>) and the acceleration data of the network (<code>accNet</code>). $ e<em>{mse} = \frac{1}{n} \sum\limits</em>{i=0}^n (accReference[i] - accNet[i])^2 $</p><pre><code class="language-julia hljs"># loss function for training
 function lossSum(p)
     solution = csNeuralFMU(extForce, tStep; p=p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
     
     FMIFlux.Losses.mse(accReference, accNet)
-end</code></pre><pre><code class="nohighlight hljs">lossSum (generic function with 1 method)</code></pre><h4 id="Callback"><a class="docs-heading-anchor" href="#Callback">Callback</a><a id="Callback-1"></a><a class="docs-heading-anchor-permalink" href="#Callback" title="Permalink"></a></h4><p>To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.</p><pre><code class="language-julia hljs"># callback function for training
+end</code></pre><h4 id="Callback"><a class="docs-heading-anchor" href="#Callback">Callback</a><a id="Callback-1"></a><a class="docs-heading-anchor-permalink" href="#Callback" title="Permalink"></a></h4><p>To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.</p><pre><code class="language-julia hljs"># callback function for training
 global counter = 0
 function callb(p)
     global counter += 1
@@ -124,80 +41,20 @@ function callb(p)
         avgLoss = lossSum(p[1])
         @info &quot;Loss [$counter]: $(round(avgLoss, digits=5))&quot;
     end
-end</code></pre><pre><code class="nohighlight hljs">callb (generic function with 1 method)</code></pre><h4 id="Structure-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Structure-of-the-CS-NeuralFMU">Structure of the CS-NeuralFMU</a><a id="Structure-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Structure-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>In the following, the topology of the CS-NeuralFMU is constructed. It consists of an input layer, which then leads into the <em>defaultFMU</em> model. The CS-FMU computes the outputs for the given system state and time step. After the <em>defaultFMU</em> follows a dense layer, which has exactly as many inputs as the model has outputs. The output of this layer consists of 16 output nodes and a <em>tanh</em> activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of model outputs as output nodes. Here, it is important that no <em>tanh</em>-activation function follows, because otherwise the pendulums state values would be limited to the interval <span>$[-1;1]$</span>.</p><pre><code class="language-julia hljs"># NeuralFMU setup
+end</code></pre><h4 id="Structure-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Structure-of-the-CS-NeuralFMU">Structure of the CS-NeuralFMU</a><a id="Structure-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Structure-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>In the following, the topology of the CS-NeuralFMU is constructed. It consists of an input layer, which then leads into the <em>defaultFMU</em> model. The CS-FMU computes the outputs for the given system state and time step. After the <em>defaultFMU</em> follows a dense layer, which has exactly as many inputs as the model has outputs. The output of this layer consists of 16 output nodes and a <em>tanh</em> activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of model outputs as output nodes. Here, it is important that no <em>tanh</em>-activation function follows, because otherwise the pendulums state values would be limited to the interval <span>$[-1;1]$</span>.</p><pre><code class="language-julia hljs"># NeuralFMU setup
 numInputs = length(defaultFMU.modelDescription.inputValueReferences)
 numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
 
-function eval(u)
-    y, _ = defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences)
-    return y
-end
-
-
-net = Chain(inputs -&gt; eval(inputs),
+net = Chain(u -&gt; defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
-            Dense(16, numOutputs))</code></pre><pre><code class="nohighlight hljs">Chain(
-  var&quot;#1#2&quot;(),
-  Dense(2 =&gt; 16, tanh),                 [90m# 48 parameters[39m
-  Dense(16 =&gt; 16, tanh),                [90m# 272 parameters[39m
-  Dense(16 =&gt; 2),                       [90m# 34 parameters[39m
-) [90m                  # Total: 6 arrays, [39m354 parameters, 3.141 KiB.</code></pre><h4 id="Definition-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Definition-of-the-CS-NeuralFMU">Definition of the CS-NeuralFMU</a><a id="Definition-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>The instantiation of the CS-NeuralFMU is done as a one-liner. The FMU <code>defaultFMU</code>, the structure of the network <code>net</code>, start <code>tStart</code> and end time <code>tStop</code>, and the time steps <code>tSave</code> for saving are specified.</p><pre><code class="language-julia hljs">csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);</code></pre><h4 id="Plot-before-training"><a class="docs-heading-anchor" href="#Plot-before-training">Plot before training</a><a id="Plot-before-training-1"></a><a class="docs-heading-anchor-permalink" href="#Plot-before-training" title="Permalink"></a></h4><p>Here the state trajectory of the <em>extForceFMU</em> is recorded. Doesn&#39;t really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.</p><pre><code class="language-julia hljs">solutionBefore = csNeuralFMU(extForce, tStep)
+            Dense(16, numOutputs))</code></pre><h4 id="Definition-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Definition-of-the-CS-NeuralFMU">Definition of the CS-NeuralFMU</a><a id="Definition-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>The instantiation of the CS-NeuralFMU is done as a one-liner. The FMU <code>defaultFMU</code>, the structure of the network <code>net</code>, start <code>tStart</code> and end time <code>tStop</code>, and the time steps <code>tSave</code> for saving are specified.</p><pre><code class="language-julia hljs">csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);</code></pre><h4 id="Plot-before-training"><a class="docs-heading-anchor" href="#Plot-before-training">Plot before training</a><a id="Plot-before-training-1"></a><a class="docs-heading-anchor-permalink" href="#Plot-before-training" title="Permalink"></a></h4><p>Here the state trajectory of the <em>extForceFMU</em> is recorded. Doesn&#39;t really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.</p><pre><code class="language-julia hljs">solutionBefore = csNeuralFMU(extForce, tStep)
 accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
-Plots.plot(tSave, accNeuralFMU, label=&quot;acc CS-NeuralFMU&quot;, linewidth=2)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_32_0.svg" alt="svg"/></p><h4 id="Training-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-CS-NeuralFMU">Training of the CS-NeuralFMU</a><a id="Training-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>For the training of the CS-NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.</p><pre><code class="language-julia hljs"># train
+Plots.plot(tSave, accNeuralFMU, label=&quot;acc CS-NeuralFMU&quot;, linewidth=2)</code></pre><h4 id="Training-of-the-CS-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-CS-NeuralFMU">Training of the CS-NeuralFMU</a><a id="Training-of-the-CS-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-CS-NeuralFMU" title="Permalink"></a></h4><p>For the training of the CS-NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.</p><pre><code class="language-julia hljs"># train
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()-&gt;callb(paramsNet))</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 1.54017
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.17445
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.07401
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.04483
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.03093
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.02044
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.01349
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.00901
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.00623
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.00455
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00354
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.00291
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00249
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.00217
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.00192
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.00171
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.00154
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.00139
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.00126
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.00115
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.00106
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.00098
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.00092
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.00086
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.00082
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.00077
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.00074
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.00071
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.00068
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.00066
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.00064
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.00062
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.0006
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.00058
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.00057
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.00055
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.00054
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.00053
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.00051
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.0005
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.00049
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.00048
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.00047
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.00046
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.00045
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.00044
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.00043
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.00042
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.00041
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.0004</code></pre><h4 id="Comparison-of-the-plots"><a class="docs-heading-anchor" href="#Comparison-of-the-plots">Comparison of the plots</a><a id="Comparison-of-the-plots-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-the-plots" title="Permalink"></a></h4><p>Here three plots are compared with each other and only the acceleration of the mass is considered. The first plot represents the <em>defaultFMU</em>, the second represents the <em>referenceFMU</em> and the third plot represents the result after training the CS-NeuralFMU. </p><pre><code class="language-julia hljs"># plot results mass.a
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()-&gt;callb(paramsNet))</code></pre><h4 id="Comparison-of-the-plots"><a class="docs-heading-anchor" href="#Comparison-of-the-plots">Comparison of the plots</a><a id="Comparison-of-the-plots-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-the-plots" title="Permalink"></a></h4><p>Here three plots are compared with each other and only the acceleration of the mass is considered. The first plot represents the <em>defaultFMU</em>, the second represents the <em>referenceFMU</em> and the third plot represents the result after training the CS-NeuralFMU. </p><pre><code class="language-julia hljs"># plot results mass.a
 solutionAfter = csNeuralFMU(extForce, tStep)
 
 fig = Plots.plot(xlabel=&quot;t [s]&quot;, ylabel=&quot;mass acceleration [m/s^2]&quot;, linewidth=2,
@@ -210,4 +67,4 @@ accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 1; isIndex=true)
 Plots.plot!(fig, tSave, accDefault, label=&quot;defaultFMU&quot;, linewidth=2)
 Plots.plot!(fig, tSave, accReference, label=&quot;referenceFMU&quot;, linewidth=2)
 Plots.plot!(fig, tSave, accNeuralFMU, label=&quot;CS-NeuralFMU (1000 eps.)&quot;, linewidth=2)
-fig </code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(defaultFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 1000 training steps, the curves overlap very much, so no further training with more runs is needed.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 13 January 2023 16:54">Friday 13 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig </code></pre><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(defaultFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 1000 training steps, the curves overlap very much, so no further training with more runs is needed.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 3 April 2023 11:34">Monday 3 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

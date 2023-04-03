@@ -2,9 +2,10 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Physics-enhanced NeuralODEs in real-world applications · FMIFlux.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="FMIFlux.jl logo"/></a><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../overview/">Overview</a></li><li><a class="tocitem" href="../simple_hybrid_CS/">Simple CS-NeuralFMU</a></li><li><a class="tocitem" href="../simple_hybrid_ME/">Simple ME-NeuralFMU</a></li><li><a class="tocitem" href="../advanced_hybrid_ME/">Advanced ME-NeuralFMU</a></li><li><a class="tocitem" href="../modelica_conference_2021/">Modelica Conference 2021</a></li><li class="is-active"><a class="tocitem" href>Physics-enhanced NeuralODEs in real-world applications</a><ul class="internal"><li><a class="tocitem" href="#Keywords"><span>Keywords</span></a></li><li><a class="tocitem" href="#License"><span>License</span></a></li><li><a class="tocitem" href="#Introduction"><span>Introduction</span></a></li><li><a class="tocitem" href="#Part-1:-Loading-the-FMU"><span>Part 1: Loading the FMU</span></a></li><li><a class="tocitem" href="#Part-2:-Designing-the-Topology"><span>Part 2: Designing the Topology</span></a></li><li><a class="tocitem" href="#Part-3:-Training"><span>Part 3: Training</span></a></li><li><a class="tocitem" href="#Part-4:-Results-discussion"><span>Part 4: Results discussion</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../faq/">FAQ</a></li><li><a class="tocitem" href="../../library/">Library Functions</a></li><li><a class="tocitem" href="../../related/">Related Publication</a></li><li><a class="tocitem" href="../../contents/">Contents</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Physics-enhanced NeuralODEs in real-world applications</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Physics-enhanced NeuralODEs in real-world applications</a></li></ul></nav><div class="docs-right"><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Physics-enhanced-NeuralODEs-in-real-world-applications"><a class="docs-heading-anchor" href="#Physics-enhanced-NeuralODEs-in-real-world-applications">Physics-enhanced NeuralODEs in real-world applications</a><a id="Physics-enhanced-NeuralODEs-in-real-world-applications-1"></a><a class="docs-heading-anchor-permalink" href="#Physics-enhanced-NeuralODEs-in-real-world-applications" title="Permalink"></a></h1><p>Tutorial by <em>Tobias Thummerer</em> based on the paper <a href="https://doi.org/10.3390/electronics11193202"><em>NeuralFMU: presenting a workflow for integrating hybrid NeuralODEs into real-world applications</em></a></p><p><em>(Work in progress, last edit: 09.01.2023)</em></p><h2 id="Keywords"><a class="docs-heading-anchor" href="#Keywords">Keywords</a><a id="Keywords-1"></a><a class="docs-heading-anchor-permalink" href="#Keywords" title="Permalink"></a></h2><p>PeNODE, NeuralODE, Universal Differential Equation, Hybrid Modeling, Functional Mock-up Unit, FMU, NeuralFMU</p><h2 id="License"><a class="docs-heading-anchor" href="#License">License</a><a id="License-1"></a><a class="docs-heading-anchor-permalink" href="#License" title="Permalink"></a></h2><pre><code class="language-julia hljs"># Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
 # Licensed under the MIT license. 
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.</code></pre><h2 id="Introduction"><a class="docs-heading-anchor" href="#Introduction">Introduction</a><a id="Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction" title="Permalink"></a></h2><p>In this tutorial, a <em>vehicle longitudinal-dynamics model</em> (VLDM) as used in automotive industry, is extended to a NeuralFMU (PeNODE) to make better consumption predictions. You don&#39;t know what NeuralFMUs/PeNODEs are? No problem, this will be briefly explained during this tutorial, too.</p><p>This tutorial is a more easy, code-focussed version of the paper <a href="#Source">[1]</a>, if you find it useful for your work, please cite the linked paper. In this example, a real-world simulation model is enhanced in terms of accuracy using a so called <em>physics-enhanced neural ordinary differential equation</em> (PeNode). Basically, this is an extension to the NeuralODE concept and looks as can be seen in Fig. 1.</p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/mdpi_2022/neuralfmu.svg?raw=true" alt="NeuralFMU.svg"/></p><p><em>Fig.1: A possible representation for a physics-enhanced neural ordinary differential equation (PeNODE). An ODE model computes the system state derivative <span>$\dot{\vec{x}}$</span> based on a given system state <span>$\vec{x}$</span>, inputs <span>$\vec{u}$</span> and time <span>$t$</span>. The state derivative <span>$\dot{\vec{x}}$</span> is manipulated by the ANN into <span>$\hat{\dot{\vec{x}}}$</span> and finally integrated into the next system state <span>$\vec{x}(t+h)$</span>. PeNODEs that include FMUs instead of symbolic ODEs are called NeuralFMUs.</em></p><p>Note, that this is only one possible topology of a PeNODE, there could be an additional artifical neural network (ANN) before the ODE (that might share some connections with the other ANN). Further also other signals, like FMU state derivatives, inputs and outputs could be connected to the ANN(s). ODEs are in general not very handy, for modeling <strong>real</strong> applications, a more suitable container for ODEs is needed. The most common model exchange format in industry is the <em>Functional Mock-up interface</em> (FMI), models exported with FMI are called <em>Functional Mock-up unit</em> (FMU). Especially <em>model-exchange</em> FMUs can be seen as containers for ODEs. For more information, see (<a href="http://fmi-standard.org/">fmi-standard.org</a>). So if you want to use a real model from your modeling tool (with FMI support), you can simply export a FMU instead of handling large and bulky ODEs. If PeNODEs use FMUs instead of ODEs, they are called NeuralFMUs <a href="#Source">[2]</a>.</p><p>If that was a little bit fast, don&#39;t worry: This will be explained in detail later on.</p><h3 id="Formats"><a class="docs-heading-anchor" href="#Formats">Formats</a><a id="Formats-1"></a><a class="docs-heading-anchor-permalink" href="#Formats" title="Permalink"></a></h3><p>Besides, this <a href="https://github.com/ThummeTo/FMIFlux.jl/blob/examples/examples/mdpi_2022.ipynb">Jupyter Notebook</a> there is also a <a href="https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/mdpi_2022.jl">Julia file</a> with the same name, which contains only the code cells. For the documentation there is a <a href="https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/mdpi_2022.md">Markdown file</a> corresponding to the notebook.  </p><h3 id="Installation-prerequisites"><a class="docs-heading-anchor" href="#Installation-prerequisites">Installation prerequisites</a><a id="Installation-prerequisites-1"></a><a class="docs-heading-anchor-permalink" href="#Installation-prerequisites" title="Permalink"></a></h3><table><tr><th style="text-align: left"></th><th style="text-align: left">Description</th><th style="text-align: left">Command</th></tr><tr><td style="text-align: left">1.</td><td style="text-align: left">Enter Package Manager via</td><td style="text-align: left">]</td></tr><tr><td style="text-align: left">2.</td><td style="text-align: left">Install FMI via</td><td style="text-align: left">add FMI</td></tr><tr><td style="text-align: left">3.</td><td style="text-align: left">Install FMIFlux via</td><td style="text-align: left">add FMIFlux</td></tr><tr><td style="text-align: left">4.</td><td style="text-align: left">Install FMIZoo via</td><td style="text-align: left">add FMIZoo</td></tr><tr><td style="text-align: left">5.</td><td style="text-align: left">Install Plots via</td><td style="text-align: left">add Plots</td></tr><tr><td style="text-align: left">6.</td><td style="text-align: left">Install Random via</td><td style="text-align: left">add Random</td></tr><tr><td style="text-align: left">7.</td><td style="text-align: left">Install JLD2 via</td><td style="text-align: left">add JLD2</td></tr></table><h2 id="Part-1:-Loading-the-FMU"><a class="docs-heading-anchor" href="#Part-1:-Loading-the-FMU">Part 1: Loading the FMU</a><a id="Part-1:-Loading-the-FMU-1"></a><a class="docs-heading-anchor-permalink" href="#Part-1:-Loading-the-FMU" title="Permalink"></a></h2><p>To run the example, the previously installed packages must be included. </p><pre><code class="language-julia hljs"># Loading in the required libraries
-using FMIFlux   # for NeuralFMUs
-using FMI       # import FMUs into Julia 
-using FMIZoo    # a collection of demo models, including the VLDM
+using FMIFlux       # for NeuralFMUs
+using FMI           # import FMUs into Julia 
+using FMIZoo        # a collection of demo models, including the VLDM
+using FMIFlux.Flux  # Machine Learning in Julia
 
 import FMI.DifferentialEquations: Tsit5     # import the Tsit5-solver
 using JLD2                                  # data format for saving/loading parameters
@@ -21,11 +22,21 @@ import Random
 Random.seed!(1234)
 
 # we use the Tsit5 solver for ODEs here 
-solver = Tsit5();   </code></pre><p>Next, we load the FMU from the <em>FMIZoo.jl</em> and have a brief look on its metadata. For a more detailed view, see the <a href="https://github.com/ThummeTo/FMIZoo.jl/blob/main/models/src/VLDM.mo">Modelica model</a>.</p><pre><code class="language-julia hljs"># load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
+solver = Tsit5();   </code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMIFlux [fabad875-0d53-4e47-9446-963b74cae21f]
+WARNING: Method definition hasproperty(SciMLSensitivity.TrackedAffect{T, T2, T3, T4, T5, T6} where T6 where T5 where T4 where T3 where T2 where T, Symbol) in module SciMLSensitivity at C:\Users\runneradmin\.julia\packages\SciMLSensitivity\rQ8lc\src\callback_tracking.jl:73 overwritten in module FMIFlux at D:\a\FMIFlux.jl\FMIFlux.jl\src\FMIFlux.jl:20.
+  ** incremental compilation may be fatally broken for this module **
+
+WARNING: Method definition getproperty(SciMLSensitivity.TrackedAffect{T, T2, T3, T4, T5, T6} where T6 where T5 where T4 where T3 where T2 where T, Symbol) in module SciMLSensitivity at C:\Users\runneradmin\.julia\packages\SciMLSensitivity\rQ8lc\src\callback_tracking.jl:82 overwritten in module FMIFlux at D:\a\FMIFlux.jl\FMIFlux.jl\src\FMIFlux.jl:28.
+  ** incremental compilation may be fatally broken for this module **
+
+WARNING: Method definition setproperty!(SciMLSensitivity.TrackedAffect{T, T2, T3, T4, T5, T6} where T6 where T5 where T4 where T3 where T2 where T, Symbol, Any) in module SciMLSensitivity at C:\Users\runneradmin\.julia\packages\SciMLSensitivity\rQ8lc\src\callback_tracking.jl:91 overwritten in module FMIFlux at D:\a\FMIFlux.jl\FMIFlux.jl\src\FMIFlux.jl:36.
+  ** incremental compilation may be fatally broken for this module **
+
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMI [14a09403-18e3-468f-ad8a-74f8dda2d9ac]</code></pre><p>Next, we load the FMU from the <em>FMIZoo.jl</em> and have a brief look on its metadata. For a more detailed view, see the <a href="https://github.com/ThummeTo/FMIZoo.jl/blob/main/models/src/VLDM.mo">Modelica model</a>.</p><pre><code class="language-julia hljs"># load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
 fmu = fmiLoad(&quot;VLDM&quot;, &quot;Dymola&quot;, &quot;2022x&quot;; type=:ME, logLevel=FMI.FMIImport.FMULogLevelInfo)  # `FMULogLevelInfo` = &quot;Log everything that might be interesting!&quot;, default is `FMULogLevelWarn`
 
 # let&#39;s have a look on the model meta data
-fmiInfo(fmu)</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmi2Load(...): FMU resources location is `file:///C:/Users/RUNNER~1/AppData/Local/Temp/fmijl_mO3KXi/VLDM/resources`
+fmiInfo(fmu)</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmi2Load(...): FMU resources location is `file:///C:/Users/RUNNER~1/AppData/Local/Temp/fmijl_ZgYO3U/VLDM/resources`
 
 
 #################### Begin information for FMU ####################
@@ -75,7 +86,7 @@ fig = fmiPlot(resultFMU; stateIndices=6:6)                                      
 fig = fmiPlot(resultFMU; stateIndices=6:6, ylabel=&quot;Cumulative consumption [Ws]&quot;, label=&quot;FMU&quot;)   # ... add some helpful labels!
 
 # further plot the (measurement) data values `consumption_val` and deviation between measurements `consumption_dev`
-Plots.plot!(fig, data.consumption_t, data.consumption_val; label=&quot;Data&quot;, ribbon=data.consumption_dev, fillalpha=0.3)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:44[39m
+Plots.plot!(fig, data.consumption_t, data.consumption_val; label=&quot;Data&quot;, ribbon=data.consumption_dev, fillalpha=0.3)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:27[39m
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of state events (105) exceeding 100, disabling automatic plotting of state events (can be forced with keyword `stateEvents=true`).
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of time events (110142) exceeding 100, disabling automatic plotting of time events (can be forced with keyword `timeEvents=true`).
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of state events (105) exceeding 100, disabling automatic plotting of state events (can be forced with keyword `stateEvents=true`).
@@ -109,7 +120,7 @@ preProcess = ShiftScale(vals)
 # check what it&#39;s doing now ...
 testVals = collect(preProcess(collect(val[t] for val in vals))[1] for t in 1:length(resultFMU.values.t))
 Plots.plot(resultFMU.values.t, testVals; label=&quot;velocity (pre-processed)&quot;);
-Plots.plot!(resultFMU.values.t, tanh.(testVals); label=&quot;tanh(velocity)&quot;)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:31[39m</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_16_1.svg" alt="svg"/></p><pre><code class="language-julia hljs"># add some additional &quot;buffer&quot;
+Plots.plot!(resultFMU.values.t, tanh.(testVals); label=&quot;tanh(velocity)&quot;)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:20[39m</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_16_1.svg" alt="svg"/></p><pre><code class="language-julia hljs"># add some additional &quot;buffer&quot;
 preProcess.scale[:] *= 0.5 
 
 # and check again what it&#39;s doing now ...
@@ -120,20 +131,14 @@ testVals = collect(preProcess(collect(val[t] for val in vals))[3] for t in 1:len
 Plots.plot(resultFMU.values.t, testVals; label=&quot;vehicle consumption (pre-processed)&quot;);
 Plots.plot!(resultFMU.values.t, tanh.(testVals); label=&quot;tanh(consumption)&quot;)</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_18_0.svg" alt="svg"/></p><pre><code class="language-julia hljs"># setup scale/shift layer (inverse transformation) for post-processing
 # we don&#39;t an inverse transform for the entire preProcess, only for the 2nd element (acceleration)
-postProcess = ScaleShift(preProcess; indices=2:2)</code></pre><pre><code class="nohighlight hljs">ScaleShift{Float64}([3.3007689403344145], [-0.002646582491370278])</code></pre><p>As a little extra, these shifting and scaling parameters are optimized together with the ANN parameters in the later training process!</p><h3 id="Part-2b:-ANN-in-and-output"><a class="docs-heading-anchor" href="#Part-2b:-ANN-in-and-output">Part 2b: ANN in- and output</a><a id="Part-2b:-ANN-in-and-output-1"></a><a class="docs-heading-anchor-permalink" href="#Part-2b:-ANN-in-and-output" title="Permalink"></a></h3><p>Besides shifting and scaling, a major question is: What signals should be fed into the ANN and what signals should be output by it? We need to make some considerations:</p><ul><li><strong>What should be learned?</strong> In theory, we could manipulate every interface signal from and to the FMU, but in real life this is not efficient. The more signals we connect, the more partial derivatives need to be determined during training. So if there is something you know about the model (and often there is more than just <em>something</em>) you can use that knowledge to make your hybrid model more efficient. So ask yourself: <em>What</em> should be learned? And right after that: <em>How</em> could it be learned? In mechanical applications the answer will often be: A force (or momentum in rotational systems). Forces result in a change of acceleration, so they can be expressed by an additional acceleration. In mechanical systems, the acceleration is almost always a state derivative (the derivative of the velocity), so in many cases, manipulating the most differentiated state derivative - the acceleration - is a very good choice. </li><li><strong>How many ANNs do we need?</strong> Technically, you can add an arbitrary number of ANNs around your FMU (you can also use multiple FMUs if you want). But again, one should not use more than a single ANN if there is no good reason to do so. A second ANN <em>before</em> the FMU can be useful for example, if measurment offsets or similar effects should be corrected. Often, a single ANN to modify the state dynamics is sufficient.</li><li><strong>What signals from the FMU should be inserted into the ANN?</strong> In theory, we could use them all, meaning all states, state derivatives, time, inputs, outputs and other variables that are accessible through FMI. You know what comes next: Using less signals is the better choice, of course. If you know that the physical effect (here: the friction force), you have also an idea of what <em>influences</em> this effect or at least you know what values will have no impact and can be neglected to enhance training performance.</li></ul><p>At this specific example, the following considerations were made:</p><table><tr><th style="text-align: left"></th><th style="text-align: right">Consideration</th><th style="text-align: right">Considered inputs for the ANN</th></tr><tr><td style="text-align: left">1.</td><td style="text-align: right">we have no system inputs, so <span>$\vec{u}=\{\}$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">2.</td><td style="text-align: right">we have no system outputs, so <span>$\vec{y}=\{\}$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">3.</td><td style="text-align: right">we know that the effect is not explicitly time-dependent on <span>$t$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">4.</td><td style="text-align: right">we have six states, that may influence the effect, add them</td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_5, x_6\}$</span></td></tr><tr><td style="text-align: left">5.</td><td style="text-align: right">we have six state derivatives, that may influence the effect, add them</td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_5, x_6\, \dot{x}_1, \dot{x}_2, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">6.</td><td style="text-align: right">the system is modelled as second order ODE, the state <span>$x_5$</span> (velocity) equlas the state derivative <span>$\dot{x}_4$</span>, remove <span>$x_5$</span></td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_6\, \dot{x}_1, \dot{x}_2, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">7.</td><td style="text-align: right">we know that the friction effect is not dependent on the driver controller, remove two states (<span>$x_1$</span> and <span>$x_2$</span>) and state derivatives (<span>$\dot{x}_1$</span> and <span>$\dot{x}_2$</span>)</td><td style="text-align: right"><span>$\{x_3, x_4, x_6\, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">8.</td><td style="text-align: right">we know that the friction effect is not dependent on the target driving cycle position <span>$x_3$</span> or velocity <span>$\dot{x}_3$</span>, remove them</td><td style="text-align: right"><span>$\{x_4, x_6\, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">9.</td><td style="text-align: right">we assume that the friction effect is not dependent on the vehicle position <span>$x_4$</span>, remove <span>$x_4$</span></td><td style="text-align: right"><span>$\{x_6\, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">10.</td><td style="text-align: right">we assume that the friction effect is not dependent on the accumulated vehicle consumption <span>$x_6$</span>, remove <span>$x_6$</span></td><td style="text-align: right"><span>$\{\dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr></table><p>These considerations lead to the following topology:</p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/mdpi_2022/usedneuralfmu.svg?raw=true" alt="usedneuralfmu.svg"/></p><p><em>Fig.2: The used topology for a NeuralFMU in this example. The ANN operates based on the signals <span>$\dot{x}_4, \dot{x}_5, \dot{x}_6$</span> from the FMU, but only modifies the signal <span>$\hat{\dot{x}}_5$</span>. The gates <span>$p_{FMU}$</span> and <span>$p_{ANN}$</span> control how much the dynamics of FMU and ANN contribute to the NeuralFMU dynamics. Starting with <span>$p_{FMU}=1.0$</span> and <span>$p_{ANN}=0.0$</span> makes an initialization routine obsolete, because the dynamics of the NeuralFMU equal the dynamics of the FMU, see <a href="#Source">[1]</a> for further details.</em></p><h3 id="Part-2c:-Translating-topology-to-Julia"><a class="docs-heading-anchor" href="#Part-2c:-Translating-topology-to-Julia">Part 2c: Translating topology to Julia</a><a id="Part-2c:-Translating-topology-to-Julia-1"></a><a class="docs-heading-anchor-permalink" href="#Part-2c:-Translating-topology-to-Julia" title="Permalink"></a></h3><p>To implement the signal bypass in a layer sequence, two layers named <code>CacheLayer</code> and <code>CacheRetrieveLayer</code> are used to cache and retrieve arbitrary values:</p><pre><code class="language-julia hljs"># setup cache layers 
+postProcess = ScaleShift(preProcess; indices=2:2)</code></pre><pre><code class="nohighlight hljs">ScaleShift{Float64}([3.314424429486788], [-1.6378478108002886e-5])</code></pre><p>As a little extra, these shifting and scaling parameters are optimized together with the ANN parameters in the later training process!</p><h3 id="Part-2b:-ANN-in-and-output"><a class="docs-heading-anchor" href="#Part-2b:-ANN-in-and-output">Part 2b: ANN in- and output</a><a id="Part-2b:-ANN-in-and-output-1"></a><a class="docs-heading-anchor-permalink" href="#Part-2b:-ANN-in-and-output" title="Permalink"></a></h3><p>Besides shifting and scaling, a major question is: What signals should be fed into the ANN and what signals should be output by it? We need to make some considerations:</p><ul><li><strong>What should be learned?</strong> In theory, we could manipulate every interface signal from and to the FMU, but in real life this is not efficient. The more signals we connect, the more partial derivatives need to be determined during training. So if there is something you know about the model (and often there is more than just <em>something</em>) you can use that knowledge to make your hybrid model more efficient. So ask yourself: <em>What</em> should be learned? And right after that: <em>How</em> could it be learned? In mechanical applications the answer will often be: A force (or momentum in rotational systems). Forces result in a change of acceleration, so they can be expressed by an additional acceleration. In mechanical systems, the acceleration is almost always a state derivative (the derivative of the velocity), so in many cases, manipulating the most differentiated state derivative - the acceleration - is a very good choice. </li><li><strong>How many ANNs do we need?</strong> Technically, you can add an arbitrary number of ANNs around your FMU (you can also use multiple FMUs if you want). But again, one should not use more than a single ANN if there is no good reason to do so. A second ANN <em>before</em> the FMU can be useful for example, if measurment offsets or similar effects should be corrected. Often, a single ANN to modify the state dynamics is sufficient.</li><li><strong>What signals from the FMU should be inserted into the ANN?</strong> In theory, we could use them all, meaning all states, state derivatives, time, inputs, outputs and other variables that are accessible through FMI. You know what comes next: Using less signals is the better choice, of course. If you know that the physical effect (here: the friction force), you have also an idea of what <em>influences</em> this effect or at least you know what values will have no impact and can be neglected to enhance training performance.</li></ul><p>At this specific example, the following considerations were made:</p><table><tr><th style="text-align: left"></th><th style="text-align: right">Consideration</th><th style="text-align: right">Considered inputs for the ANN</th></tr><tr><td style="text-align: left">1.</td><td style="text-align: right">we have no system inputs, so <span>$\vec{u}=\{\}$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">2.</td><td style="text-align: right">we have no system outputs, so <span>$\vec{y}=\{\}$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">3.</td><td style="text-align: right">we know that the effect is not explicitly time-dependent on <span>$t$</span>, nothing to add</td><td style="text-align: right"><span>$\{\}$</span></td></tr><tr><td style="text-align: left">4.</td><td style="text-align: right">we have six states, that may influence the effect, add them</td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_5, x_6\}$</span></td></tr><tr><td style="text-align: left">5.</td><td style="text-align: right">we have six state derivatives, that may influence the effect, add them</td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_5, x_6\, \dot{x}_1, \dot{x}_2, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">6.</td><td style="text-align: right">the system is modelled as second order ODE, the state <span>$x_5$</span> (velocity) equlas the state derivative <span>$\dot{x}_4$</span>, remove <span>$x_5$</span></td><td style="text-align: right"><span>$\{x_1, x_2, x_3, x_4, x_6\, \dot{x}_1, \dot{x}_2, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">7.</td><td style="text-align: right">we know that the friction effect is not dependent on the driver controller, remove two states (<span>$x_1$</span> and <span>$x_2$</span>) and state derivatives (<span>$\dot{x}_1$</span> and <span>$\dot{x}_2$</span>)</td><td style="text-align: right"><span>$\{x_3, x_4, x_6\, \dot{x}_3, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">8.</td><td style="text-align: right">we know that the friction effect is not dependent on the target driving cycle position <span>$x_3$</span> or velocity <span>$\dot{x}_3$</span>, remove them</td><td style="text-align: right"><span>$\{x_4, x_6\, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">9.</td><td style="text-align: right">we assume that the friction effect is not dependent on the vehicle position <span>$x_4$</span>, remove <span>$x_4$</span></td><td style="text-align: right"><span>$\{x_6\, \dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr><tr><td style="text-align: left">10.</td><td style="text-align: right">we assume that the friction effect is not dependent on the accumulated vehicle consumption <span>$x_6$</span>, remove <span>$x_6$</span></td><td style="text-align: right"><span>$\{\dot{x}_4, \dot{x}_5, \dot{x}_6\}$</span></td></tr></table><p>These considerations lead to the following topology:</p><p><img src="https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/mdpi_2022/usedneuralfmu.svg?raw=true" alt="usedneuralfmu.svg"/></p><p><em>Fig.2: The used topology for a NeuralFMU in this example. The ANN operates based on the signals <span>$\dot{x}_4, \dot{x}_5, \dot{x}_6$</span> from the FMU, but only modifies the signal <span>$\hat{\dot{x}}_5$</span>. The gates <span>$p_{FMU}$</span> and <span>$p_{ANN}$</span> control how much the dynamics of FMU and ANN contribute to the NeuralFMU dynamics. Starting with <span>$p_{FMU}=1.0$</span> and <span>$p_{ANN}=0.0$</span> makes an initialization routine obsolete, because the dynamics of the NeuralFMU equal the dynamics of the FMU, see <a href="#Source">[1]</a> for further details.</em></p><h3 id="Part-2c:-Translating-topology-to-Julia"><a class="docs-heading-anchor" href="#Part-2c:-Translating-topology-to-Julia">Part 2c: Translating topology to Julia</a><a id="Part-2c:-Translating-topology-to-Julia-1"></a><a class="docs-heading-anchor-permalink" href="#Part-2c:-Translating-topology-to-Julia" title="Permalink"></a></h3><p>To implement the signal bypass in a layer sequence, two layers named <code>CacheLayer</code> and <code>CacheRetrieveLayer</code> are used to cache and retrieve arbitrary values:</p><pre><code class="language-julia hljs"># setup cache layers 
 cache = CacheLayer()
 cacheRetrieve = CacheRetrieveLayer(cache)
 
 gates = ScaleSum([1.0, 0.0]) # signal from FMU (#1 = 1.0), signal from ANN (#2 = 0.0)
 
-# evaluate the FMU by calling it, we are only interessted in `dx` in this case
-function evalFMU(x)
-    y, dx = fmu(; x=x)
-    return dx 
-end
-
 # setup the NeuralFMU topology
-net = Chain(x -&gt; evalFMU(x),                    # take `x`, put it into the FMU, retrieve `dx`
+net = Chain(x -&gt; fmu(; x=x),                    # take `x`, put it into the FMU, retrieve `dx`
             dx -&gt; cache(dx),                    # cache `dx`
             dx -&gt; dx[4:6],                      # forward only dx[4, 5, 6]
             preProcess,                         # pre-process `dx`
@@ -164,7 +169,7 @@ Plots.plot!(fig, data.speed_t, data.speed_val, label=&quot;Data&quot;)</code></p
 train_data = collect([d] for d in data.consumption_val)
 train_t = data.consumption_t 
 
-# switch to a more efficient execution configuration, allocate only a singel FMU instance, see:
+# switch to a more efficient execution configuration, allocate only a single FMU instance, see:
 # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
 fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NOTHING
 c, _ = FMIFlux.prepareSolveFMU(neuralFMU.fmu, nothing, neuralFMU.fmu.type, true, false, false, false, true, data.params; x0=x0)
@@ -206,132 +211,149 @@ params[1][end] = 0.01
 # for training, we use the Adam optimizer with step size 1e-3
 optim = Adam(1e-3) 
 
-# initialize the scheduler 
-initialize!(scheduler; parameters=data.params, p=params[1], showProgress=false)
-
 # let&#39;s check the loss we are starting with ...
-batch_loss(params[1])</code></pre><pre><code class="nohighlight hljs">[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mBatch element does not provide a `initialState`, I try to simulate anyway. InitialState is overwritten.
-[33m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\batch.jl:111[39m</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_25_1.svg" alt="svg"/></p><pre><code class="nohighlight hljs">1.853901634445119e9</code></pre><p>Finally, the lines we are waiting for so long:</p><pre><code class="language-julia hljs">batchLen = length(batch)
-FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; chunk_size=length(params[1]), cb=updateScheduler) 
-batch_loss(params[1])</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.69e+07 | MAX: 9.87e+07 @ #1
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.69e+07 | MAX: 9.87e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.69e+07 | MAX: 9.87e+07 @ #89
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.69e+07 | MAX: 9.87e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.18e+07 | MAX: 8.74e+07 @ #98
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.18e+07 | MAX: 8.74e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.18e+07 | MAX: 8.74e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.18e+07 | MAX: 8.74e+07 @ #82
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.18e+07 | MAX: 8.74e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 2.69e+07 | MAX: 2.96e+08 @ #69
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 2.69e+07 | MAX: 2.96e+08 @ #88
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 2.69e+07 | MAX: 2.96e+08 @ #87
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 2.69e+07 | MAX: 2.96e+08 @ #103
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 2.69e+07 | MAX: 2.96e+08 @ #88
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.15e+07 @ #93
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.15e+07 @ #98
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.15e+07 @ #89
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.15e+07 @ #57
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.15e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.64e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.64e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.64e+07 @ #95
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.64e+07 @ #87
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.11e+07 | MAX: 8.64e+07 @ #82
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.09e+07 | MAX: 8.73e+07 @ #92</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_1.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.09e+07 | MAX: 8.73e+07 @ #44
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.09e+07 | MAX: 8.73e+07 @ #12
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.09e+07 | MAX: 8.73e+07 @ #69
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.09e+07 | MAX: 8.73e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.64e+07 @ #65
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.64e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.64e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.64e+07 @ #103
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.64e+07 @ #55
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.55e+07 @ #54
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.55e+07 @ #107
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.55e+07 @ #57
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.55e+07 @ #32
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.07e+07 | MAX: 8.55e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.08e+07 | MAX: 8.42e+07 @ #82
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.08e+07 | MAX: 8.42e+07 @ #89
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.08e+07 | MAX: 8.42e+07 @ #52
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.08e+07 | MAX: 8.42e+07 @ #98
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.08e+07 | MAX: 8.42e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 8.18e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 8.18e+07 @ #53
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 8.18e+07 @ #99
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 8.18e+07 @ #69
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 8.18e+07 @ #42
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 7.90e+07 @ #94</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_3.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 7.90e+07 @ #12
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 7.90e+07 @ #95
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 7.90e+07 @ #48
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.06e+07 | MAX: 7.90e+07 @ #103
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.04e+07 | MAX: 7.54e+07 @ #58
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.04e+07 | MAX: 7.54e+07 @ #44
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.04e+07 | MAX: 7.54e+07 @ #82
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.04e+07 | MAX: 7.54e+07 @ #57
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.04e+07 | MAX: 7.54e+07 @ #45
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.03e+07 | MAX: 7.22e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.03e+07 | MAX: 7.22e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.03e+07 | MAX: 7.22e+07 @ #89
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.03e+07 | MAX: 7.22e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.03e+07 | MAX: 7.22e+07 @ #92
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.02e+07 | MAX: 6.81e+07 @ #80
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.02e+07 | MAX: 6.81e+07 @ #98
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.02e+07 | MAX: 6.81e+07 @ #88
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.02e+07 | MAX: 6.81e+07 @ #65
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.02e+07 | MAX: 6.81e+07 @ #41
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 8.41e+06 | MAX: 6.29e+07 @ #69
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 8.41e+06 | MAX: 6.29e+07 @ #107
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 8.41e+06 | MAX: 6.29e+07 @ #83
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 8.41e+06 | MAX: 6.29e+07 @ #60
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 8.41e+06 | MAX: 6.29e+07 @ #91
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.72e+06 | MAX: 5.91e+07 @ #82</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_5.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.72e+06 | MAX: 5.91e+07 @ #103
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.72e+06 | MAX: 5.91e+07 @ #12
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.72e+06 | MAX: 5.91e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.72e+06 | MAX: 5.91e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.44e+06 | MAX: 5.57e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.44e+06 | MAX: 5.57e+07 @ #55
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.44e+06 | MAX: 5.57e+07 @ #21
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.44e+06 | MAX: 5.57e+07 @ #57
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.44e+06 | MAX: 5.57e+07 @ #54
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.00e+06 | MAX: 5.08e+07 @ #24
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.00e+06 | MAX: 5.08e+07 @ #50
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.00e+06 | MAX: 5.08e+07 @ #32
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.00e+06 | MAX: 5.08e+07 @ #68
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 7.00e+06 | MAX: 5.08e+07 @ #95
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.74e+06 | MAX: 4.75e+07 @ #29
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.74e+06 | MAX: 4.75e+07 @ #102
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.74e+06 | MAX: 4.75e+07 @ #93
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.74e+06 | MAX: 4.75e+07 @ #82
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.74e+06 | MAX: 4.75e+07 @ #94
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.43e+06 | MAX: 4.40e+07 @ #69
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.43e+06 | MAX: 4.40e+07 @ #31
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.43e+06 | MAX: 4.40e+07 @ #70
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.43e+06 | MAX: 4.40e+07 @ #12
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.43e+06 | MAX: 4.40e+07 @ #49
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 4.16e+07 @ #89</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_7.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 4.16e+07 @ #103
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 4.16e+07 @ #107
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 4.16e+07 @ #7
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 4.16e+07 @ #43
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.41e+06 | MAX: 3.95e+07 @ #105
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.41e+06 | MAX: 3.95e+07 @ #98
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.41e+06 | MAX: 3.95e+07 @ #62
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.41e+06 | MAX: 3.95e+07 @ #57
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.41e+06 | MAX: 3.95e+07 @ #15
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 6.18e+06 | MAX: 3.86e+07 @ #58
+loss_before = batch_loss(params[1])
+
+# initialize the scheduler 
+initialize!(scheduler; parameters=data.params, p=params[1], showProgress=false)</code></pre><pre><code class="nohighlight hljs">[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mBatch element does not provide a `initialState`, I try to simulate anyway. InitialState is overwritten.
+[33m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\batch.jl:113[39m</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_25_1.svg" alt="svg"/></p><p>Finally, the lines we are waiting for so long:</p><pre><code class="language-julia hljs">batchLen = length(batch)
+
+# we use ForwardDiff for gradinet determination, because the FMU throws multiple events per time instant (this is not supported by reverse mode AD)
+# the chunk_size controls the nuber of forward evaluations of the model (the bigger, the less evaluations)
+FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; gradient=:ForwardDiff, chunk_size=32, cb=updateScheduler) 
+loss_after = batch_loss(params[1])</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.71e+07 | MAX: 1.00e+08 @ #1
+[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mdt(Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(1.1368683772161603e-13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)) &lt;= dtmin(Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(1.1368683772161603e-13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)) at t=Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(930.2601056688147,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,NaN,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,NaN,0.0,0.0,0.0,0.0). Aborting. There is either an error in your model specification or the true solution is unstable.
+[33m[1m└ [22m[39m[90m@ SciMLBase C:\Users\runneradmin\.julia\packages\SciMLBase\o0qGB\src\integrator_interface.jl:532[39m
+[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mSolving the NeuralFMU as part of the loss function failed. This is often because the ODE cannot be solved. Did you initialize the NeuralFMU model? Maybe additional errors are printed before this assertion.
+[33m[1m└ [22m[39m[90m@ FMIFlux.Losses D:\a\FMIFlux.jl\FMIFlux.jl\src\losses.jl:75[39m
+[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mdt(Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(1.1368683772161603e-13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)) &lt;= dtmin(Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(1.1368683772161603e-13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)) at t=Dual{ForwardDiff.Tag{var&quot;#33#34&quot;, Float64}}(930.255849831984,0.0,NaN,-3.3819556827813e-311,NaN,-3.8861579827e-314,NaN,-3.383365551074e-311,NaN,-3.646e-320,NaN,0.0,NaN,-3.382786159239e-311,NaN,0.0,NaN,-3.3827861628854e-311,NaN,0.0,NaN,0.0,NaN,0.0,NaN,-3.167074860647087e-303,NaN,0.0,NaN,-3.383365551074e-311,NaN,0.0,NaN). Aborting. There is either an error in your model specification or the true solution is unstable.
+[33m[1m└ [22m[39m[90m@ SciMLBase C:\Users\runneradmin\.julia\packages\SciMLBase\o0qGB\src\integrator_interface.jl:532[39m
+[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mSolving the NeuralFMU as part of the loss function failed. This is often because the ODE cannot be solved. Did you initialize the NeuralFMU model? Maybe additional errors are printed before this assertion.
+[33m[1m└ [22m[39m[90m@ FMIFlux.Losses D:\a\FMIFlux.jl\FMIFlux.jl\src\losses.jl:75[39m
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.71e+07 | MAX: 1.00e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.71e+07 | MAX: 1.00e+08 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.71e+07 | MAX: 1.00e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.37e+07 | MAX: 1.19e+08 @ #98
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.37e+07 | MAX: 1.19e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.37e+07 | MAX: 1.19e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.37e+07 | MAX: 1.19e+08 @ #82
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.37e+07 | MAX: 1.19e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 4.53e+07 | MAX: 5.62e+08 @ #69
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 4.53e+07 | MAX: 5.62e+08 @ #88
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 4.53e+07 | MAX: 5.62e+08 @ #87
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 4.53e+07 | MAX: 5.62e+08 @ #88
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 4.53e+07 | MAX: 5.62e+08 @ #93
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.36e+07 | MAX: 8.66e+07 @ #87
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.36e+07 | MAX: 8.66e+07 @ #98
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.36e+07 | MAX: 8.66e+07 @ #80
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.36e+07 | MAX: 8.66e+07 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.36e+07 | MAX: 8.66e+07 @ #88
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.31e+07 | MAX: 1.00e+08 @ #103
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.31e+07 | MAX: 1.00e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.31e+07 | MAX: 1.00e+08 @ #95
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.31e+07 | MAX: 1.00e+08 @ #92
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.31e+07 | MAX: 1.00e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.05e+08 @ #57</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_1.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.05e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.05e+08 @ #82
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.05e+08 @ #69
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.05e+08 @ #44
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.49e+07 | MAX: 1.07e+08 @ #12
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.49e+07 | MAX: 1.07e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.49e+07 | MAX: 1.07e+08 @ #65
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.49e+07 | MAX: 1.07e+08 @ #41
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.49e+07 | MAX: 1.07e+08 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #91
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #98
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #48
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #99
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #32
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #103
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.54e+07 | MAX: 1.07e+08 @ #107
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.55e+07 | MAX: 1.07e+08 @ #82
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.55e+07 | MAX: 1.07e+08 @ #95
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.55e+07 | MAX: 1.07e+08 @ #54
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.55e+07 | MAX: 1.07e+08 @ #45
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.55e+07 | MAX: 1.07e+08 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.53e+07 | MAX: 1.07e+08 @ #88</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_3.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.53e+07 | MAX: 1.07e+08 @ #69
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.53e+07 | MAX: 1.07e+08 @ #57
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.53e+07 | MAX: 1.07e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.53e+07 | MAX: 1.07e+08 @ #93
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.47e+07 | MAX: 1.07e+08 @ #55
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.47e+07 | MAX: 1.07e+08 @ #92
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.47e+07 | MAX: 1.07e+08 @ #98
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.47e+07 | MAX: 1.07e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.47e+07 | MAX: 1.07e+08 @ #43
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.06e+08 @ #44
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.06e+08 @ #52
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.06e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.06e+08 @ #12
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.40e+07 | MAX: 1.06e+08 @ #42
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.38e+07 | MAX: 1.06e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.38e+07 | MAX: 1.06e+08 @ #47
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.38e+07 | MAX: 1.06e+08 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.38e+07 | MAX: 1.06e+08 @ #82
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.38e+07 | MAX: 1.06e+08 @ #87
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.35e+07 | MAX: 1.05e+08 @ #53
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.35e+07 | MAX: 1.05e+08 @ #103
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.35e+07 | MAX: 1.05e+08 @ #65
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.35e+07 | MAX: 1.05e+08 @ #95
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.35e+07 | MAX: 1.05e+08 @ #83
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.32e+07 | MAX: 1.05e+08 @ #69</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_5.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.32e+07 | MAX: 1.05e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.32e+07 | MAX: 1.05e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.32e+07 | MAX: 1.05e+08 @ #24
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.32e+07 | MAX: 1.05e+08 @ #29
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #99
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #57
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #58
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #36
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #98
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #48
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #89
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #107
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.30e+07 | MAX: 1.04e+08 @ #82
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.28e+07 | MAX: 1.03e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.28e+07 | MAX: 1.03e+08 @ #44
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.28e+07 | MAX: 1.03e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.28e+07 | MAX: 1.03e+08 @ #12
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.28e+07 | MAX: 1.03e+08 @ #102
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.27e+07 | MAX: 1.02e+08 @ #92
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.27e+07 | MAX: 1.02e+08 @ #68
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.27e+07 | MAX: 1.02e+08 @ #54
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.27e+07 | MAX: 1.02e+08 @ #41
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.27e+07 | MAX: 1.02e+08 @ #70
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.26e+07 | MAX: 1.01e+08 @ #103</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_27_7.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.26e+07 | MAX: 1.01e+08 @ #69
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.26e+07 | MAX: 1.01e+08 @ #32
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.26e+07 | MAX: 1.01e+08 @ #94
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.26e+07 | MAX: 1.01e+08 @ #21
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.25e+07 | MAX: 1.01e+08 @ #60
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.25e+07 | MAX: 1.01e+08 @ #55
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.25e+07 | MAX: 1.01e+08 @ #88
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.25e+07 | MAX: 1.01e+08 @ #95
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.25e+07 | MAX: 1.01e+08 @ #49
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 1.23e+07 | MAX: 1.00e+08 @ #57
 
 
 
 
 
-6.804302644283746e8</code></pre><p>The batch loss (&quot;AVG&quot; and &quot;MAX&quot;) is only updated every 5 steps, as defined in the scheduler. Every 25 steps, we plot the current batch element losses. Please note, that we only did around 100 training steps, so training has not converged for now. But we are curious and want to have a look on the intermediate results. </p><p>After training, it seems a good idea to store the optimized parameters for later use:</p><pre><code class="language-julia hljs"># save the parameters (so we can use them tomorrow again)
+1.3504377326562874e9</code></pre><p>The batch loss (&quot;AVG&quot; and &quot;MAX&quot;) is only updated every 5 steps, as defined in the scheduler. Every 25 steps, we plot the current batch element losses. Please note, that we only did around 100 training steps, so training has not converged for now. But we are curious and want to have a look on the intermediate results. </p><p>After training, it seems a good idea to store the optimized parameters for later use:</p><pre><code class="language-julia hljs"># save the parameters (so we can use them tomorrow again)
 paramsPath = joinpath(@__DIR__, &quot;params_$(scheduler.step)steps.jld2&quot;)
 fmiSaveParameters(neuralFMU, paramsPath)
 
 # switch back to the default execution configuration, see:
 # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
 fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NO_RESET
-FMIFlux.finishSolveFMU(neuralFMU.fmu, c, false, true)</code></pre><p>The loss has decreased, but the final question is: Are we better? This can be easily checked by running a simulation and compare it to the training data:</p><pre><code class="language-julia hljs"># check what had been learned by the NeuralFMU, simulate it ...
+FMIFlux.finishSolveFMU(neuralFMU.fmu, c, false, true)</code></pre><pre><code class="nohighlight hljs">FMU:            Longitudinaldynamic.LongitudinaldynamicmodelContinuous
+InstanceName:   Longitudinaldynamic.LongitudinaldynamicmodelContinuous
+Address:        Ptr{Nothing} @0x0000016e32f647f0
+State:          4
+Logging:        false
+FMU time:       1100.0
+FMU states:     [0.0, 0.0, 16459.05645814507, 16459.05645814507, -0.14720139287309517, 8.209109199999978e6]</code></pre><p>The loss has decreased, but the final question is: Are we better? This can be easily checked by running a simulation and compare it to the training data:</p><pre><code class="language-julia hljs"># check what had been learned by the NeuralFMU, simulate it ...
 resultNFMU_train = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, recordValues=manipulatedDerVars, maxiters=1e7) # [120s]
 
 # Load parameters 
@@ -344,6 +366,6 @@ mse_FMU  = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultFM
 # ... and plot it
 fig = fmiPlot(resultNFMU_train; stateIndices=6:6, values=false, stateEvents=false, label=&quot;NeuralFMU&quot;, title=&quot;Training Data&quot;);
 fmiPlot!(fig, resultFMU; stateIndices=6:6, stateEvents=false, values=false, label=&quot;FMU&quot;);
-Plots.plot!(fig, train_t, data.consumption_val, label=&quot;Data&quot;, ribbon=data.consumption_dev, fillalpha=0.3)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-NeuralFMU ... 100%|████████████████████████|  ETA: 0:00:00[39m[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of time events (110142) exceeding 100, disabling automatic plotting of time events (can be forced with keyword `timeEvents=true`).
+Plots.plot!(fig, train_t, data.consumption_val, label=&quot;Data&quot;, ribbon=data.consumption_dev, fillalpha=0.3)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-NeuralFMU ...  99%|████████████████████████|  ETA: 0:00:02[39m[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of time events (110142) exceeding 100, disabling automatic plotting of time events (can be forced with keyword `timeEvents=true`).
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of time events (110142) exceeding 100, disabling automatic plotting of time events (can be forced with keyword `timeEvents=true`).</code></pre><p><img src="../mdpi_2022_files/mdpi_2022_31_1.svg" alt="svg"/></p><h2 id="Part-4:-Results-discussion"><a class="docs-heading-anchor" href="#Part-4:-Results-discussion">Part 4: Results discussion</a><a id="Part-4:-Results-discussion-1"></a><a class="docs-heading-anchor-permalink" href="#Part-4:-Results-discussion" title="Permalink"></a></h2><p><strong>WIP: coming soon!</strong></p><pre><code class="language-julia hljs"># clean-up
-fmiUnload(fmu) </code></pre><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Johannes Stoljar and Lars Mikelsons. 2022. <strong>NeuralFMU: presenting a workflow for integrating hybrid NeuralODEs into real-world applications.</strong> Electronics 11, 19, 3202. <a href="https://doi.org/10.3390/electronics11193202">DOI: 10.3390/electronics11193202</a></p><p>[2] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p><p>[3] Danquah, B.; Koch, A.; Weis, T.; Lienkamp, M.; Pinnel, A. 2019. <strong>Modular, Open Source Simulation Approach: Application to Design and Analyze Electric Vehicles.</strong> In Proceedings of the IEEE 2019 Fourteenth International Conference on Ecological Vehicles and Renewable Energies (EVER), Monte Carlo, Monaco, 8–10 May 2019; pp. 1–8. <a href="https://doi.org/10.1109/EVER.2019.8813568">DOI: 10.1109/EVER.2019.8813568</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../modelica_conference_2021/">« Modelica Conference 2021</a><a class="docs-footer-nextpage" href="../../faq/">FAQ »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 13 January 2023 16:54">Friday 13 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fmiUnload(fmu) </code></pre><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Johannes Stoljar and Lars Mikelsons. 2022. <strong>NeuralFMU: presenting a workflow for integrating hybrid NeuralODEs into real-world applications.</strong> Electronics 11, 19, 3202. <a href="https://doi.org/10.3390/electronics11193202">DOI: 10.3390/electronics11193202</a></p><p>[2] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p><p>[3] Danquah, B.; Koch, A.; Weis, T.; Lienkamp, M.; Pinnel, A. 2019. <strong>Modular, Open Source Simulation Approach: Application to Design and Analyze Electric Vehicles.</strong> In Proceedings of the IEEE 2019 Fourteenth International Conference on Ecological Vehicles and Renewable Energies (EVER), Monte Carlo, Monaco, 8–10 May 2019; pp. 1–8. <a href="https://doi.org/10.1109/EVER.2019.8813568">DOI: 10.1109/EVER.2019.8813568</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../modelica_conference_2021/">« Modelica Conference 2021</a><a class="docs-footer-nextpage" href="../../faq/">FAQ »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 3 April 2023 11:34">Monday 3 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
