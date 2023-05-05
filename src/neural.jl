@@ -630,6 +630,7 @@ function ME_NeuralFMU(fmu::FMU2,
     nfmu.saveat = saveat
     nfmu.solver = solver
     nfmu.kwargs = kwargs
+    nfmu.parameters = nothing
 
     ######
     
@@ -732,7 +733,14 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         nfmu.firstRun = true
 
         nfmu.tolerance = tolerance
-        nfmu.parameters = parameters
+
+        if isnothing(parameters)
+            if !isnothing(nfmu.fmu.optim_p_refs)
+                nfmu.parameters = Dict(nfmu.fmu.optim_p_refs .=> unsense(nfmu.fmu.optim_p))
+            end
+        else
+            nfmu.parameters = nothing
+        end
         nfmu.setup = setup
         nfmu.reset = reset
         nfmu.instantiate = instantiate
