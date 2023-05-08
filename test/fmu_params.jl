@@ -22,7 +22,10 @@ x0 = [0.5, 0.0]
 # load FMU for NeuralFMU
 fmu = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
 
-using FMIImport
+using FMI.FMIImport
+using FMI.FMIImport.FMICore
+import FMI.FMIImport: unsense
+
 c = fmi2Instantiate!(fmu)
 fmi2SetupExperiment(c, 0.0, 1.0)
 fmi2EnterInitializationMode(c)
@@ -62,9 +65,6 @@ function callb(p)
 end
 
 numStates = fmiGetNumberOfStates(fmu)
-
-using FMIImport.FMICore
-import FMIImport: unsense
 
 # the "Chain" for training
 net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
