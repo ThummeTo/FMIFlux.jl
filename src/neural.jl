@@ -734,7 +734,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
         nfmu.tolerance = tolerance
 
-        @info "$(parameters)"
         if isnothing(parameters)
             if !isnothing(nfmu.fmu.optim_p_refs)
                 nfmu.parameters = Dict(nfmu.fmu.optim_p_refs .=> unsense(nfmu.fmu.optim_p))
