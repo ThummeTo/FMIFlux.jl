@@ -71,14 +71,13 @@ function loss(nfmu::NeuralFMU, batch::AbstractArray{<:FMU2BatchElement};
 
     solution = run!(nfmu, batch[batchIndex]; lastBatchElement=lastBatchElement, progressDescr="Sim. Batch $(batchIndex)/$(length(batch)) |", kwargs...)
     
-    if solution.success != true 
-        @warn "Solving the NeuralFMU as part of the loss function failed. This is often because the ODE cannot be solved. Did you initialize the NeuralFMU model? Maybe additional errors are printed before this assertion."
+    if solution.success
+        return loss!(batch[batchIndex], lossFct; logLoss=logLoss)
+    else 
+        @warn "Solving the NeuralFMU as part of the loss function failed. This is often because the ODE cannot be solved. Did you initialize the NeuralFMU model? Often additional solver errors/warnings are printed before this warning."
         return Inf
     end
 
-    loss = loss!(batch[batchIndex], lossFct; logLoss=logLoss)
-
-    return loss
 end
 
 function loss(model, batch::AbstractArray{<:FMU2BatchElement}; 

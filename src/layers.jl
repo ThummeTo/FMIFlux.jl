@@ -123,23 +123,27 @@ Flux.@functor ScaleShift (scale, shift)
 
 struct ScaleSum{T}
     scale::AbstractArray{T}
+    groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}
     
-    function ScaleSum{T}(scale::AbstractArray{T}) where {T}
-        inst = new(scale)
+    function ScaleSum{T}(scale::AbstractArray{T}, groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}=nothing) where {T}
+        inst = new(scale, groups)
         return inst
     end
 
-    function ScaleSum(scale::AbstractArray{T}) where {T}
-        return ScaleSum{T}(scale)
+    function ScaleSum(scale::AbstractArray{T}, groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}=nothing) where {T}
+        return ScaleSum{T}(scale, groups)
     end
 end
 export ScaleSum
 
 function (l::ScaleSum)(x)
 
-    x_proc = sum(x .* l.scale)
-    
-    return [x_proc]
+    if isnothing(l.groups)
+        x_proc = sum(x .* l.scale)
+        return [x_proc]
+    else
+        return collect(sum(x[g] .* l.scale[g]) for g in l.groups)
+    end
 end
 
 Flux.@functor ScaleSum (scale, )

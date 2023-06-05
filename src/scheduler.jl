@@ -215,7 +215,7 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
 
     xs = 1:num 
     ys = collect((length(b.losses) > 0 ? b.losses[end].loss : 0.0) for b in scheduler.batch)
-    ys_shadow = collect((length(b.losses) > 1 ? b.losses[end-1].loss : 0.0) for b in scheduler.batch)
+    ys_shadow = collect((length(b.losses) > 1 ? b.losses[end-1].loss : 1e-16) for b in scheduler.batch)
     
     title = "[$(scheduler.step)]" 
     if hasfield(typeof(scheduler), :printMsg)

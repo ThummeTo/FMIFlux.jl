@@ -23,7 +23,7 @@ using FMIImport: FMU2Component, FMU2Event, FMU2Solution, fmi2ComponentState,
     fmi2ComponentStateEventMode, fmi2ComponentStateFatal,
     fmi2ComponentStateInitializationMode, fmi2ComponentStateInstantiated,
     fmi2ComponentStateTerminated, fmi2StatusOK, fmi2Type, fmi2TypeCoSimulation,
-    fmi2TypeModelExchange, logError, logInfo, logWarn
+    fmi2TypeModelExchange, logError, logInfo, logWarning 
 using Flux
 using Flux.Zygote
 using SciMLSensitivity:
@@ -133,10 +133,26 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x)
     return nfmu.model(x)
 end
 
+function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x)
+    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+
+    dx[:] = nfmu.model(x)
+
+    return nothing
+end
+
 function evaluateReModel(nfmu::ME_NeuralFMU, c::FMU2Component, x, p)
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     return nfmu.re(p)(x)
+end
+
+function evaluateReModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x, p)
+    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+
+    dx[:] = nfmu.re(p)(x)
+
+    return nothing
 end
 
 ##### EVENT HANDLING START
@@ -199,6 +215,8 @@ function time_choice(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, tStart, t
         return nothing
     end
 
+    c.solution.evals_timechoice += 1
+
     if c.eventInfo.nextEventTimeDefined == fmi2True
         #@debug "time_choice(...): $(c.eventInfo.nextEventTime) at t=$(ForwardDiff.value(integrator.t))"
 
@@ -235,13 +253,15 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Forward
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     #c.t = t # this will auto-set time via fx-call!
+    c.next_t = t
     evaluateModel(nfmu, c, x)
-    fmi2SetTime(c, t)
-
+    
     out_tmp = zeros(c.fmu.modelDescription.numberOfEventIndicators)
     fmi2GetEventIndicators!(c, out_tmp)
 
     fd_set!(out, out_tmp)
+
+    c.solution.evals_condition += 1
 
     @debug assert_integrator_valid(integrator)
 
@@ -261,16 +281,17 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Reverse
     x = untrack(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
-    #c.t = t # this will auto-set time via fx-call!
+    c.next_t = t
     evaluateModel(nfmu, c, x)
-    fmi2SetTime(c, t)
-
+   
     out_tmp = zeros(c.fmu.modelDescription.numberOfEventIndicators)
     fmi2GetEventIndicators!(c, out_tmp)
 
     rd_set!(out, out_tmp)
 
     @debug assert_integrator_valid(integrator)
+
+    c.solution.evals_condition += 1
 
     return nothing
 end
@@ -290,13 +311,14 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out, _x, t, integrator)
     x = unsense(_x)
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
-    #c.t = t # this will auto-set time via fx-call!
+    c.next_t = t
     evaluateModel(nfmu, c, x) # evaluate NeuralFMU (set new states)
-    fmi2SetTime(c, t)
-
+    
     fmi2GetEventIndicators!(c, out)
 
     @debug assert_integrator_valid(integrator)
+
+    c.solution.evals_condition += 1
 
     return nothing
 end
@@ -328,11 +350,12 @@ function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, _x, t, int
     # ToDo: Input Function
     
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
-    #c.t = t # this will auto-set time via fx-call!
+    c.next_t = t
     evaluateModel(nfmu, c, x) # evaluate NeuralFMU (set new states)
-    fmi2SetTime(c, t)
-
+    
     fmi2GetEventIndicators!(c, lastIndicator)
+
+    c.solution.evals_condition += 1
     
     return lastIndicator[index]
 end
@@ -359,9 +382,9 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     mode = c.force
     c.force = true
 
+    c.next_t = t
     evaluateModel(nfmu, c, x) # evaluate NeuralFMU (set new states)
-    fmi2SetTime(c, t)
-
+    
     c.force = mode
 
     # if inputFunction !== nothing
@@ -373,7 +396,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     #############
 
     #left_x_fmu = fmi2GetContinuousStates(c)
-    #fmi2SetTime(c, t)
+
     # Todo set inputs
 
     # Event found - handle it
@@ -477,6 +500,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
         end
     end
 
+    c.solution.evals_affect += 1
+
     @debug assert_integrator_valid(integrator)
 end
 
@@ -485,6 +510,8 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
 
     #@assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @debug assert_integrator_valid(integrator)
+
+    c.solution.evals_stepcompleted += 1
 
     #@debug "Step"
     # there might be no component (in Zygote)!
@@ -520,11 +547,12 @@ function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, t, i
     t = unsense(t) 
     x = unsense(_x)
 
+    c.solution.evals_savevalues += 1
+
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
-    #c.t = t # this will auto-set time via fx-call!
+    c.next_t = t
     evaluateModel(nfmu, c, x) # evaluate NeuralFMU (set new states)
-    fmi2SetTime(c, t)
-    
+   
     # Todo set inputs
     
     return (fmi2GetReal(c, recordValues)...,)
@@ -542,17 +570,37 @@ function fx(nfmu::ME_NeuralFMU,
 
     #@assert nanx && nanu "NaN in start fx nanx = $nanx   nanu = $nanu @ $(t)."
     
-    dx_tmp = fx(nfmu,c,x,p,t)
-
-    if isdual(dx)
-        fd_set!(dx, dx_tmp)
-    elseif istracked(dx)
-        rd_set!(dx, dx_tmp)
-    else
-        #@info "dx: $(dx)"
-        #@info "dx_tmp: $(dx_tmp)"
-        dx[:] = dx_tmp[:]
+    if c === nothing
+        # this should never happen!
+        return zeros(length(x))
     end
+
+    ignore_derivatives() do
+        t = unsense(t)
+        c.next_t = t
+    end 
+
+    ############
+
+    evaluateReModel(nfmu, c, dx, x, p)
+
+    # if isdual(dx)
+    #     dx_tmp = evaluateReModel(nfmu, c, x, p)
+    #     fd_set!(dx, dx_tmp)
+    
+    # elseif istracked(dx)
+    #     dx_tmp = evaluateReModel(nfmu, c, x, p)
+    #     rd_set!(dx, dx_tmp)
+    # else
+    #     #@info "dx: $(dx)"
+    #     #@info "dx_tmp: $(dx_tmp)"
+    #     evaluateReModel(nfmu, c, dx, x, p)
+    # end
+
+    ignore_derivatives() do
+
+        c.solution.evals_fx_inplace += 1
+    end 
 
     return dx
 end
@@ -568,20 +616,15 @@ function fx(nfmu::ME_NeuralFMU,
         return zeros(length(x))
     end
 
-    #c.t = t 
-    dx = evaluateReModel(nfmu, c, x, p)
-
     ignore_derivatives() do
+        c.solution.evals_fx_outofplace += 1
 
         t = unsense(t)
-        fmi2SetTime(c, t)
+        c.next_t = t
+    end
 
-        #@debug "fx($t, $(collect(ForwardDiff.value(xs) for xs in x))) = $(collect(ForwardDiff.value(xs) for xs in dx))"
+    return evaluateReModel(nfmu, c, x, p)
 
-        #c.solution.evals_fx += 1
-    end 
-
-    return dx
 end
 
 ##### EVENT HANDLING END
@@ -679,11 +722,11 @@ function checkExecTime(integrator, nfmu::ME_NeuralFMU, c, max_execution_duration
     dist = max(nfmu.execution_start + max_execution_duration - time(), 0.0)
     
     if dist <= 0.0
-        logWarn(nfmu.fmu, "Reached max execution duration ($(max_execution_duration)), exiting...")
+        logWarning(nfmu.fmu, "Reached max execution duration ($(max_execution_duration)), terminating integration ...")
         terminate!(integrator)
     end
 
-    return dist
+    return 1.0
 end
 
 """
@@ -865,13 +908,18 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     # else
     #c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
 
+    args = Vector{Any}()
     kwargs = Dict{Symbol, Any}(kwargs...)
 
     if !isnothing(saveat)
         kwargs[:saveat] = saveat
     end
+
+    if !isnothing(solver)
+        push!(args, solver)
+    end 
         
-    c.solution.states = solve(prob, nfmu.solver; sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+    c.solution.states = solve(prob, args...; sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
 
     #end
 
@@ -1174,7 +1222,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false)
+function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false) # ::Flux.Optimise.AbstractOptimiser
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
