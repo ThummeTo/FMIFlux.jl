@@ -163,8 +163,12 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; l
     return batchElement.solution
 end
 
-function run!(model, batchElement::FMU2EvaluationBatchElement)
-    batchElement.result = collect(model(f)[batchElement.indicesModel] for f in batchElement.features)
+function run!(model, batchElement::FMU2EvaluationBatchElement, p=nothing)
+    if isnothing(p) # implicite parameter model
+        batchElement.result = collect(model(f)[batchElement.indicesModel] for f in batchElement.features)
+    else # explicite parameter model
+        batchElement.result = collect(model(p)(f)[batchElement.indicesModel] for f in batchElement.features)
+    end
 end
 
 function plot(batchElement::FMU2SolutionBatchElement; targets::Bool=true, kwargs...)

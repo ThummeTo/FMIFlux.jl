@@ -34,14 +34,14 @@ end
 
 function loss(model, batchElement::FMU2BatchElement; 
     logLoss::Bool=true,
-    lossFct=Flux.Losses.mse)
+    lossFct=Flux.Losses.mse, p=nothing)
 
     model = nfmu.neuralODE.model[layers]
 
     loss = 0.0
 
     # evaluate model
-    result = run!(model, batchElement)
+    result = run!(model, batchElement, p=p)
 
     # for i in 1:length(batchElement.targets[1])
     #     targets_model = collect(r[batchElement.indicesModel[i]] for r in batchElement.result)
@@ -83,9 +83,9 @@ end
 function loss(model, batch::AbstractArray{<:FMU2BatchElement}; 
     batchIndex::Integer=rand(1:length(batch)), 
     lossFct=Flux.Losses.mse,
-    logLoss::Bool=true)
+    logLoss::Bool=true, p=nothing)
 
-    run!(model, batch[batchIndex])
+    run!(model, batch[batchIndex], p)
 
     loss = loss!(batch[batchIndex], lossFct; logLoss=logLoss)
 
@@ -126,7 +126,7 @@ function batch_loss(neuralFMU::ME_NeuralFMU, batch::AbstractArray{<:FMU2BatchEle
     return accu
 end
 
-function batch_loss(model, batch::AbstractArray{<:FMU2BatchElement}; update::Bool=false, logLoss::Bool=false, lossFct=nothing)
+function batch_loss(model, batch::AbstractArray{<:FMU2BatchElement}; update::Bool=false, logLoss::Bool=false, lossFct=nothing, p=nothing)
 
     accu = 0.0
 
@@ -136,7 +136,7 @@ function batch_loss(model, batch::AbstractArray{<:FMU2BatchElement}; update::Boo
         for i in 1:numBatch
             b = batch[i]
             
-            run!(model, b)
+            run!(model, b, p)
             
             accu += loss!(b, lossFct; logLoss=logLoss)
         end

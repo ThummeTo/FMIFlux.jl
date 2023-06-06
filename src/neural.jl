@@ -1163,7 +1163,55 @@ function computeGradient(loss, params, gradient, chunk_size)
 
 end
 
-function trainStep(loss, params, gradient, chunk_size, optim, printStep, proceed_on_assert, cb)
+function trainStep(loss, params, gradient, chunk_size, optim::Optim.AbstractOptimizer, printStep, proceed_on_assert, cb; state=nothing)
+
+    try
+        if isnothing(state)
+            state = initial_state(optim, options, d, initial_x)
+        end
+                
+        for j in 1:length(params)
+
+            grad = computeGradient(loss, params[j], gradient, chunk_size)
+            
+            @assert !isnothing(grad) "Gradient nothing!"
+
+            update_state!(d, state, optim)
+
+
+
+
+            step = Flux.Optimise.apply!(optim, params[j], grad)
+            params[j] .-= step
+
+            if printStep
+                @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
+                @info "Step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
+            end
+        end    
+
+    catch e
+
+        if proceed_on_assert
+            @error "Training asserted, but continuing: $e"
+        else
+            throw(e)
+        end
+    end
+
+    if cb != nothing 
+        if isa(cb, AbstractArray)
+            for _cb in cb 
+                _cb()
+            end
+        else
+            cb()
+        end
+    end
+
+end
+
+function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.AbstractOptimiser, printStep, proceed_on_assert, cb)
     try
                 
         for j in 1:length(params)
@@ -1222,7 +1270,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params}, data, optim; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false) # ::Flux.Optimise.AbstractOptimiser
+function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false) # ::Flux.Optimise.AbstractOptimiser
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
