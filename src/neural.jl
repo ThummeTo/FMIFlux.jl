@@ -79,7 +79,6 @@ mutable struct ME_NeuralFMU{M, P, R} <: NeuralFMU
     start_t 
     stop_t
 
-    progressMeter
     execution_start::Real
 
     function ME_NeuralFMU{M, P, R}(model::M, p::P, re::R) where {M, P, R}
@@ -88,7 +87,6 @@ mutable struct ME_NeuralFMU{M, P, R} <: NeuralFMU
         inst.p = p 
         inst.re = re 
 
-        inst.progressMeter = nothing
         inst.modifiedState = true
 
         inst.startState = nothing 
@@ -517,8 +515,8 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
     # there might be no component (in Zygote)!
     # @assert c.state == fmi2ComponentStateContinuousTimeMode "stepCompleted(...): Must be in continuous time mode."
 
-    if nfmu.progressMeter !== nothing
-        ProgressMeter.update!(nfmu.progressMeter, floor(Integer, 1000.0*(t-tStart)/(tStop-tStart)) )
+    if !isnothing(c.progressMeter)
+        ProgressMeter.update!(c.progressMeter, floor(Integer, 1000.0*(t-tStart)/(tStop-tStart)) )
     end
 
     if c != nothing
@@ -755,9 +753,13 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     saveat=nfmu.saveat, # ToDo: Data type 
     kwargs...)
 
-    @assert saveat[1] == tspan[1] "NeuralFMU changed time interval, start time is $(tspan[1]), but saveat from constructor gives $(saveat[1]). Please provide correct `saveat` via keyword with matching start/stop time."
-    @assert saveat[end] == tspan[end] "NeuralFMU changed time interval, stop time is $(tspan[end]), but saveat from constructor gives $(saveat[end]). Please provide correct `saveat` via keyword with matching start/stop time."
-
+    if saveat[1] != tspan[1] 
+        @warn "NeuralFMU changed time interval, start time is $(tspan[1]), but saveat from constructor gives $(saveat[1]). Please provide correct `saveat` via keyword with matching start/stop time."
+    end
+    if saveat[end] != tspan[end] 
+        @warn "NeuralFMU changed time interval, stop time is $(tspan[end]), but saveat from constructor gives $(saveat[end]). Please provide correct `saveat` via keyword with matching start/stop time."
+    end
+    
     recordValues = prepareValueReference(nfmu.fmu, recordValues)
 
     saving = (length(recordValues) > 0)
@@ -789,8 +791,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         nfmu.instantiate = instantiate
         nfmu.freeInstance = freeInstance
         nfmu.terminate = terminate
-       
-        nfmu.progressMeter = nothing
     end
 
     callbacks = []
@@ -858,8 +858,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         end
 
         if showProgress
-            nfmu.progressMeter = ProgressMeter.Progress(1000; desc=progressDescr, color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
-            ProgressMeter.update!(nfmu.progressMeter, 0) # show it!
+            c.progressMeter = ProgressMeter.Progress(1000; desc=progressDescr, color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
+            ProgressMeter.update!(c.progressMeter, 0) # show it!
         end
 
         # integrator step callback
@@ -1211,7 +1211,11 @@ function trainStep(loss, params, gradient, chunk_size, optim::Optim.AbstractOpti
 
 end
 
+lk_OptimApply = ReentrantLock()
 function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.AbstractOptimiser, printStep, proceed_on_assert, cb)
+
+    global lk_OptimApply
+    
     try
                 
         for j in 1:length(params)
@@ -1220,8 +1224,10 @@ function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.Abst
             
             @assert !isnothing(grad) "Gradient nothing!"
 
-            step = Flux.Optimise.apply!(optim, params[j], grad)
-            params[j] .-= step
+            lock(lk_OptimApply) do
+                step = Flux.Optimise.apply!(optim, params[j], grad)
+                params[j] .-= step
+            end
 
             if printStep
                 @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"

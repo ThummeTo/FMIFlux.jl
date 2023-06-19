@@ -10,6 +10,12 @@ using DifferentialEquations: Tsit5, Rosenbrock23
 import Random 
 Random.seed!(5678);
 
+# Test
+ENV["EXPORTINGTOOL"] = "Dymola"
+ENV["EXPORTINGVERSION"] = "2022x"
+ENV["NUMSTEPS"] = 100
+using Test, FMIFlux, FMIZoo
+
 t_start = 0.0
 t_step = 0.1
 t_stop = 3.0
@@ -31,7 +37,7 @@ velData = fmi2GetSolutionValue(realSimData, "mass.v")
 # loss function for training
 function losssum(p)
     global problem, x0, posData
-    solution = problem(x0; p=p)
+    solution = problem(x0; p=p, showProgress=true)
 
     if !solution.success
         return Inf 
@@ -59,8 +65,6 @@ function callb(p)
         lastLoss = loss
     end
 end
-
-vr = fmi2StringToValueReference(realFMU, "mass.m")
 
 numStates = fmiGetNumberOfStates(realFMU)
 
