@@ -301,8 +301,8 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
     iStop = timeToIndex(train_t, tStart + batchDuration)
     
     startElement = FMIFlux.FMU2SolutionBatchElement()
-    startElement.tStart = tStart 
-    startElement.tStop = tStart + batchDuration
+    startElement.tStart = train_t[iStart]
+    startElement.tStop = train_t[iStop]
     startElement.xStart = x0_fun(tStart)
     
     startElement.saveat = train_t[iStart:iStop]
@@ -318,12 +318,13 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
         FMIFlux.run!(neuralFMU, batch[i-1]; lastBatchElement=batch[i], solverKwargs...)
     
         # overwrite start state
-        batch[i].tStart = tStart + (i-1) * batchDuration
-        batch[i].tStop = tStart + i * batchDuration
+        iStart = timeToIndex(train_t, tStart + (i-1) * batchDuration)
+        iStop = timeToIndex(train_t, tStart + i * batchDuration)
+        batch[i].tStart = train_t[iStart]
+        batch[i].tStop = train_t[iStop]
         batch[i].xStart = x0_fun(batch[i].tStart)
     
-        iStart = timeToIndex(train_t, batch[i].tStart)
-        iStop = timeToIndex(train_t, batch[i].tStop)
+        
         batch[i].saveat = train_t[iStart:iStop]
         batch[i].targets = targets[iStart:iStop]
         
@@ -339,7 +340,7 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
 end
 
 function batchDataEvaluation(train_t::AbstractArray{<:Real}, targets::AbstractArray, features::Union{AbstractArray, Nothing}=nothing; 
-    batchDuration::Real=(train_t[end]-train_t[1]), indicesModel=1:length(targets[1]), plot::Bool=false)
+    batchDuration::Real=(train_t[end]-train_t[1]), indicesModel=1:length(targets[1]), plot::Bool=false, round_digits=3)
 
     batch = Array{FMIFlux.FMU2EvaluationBatchElement,1}()
     
@@ -351,8 +352,8 @@ function batchDataEvaluation(train_t::AbstractArray{<:Real}, targets::AbstractAr
     iStop = timeToIndex(train_t, tStart + batchDuration)
     
     startElement = FMIFlux.FMU2EvaluationBatchElement()
-    startElement.tStart = tStart 
-    startElement.tStop = tStart + batchDuration
+    startElement.tStart = train_t[iStart]
+    startElement.tStop = train_t[iStop]
     
     startElement.saveat = train_t[iStart:iStop]
     startElement.targets = targets[iStart:iStop]
@@ -368,12 +369,12 @@ function batchDataEvaluation(train_t::AbstractArray{<:Real}, targets::AbstractAr
     for i in 2:floor(Integer, (train_t[end]-train_t[1])/batchDuration)
         push!(batch, FMIFlux.FMU2EvaluationBatchElement())
     
-        # overwrite start state
-        batch[i].tStart = tStart + (i-1) * batchDuration
-        batch[i].tStop = tStart + i * batchDuration
-        
-        iStart = timeToIndex(train_t, batch[i].tStart)
-        iStop = timeToIndex(train_t, batch[i].tStop)
+        iStart = timeToIndex(train_t, tStart + (i-1) * batchDuration)
+        iStop = timeToIndex(train_t, tStart + i * batchDuration)
+
+        batch[i].tStart = train_t[iStart]
+        batch[i].tStop = train_t[iStop]
+
         batch[i].saveat = train_t[iStart:iStop]
         batch[i].targets = targets[iStart:iStop]
         if features != nothing 
