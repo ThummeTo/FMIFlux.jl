@@ -323,7 +323,6 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
         batch[i].tStart = train_t[iStart]
         batch[i].tStop = train_t[iStop]
         batch[i].xStart = x0_fun(batch[i].tStart)
-    
         
         batch[i].saveat = train_t[iStart:iStop]
         batch[i].targets = targets[iStart:iStop]
