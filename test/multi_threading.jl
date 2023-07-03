@@ -11,10 +11,10 @@ import Random
 Random.seed!(5678);
 
 # Test
-ENV["EXPORTINGTOOL"] = "Dymola"
-ENV["EXPORTINGVERSION"] = "2022x"
-ENV["NUMSTEPS"] = 100
-using Test, FMIFlux, FMIZoo
+# ENV["EXPORTINGTOOL"] = "Dymola"
+# ENV["EXPORTINGVERSION"] = "2022x"
+# ENV["NUMSTEPS"] = 100
+# using Test, FMIFlux, FMIZoo
 
 t_start = 0.0
 t_step = 0.1
