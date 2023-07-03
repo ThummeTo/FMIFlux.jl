@@ -188,7 +188,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
         scheduler.runkwargs = runkwargs
     end
 
-    #scheduler.elementIndex = apply!(scheduler)
+    scheduler.elementIndex = apply!(scheduler)
     
     if scheduler.plotStep > 0
         plot(scheduler, lastIndex)
