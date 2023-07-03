@@ -4,6 +4,35 @@
 #
 
 using Statistics: mean, std
+import FMIImport: fmi2Real, fmi2ValueReferenceFormat
+
+### FMUParameterRegistrator ###
+
+"""
+ToDo.
+"""
+struct FMUParameterRegistrator
+    fmu::FMU2
+    p_refs::AbstractArray{<:fmi2ValueReference}
+    p::AbstractArray{<:Real}
+   
+    function FMUParameterRegistrator(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{<:Real})
+        @assert length(p_refs) == length(p) "`p_refs` and `p` need to be the same length!"
+        p_refs = prepareValueReference(fmu, p_refs)
+        fmu.optim_p_refs = p_refs 
+        fmu.optim_p = p 
+        return new(fmu, p_refs, p)
+    end
+end
+export FMUParameterRegistrator
+
+function (l::FMUParameterRegistrator)(x)
+    l.fmu.optim_p = l.p 
+    l.fmu.optim_p_refs = l.p_refs
+    return x
+end
+
+Flux.@functor FMUParameterRegistrator (p, )
 
 ### SHIFTSCALE ###
 
@@ -94,23 +123,27 @@ Flux.@functor ScaleShift (scale, shift)
 
 struct ScaleSum{T}
     scale::AbstractArray{T}
+    groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}
     
-    function ScaleSum{T}(scale::AbstractArray{T}) where {T}
-        inst = new(scale)
+    function ScaleSum{T}(scale::AbstractArray{T}, groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}=nothing) where {T}
+        inst = new(scale, groups)
         return inst
     end
 
-    function ScaleSum(scale::AbstractArray{T}) where {T}
-        return ScaleSum{T}(scale)
+    function ScaleSum(scale::AbstractArray{T}, groups::Union{AbstractVector{<:AbstractVector{<:Integer}}, Nothing}=nothing) where {T}
+        return ScaleSum{T}(scale, groups)
     end
 end
 export ScaleSum
 
 function (l::ScaleSum)(x)
 
-    x_proc = sum(x .* l.scale)
-    
-    return [x_proc]
+    if isnothing(l.groups)
+        x_proc = sum(x .* l.scale)
+        return [x_proc]
+    else
+        return collect(sum(x[g] .* l.scale[g]) for g in l.groups)
+    end
 end
 
 Flux.@functor ScaleSum (scale, )

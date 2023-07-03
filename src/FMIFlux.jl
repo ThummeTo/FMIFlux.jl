@@ -12,35 +12,39 @@ if VERSION < v"1.7.0"
 end
 
 # ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.29
-import SciMLSensitivity: FakeIntegrator, u_modified!, TrackedAffect
+import SciMLSensitivity: FakeIntegrator, u_modified!, TrackedAffect, set_u!
 function u_modified!(::FakeIntegrator, ::Bool)
 end
 
+function set_u!(integrator::FakeIntegrator, u)
+    #integrator.u = u
+end
+
 # ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.28
-function Base.hasproperty(f::TrackedAffect, s::Symbol)
-    if hasfield(TrackedAffect, s)               
-        return true
-    else
-        _affect = getfield(f, :affect!)
-        return hasfield(typeof(_affect), s)
-    end
-end
-function Base.getproperty(f::TrackedAffect, s::Symbol)
-    if hasfield(TrackedAffect, s)               
-        return getfield(f, s)
-    else
-        _affect = getfield(f, :affect!)
-        return getfield(_affect, s)
-    end
-end
-function Base.setproperty!(f::TrackedAffect, s::Symbol, value)
-    if hasfield(TrackedAffect, s)               
-        return setfield!(f, s, value)
-    else
-        _affect = getfield(f, :affect!)
-        return setfield!(_affect, s, value)
-    end
-end
+# function Base.hasproperty(f::TrackedAffect, s::Symbol)
+#     if hasfield(TrackedAffect, s)               
+#         return true
+#     else
+#         _affect = getfield(f, :affect!)
+#         return hasfield(typeof(_affect), s)
+#     end
+# end
+# function Base.getproperty(f::TrackedAffect, s::Symbol)
+#     if hasfield(TrackedAffect, s)               
+#         return getfield(f, s)
+#     else
+#         _affect = getfield(f, :affect!)
+#         return getfield(_affect, s)
+#     end
+# end
+# function Base.setproperty!(f::TrackedAffect, s::Symbol, value)
+#     if hasfield(TrackedAffect, s)               
+#         return setfield!(f, s, value)
+#     else
+#         _affect = getfield(f, :affect!)
+#         return setfield!(_affect, s, value)
+#     end
+# end
 
 using Requires, Flux 
 

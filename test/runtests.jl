@@ -44,6 +44,11 @@ function runtests(exportingTool)
             include("hybrid_ME_dis.jl")
         end
 
+        @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+        @testset "NeuralFMU with FMU parameter optimization" begin
+            include("fmu_params.jl")
+        end
+
         @info "Training modes (train_modes.jl)"
         @testset "Training modes" begin
             include("train_modes.jl")
