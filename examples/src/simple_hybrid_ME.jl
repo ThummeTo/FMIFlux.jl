@@ -5,6 +5,7 @@
 # imports
 using FMI
 using FMIFlux
+using FMIFlux.Flux
 using FMIZoo
 using DifferentialEquations: Tsit5
 import Plots

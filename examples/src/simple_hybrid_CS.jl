@@ -5,6 +5,7 @@
 # imports
 using FMI
 using FMIFlux
+using FMIFlux.Flux
 using FMIZoo
 using DifferentialEquations: Tsit5
 import Plots
@@ -48,7 +49,7 @@ end
 function lossSum(p)
     solution = csNeuralFMU(extForce, tStep; p=p)
 
-    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
+    accNet = fmi2GetSolutionValue(solution, 2; isIndex=true)
     
     FMIFlux.Losses.mse(accReference, accNet)
 end

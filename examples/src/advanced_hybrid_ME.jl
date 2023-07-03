@@ -6,6 +6,7 @@
 using FMI
 using FMI.FMIImport: fmi2StringToValueReference, fmi2ValueReference, fmi2Real
 using FMIFlux
+using FMIFlux.Flux
 using FMIZoo
 using DifferentialEquations: Tsit5
 using Statistics: mean, std

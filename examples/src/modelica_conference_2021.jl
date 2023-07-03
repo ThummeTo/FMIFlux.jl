@@ -5,6 +5,7 @@
 # imports
 using FMI
 using FMIFlux
+using FMIFlux.Flux
 using FMIZoo
 using DifferentialEquations: Tsit5
 import Plots
@@ -282,14 +283,14 @@ for run in 1:numRuns
     plot_all_results(realSimData, realSimDataMod, simpleSimData, simpleSimDataMod, solutionAfter, solutionAfterMod)
     
     # friction model extraction
-    layersBottom = neuralFMU.neuralODE.model.layers[3:5]
+    layersBottom = neuralFMU.model.layers[3:5]
     netBottom = Chain(layersBottom...)
     transferFlatParams!(netBottom, paramsNet, 7)
     
     forces = plot_friction_model(realSimData, netBottom, forces) 
     
     # displacement model extraction
-    layersTop = neuralFMU.neuralODE.model.layers[1:1]
+    layersTop = neuralFMU.model.layers[1:1]
     netTop = Chain(layersTop...)
     transferFlatParams!(netTop, paramsNet, 1)
 
