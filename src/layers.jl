@@ -11,17 +11,21 @@ import FMIImport: fmi2Real, fmi2ValueReferenceFormat
 """
 ToDo.
 """
-struct FMUParameterRegistrator
+struct FMUParameterRegistrator{T}
     fmu::FMU2
     p_refs::AbstractArray{<:fmi2ValueReference}
-    p::AbstractArray{<:Real}
+    p::AbstractArray{T}
    
-    function FMUParameterRegistrator(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{<:Real})
+    function FMUParameterRegistrator{T}(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{T}) where {T}
         @assert length(p_refs) == length(p) "`p_refs` and `p` need to be the same length!"
         p_refs = prepareValueReference(fmu, p_refs)
         fmu.optim_p_refs = p_refs 
         fmu.optim_p = p 
         return new(fmu, p_refs, p)
+    end
+
+    function FMUParameterRegistrator(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{T}) where {T}
+        return FMUParameterRegistrator{T}(fmu, p_refs, p)
     end
 end
 export FMUParameterRegistrator

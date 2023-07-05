@@ -426,11 +426,11 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
         # ToDo: Problem-related parameterization of optimize-call
         #result = optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu), left_x, LBFGS(); autodiff = :forward)
-        #result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, NelderMead())
+        #result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, right_x_fmu, idx, sign(indicators[idx])), left_x, Optim.NelderMead())
         
         # if there is an ANN above the FMU, propaget FMU state through top ANN:
         if nfmu.modifiedState == true
-            result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, c, right_x_fmu), left_x, NelderMead())
+            result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, c, right_x_fmu), left_x, Optim.NelderMead())
             right_x = Optim.minimizer(result)
         else # if there is no ANN above, then:
             right_x = right_x_fmu
