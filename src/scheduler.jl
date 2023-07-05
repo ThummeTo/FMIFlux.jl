@@ -201,11 +201,11 @@ function update!(scheduler::BatchScheduler)
 
     scheduler.step += 1
     
-    if scheduler.step % scheduler.applyStep == 0
+    if scheduler.applyStep > 0 && scheduler.step % scheduler.applyStep == 0
         scheduler.elementIndex = apply!(scheduler)
     end
 
-    if scheduler.step % scheduler.plotStep == 0
+    if scheduler.plotStep > 0 && scheduler.step % scheduler.plotStep == 0
         plot(scheduler, lastIndex)
     end
 end
