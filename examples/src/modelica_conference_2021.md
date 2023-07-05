@@ -65,10 +65,6 @@ import Random
 Random.seed!(1234);
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMI [14a09403-18e3-468f-ad8a-74f8dda2d9ac]
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMIFlux [fabad875-0d53-4e47-9446-963b74cae21f]
-    
-
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The exported FMU is a model meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The object-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
@@ -898,7 +894,7 @@ end
     [36m[1m└ [22m[39m        Weight/Scale: 0.7314249364314245   Bias/Offset: 0.18672447683333782
     
 
-    1342.527815 seconds (10.91 G allocations: 538.852 GiB, 8.03% gc time, 0.15% compilation time)
+    995.068794 seconds (10.90 G allocations: 538.669 GiB, 9.26% gc time, 0.14% compilation time)
     
 
 
@@ -1097,7 +1093,7 @@ end
     [36m[1m└ [22m[39m        Weight/Scale: 0.7325764672317332   Bias/Offset: 0.21469677694279848
     
 
-    1322.133255 seconds (10.66 G allocations: 526.566 GiB, 7.90% gc time)
+    977.500685 seconds (10.66 G allocations: 526.456 GiB, 9.18% gc time)
     
 
 

@@ -633,7 +633,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [601] for horizon 51 : 0.00128   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.0358
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [621] for horizon 51 : 0.00121   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.03479
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.03483
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [641] for horizon 51 : 0.00117   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.03415
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [661] for horizon 51 : 0.00112   
@@ -665,7 +665,7 @@ FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->c
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [921] for horizon 51 : 0.00075   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02745
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [941] for horizon 51 : 0.00073   
-    [36m[1m└ [22m[39m        Avg displacement in data: 0.02699
+    [36m[1m└ [22m[39m        Avg displacement in data: 0.02698
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [961] for horizon 51 : 0.0007   
     [36m[1m└ [22m[39m        Avg displacement in data: 0.02646
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m   Loss [981] for horizon 51 : 0.00067   
