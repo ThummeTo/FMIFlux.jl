@@ -182,7 +182,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
 
     lastIndex = 0
     scheduler.step = 0
-    scheduler.elementIndex = 1
+    scheduler.elementIndex = 0
 
     if hasfield(typeof(scheduler), :runkwargs)
         scheduler.runkwargs = runkwargs
@@ -248,9 +248,9 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     end
     
     if lastIndex > 0
-        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID", markersize = 5.0) # current batch element
+        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID [$(lastIndex)]", markersize = 5.0) # current batch element
     end
-    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID", markersize = 3.0) # next batch element
+    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID [$(scheduler.elementIndex)]", markersize = 3.0) # next batch element
     display(fig)
 end
 
