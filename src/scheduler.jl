@@ -413,7 +413,7 @@ function apply!(scheduler::RandomScheduler; print::Bool=true)
     next = rand(1:length(scheduler.batch))
 
     if print
-        @info "Current step: $(scheduler.step) Next element=$(scheduler.elementIndex)"
+        @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"
     end
 
     return next
@@ -427,7 +427,7 @@ function apply!(scheduler::SequentialScheduler; print::Bool=true)
     end
 
     if print
-        @info "Current step: $(scheduler.step) Next element=$(scheduler.elementIndex)"
+        @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"
     end
 
     return next
