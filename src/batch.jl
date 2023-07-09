@@ -260,18 +260,17 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=tr
 
     loss = 0.0
 
-    for i in 1:length(batchElement.indicesModel)
-        
-        if batchElement.solution.success
-            if hasmethod(inputFunction, Tuple{FMU2Solution})
-                loss += lossFct(batchElement.solution)
-            else
+    if hasmethod(lossFct, Tuple{FMU2SolutionBatchElement})
+        loss += lossFct(batchElement)
+    else
+        for i in 1:length(batchElement.indicesModel)
+            if batchElement.solution.success
                 dataTarget = collect(d[i] for d in batchElement.targets)
                 modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
                 loss += lossFct(modelOutput, dataTarget)
+            else
+                @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
             end
-        else
-            @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
         end
     end
 
@@ -288,12 +287,14 @@ function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool=
 
     loss = 0.0
 
-    for i in 1:length(batchElement.indicesModel)
- 
-        dataTarget = collect(d[i] for d in batchElement.targets)
-        
-        modelOutput = collect(u[i] for u in batchElement.result)
-        loss += lossFct(modelOutput, dataTarget)
+    if hasmethod(lossFct, Tuple{FMU2EvaluationBatchElement})
+        loss += lossFct(batchElement)
+    else
+        for i in 1:length(batchElement.indicesModel)
+            dataTarget = collect(d[i] for d in batchElement.targets)
+            modelOutput = collect(u[i] for u in batchElement.result)
+            loss += lossFct(modelOutput, dataTarget)
+        end
     end
 
     ignore_derivatives() do 
