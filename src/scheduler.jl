@@ -325,7 +325,9 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
     nextind = 1
 
     # reset current accu loss
-    scheduler.lossAccu[scheduler.elementIndex] = 0.0
+    if scheduler.elementIndex > 0
+        scheduler.lossAccu[scheduler.elementIndex] = 0.0
+    end
 
     num = length(scheduler.batch)
     for i in 1:num
