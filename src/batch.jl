@@ -261,16 +261,21 @@ function loss!(batchElement::FMU2BatchElement, lossFct; logLoss::Bool=true)
     loss = 0.0
 
     for i in 1:length(batchElement.indicesModel)
-        modelOutput = nothing 
+ 
+        dataTarget = collect(d[i] for d in batchElement.targets)
         
         if isa(batchElement, FMU2SolutionBatchElement)
-            modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
+            if batchElement.solution.success
+                modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
+                loss += lossFct(modelOutput, dataTarget)
+            else
+                @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
+            end
         else
             modelOutput = collect(u[i] for u in batchElement.result)
+            loss += lossFct(modelOutput, dataTarget)
         end
-        dataTarget = collect(d[i] for d in batchElement.targets)
-
-        loss += lossFct(modelOutput, dataTarget)
+        
     end
 
     ignore_derivatives() do 
