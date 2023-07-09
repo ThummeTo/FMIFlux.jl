@@ -256,7 +256,35 @@ function plotLoss(batchElement::FMU2BatchElement; xaxis::Symbol = :steps)
     return fig
 end
 
-function loss!(batchElement::FMU2BatchElement, lossFct; logLoss::Bool=true)
+function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=true)
+
+    loss = 0.0
+
+    for i in 1:length(batchElement.indicesModel)
+        
+        if batchElement.solution.success
+            if hasmethod(inputFunction, Tuple{FMU2Solution})
+                loss += lossFct(batchElement.solution)
+            else
+                dataTarget = collect(d[i] for d in batchElement.targets)
+                modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
+                loss += lossFct(modelOutput, dataTarget)
+            end
+        else
+            @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
+        end
+    end
+
+    ignore_derivatives() do 
+        if logLoss
+            push!(batchElement.losses, FMU2Loss(loss, batchElement.step))
+        end
+    end
+
+    return loss
+end
+
+function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool=true)
 
     loss = 0.0
 
@@ -264,18 +292,8 @@ function loss!(batchElement::FMU2BatchElement, lossFct; logLoss::Bool=true)
  
         dataTarget = collect(d[i] for d in batchElement.targets)
         
-        if isa(batchElement, FMU2SolutionBatchElement)
-            if batchElement.solution.success
-                modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
-                loss += lossFct(modelOutput, dataTarget)
-            else
-                @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
-            end
-        else
-            modelOutput = collect(u[i] for u in batchElement.result)
-            loss += lossFct(modelOutput, dataTarget)
-        end
-        
+        modelOutput = collect(u[i] for u in batchElement.result)
+        loss += lossFct(modelOutput, dataTarget)
     end
 
     ignore_derivatives() do 
