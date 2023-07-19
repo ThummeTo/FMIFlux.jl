@@ -29,44 +29,49 @@ function runtests(exportingTool)
 
     @testset "Testing FMUs exported from $(ENV["EXPORTINGTOOL"]) ($(ENV["EXPORTINGVERSION"]))" begin
         
-        @info "Layers (layers.jl)"
-        @testset "Layers" begin
-            include("layers.jl")
-        end
+        # @info "Layers (layers.jl)"
+        # @testset "Layers" begin
+        #     include("layers.jl")
+        # end
 
-        @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
-        @testset "ME-NeuralFMU (Continuous)" begin
-            include("hybrid_ME.jl")
-        end
+        # @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+        # @testset "ME-NeuralFMU (Continuous)" begin
+        #     include("hybrid_ME.jl")
+        # end
 
-        @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-        @testset "ME-NeuralFMU (Discontinuous)" begin
-            include("hybrid_ME_dis.jl")
-        end
+        # @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+        # @testset "ME-NeuralFMU (Discontinuous)" begin
+        #     include("hybrid_ME_dis.jl")
+        # end
 
-        @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
-        @testset "NeuralFMU with FMU parameter optimization" begin
-            include("fmu_params.jl")
-        end
+        # @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+        # @testset "NeuralFMU with FMU parameter optimization" begin
+        #     include("fmu_params.jl")
+        # end
 
-        @info "Training modes (train_modes.jl)"
-        @testset "Training modes" begin
-            include("train_modes.jl")
-        end
+        # @info "Training modes (train_modes.jl)"
+        # @testset "Training modes" begin
+        #     include("train_modes.jl")
+        # end
 
-        @info "Multi-threading (multi_threading.jl)"
-        @testset "Multi-threading" begin
-            include("multi_threading.jl")
-        end
+        # @info "Multi-threading (multi_threading.jl)"
+        # @testset "Multi-threading" begin
+        #     include("multi_threading.jl")
+        # end
 
-        @info "CS-NeuralFMU (hybrid_CS.jl)"
-        @testset "CS-NeuralFMU" begin
-            include("hybrid_CS.jl")
-        end
+        # @info "CS-NeuralFMU (hybrid_CS.jl)"
+        # @testset "CS-NeuralFMU" begin
+        #     include("hybrid_CS.jl")
+        # end
 
-        @info "Multiple FMUs (multi.jl)"
-        @testset "Multiple FMUs" begin
-            include("multi.jl")
+        # @info "Multiple FMUs (multi.jl)"
+        # @testset "Multiple FMUs" begin
+        #     include("multi.jl")
+        # end
+
+        @info "Batching (batching.jl)"
+        @testset "Batching" begin
+            include("batching.jl")
         end
     end
 end

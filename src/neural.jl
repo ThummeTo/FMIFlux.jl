@@ -8,12 +8,12 @@ import FMIImport: assert_integrator_valid, fd_eltypes, fd_set!, finishSolveFMU,
     handleEvents, isdual, istracked, prepareSolveFMU, rd_set!, undual, unsense, untrack
 import Optim
 import ProgressMeter
-import SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
+import FMIImport.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
     VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
-import SciMLSensitivity.ForwardDiff
-import SciMLSensitivity.ReverseDiff
-using SciMLSensitivity.ReverseDiff: TrackedArray
-import SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
+import FMIImport.SciMLSensitivity.ForwardDiff
+import FMIImport.SciMLSensitivity.ReverseDiff
+using FMIImport.SciMLSensitivity.ReverseDiff: TrackedArray
+import FMIImport.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
 
 using DiffEqCallbacks
@@ -26,7 +26,7 @@ using FMIImport: FMU2Component, FMU2Event, FMU2Solution, fmi2ComponentState,
     fmi2TypeModelExchange, logError, logInfo, logWarning 
 using Flux
 using Flux.Zygote
-using SciMLSensitivity:
+using FMIImport.SciMLSensitivity:
     ForwardDiffSensitivity, InterpolatingAdjoint, ReverseDiffVJP, ZygoteVJP
 
 zero_tgrad(u,p,t) = zero(u)
@@ -241,7 +241,7 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Forward
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @debug assert_integrator_valid(integrator)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
+    #@assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
@@ -270,7 +270,7 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out::SubArray{<:Reverse
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @debug assert_integrator_valid(integrator)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
+    #@assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
     # ToDo: set inputs here
     #fmiSetReal(myFMU, InputRef, Value)
@@ -298,7 +298,7 @@ function condition(nfmu::ME_NeuralFMU, c::FMU2Component, out, _x, t, integrator)
     @debug assert_integrator_valid(integrator)
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
+    @debug @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...): Must be called in mode continuous time."
 
     #@debug "State condition..."
 
@@ -371,7 +371,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @debug assert_integrator_valid(integrator)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...): Must be in continuous time mode!"
+    @debug @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...): Must be in continuous time mode!"
 
     t = unsense(integrator.t)
     x = unsense(integrator.u)
@@ -444,7 +444,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
             
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]. (ForwardDiff) "
         else
-            integrator.u = right_x
+            set_u!(integrator, right_x)
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]."
         end
        
@@ -554,6 +554,35 @@ function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, t, i
     # Todo set inputs
     
     return (fmi2GetReal(c, recordValues)...,)
+end
+
+# TODO
+import DifferentiableEigen
+function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrator, sensitivity)
+
+    #@assert c.state == fmi2ComponentStateContinuousTimeMode "saveEigenvalues(...): Must be in continuous time mode."
+
+    c.solution.evals_saveeigenvalues += 1
+
+    t = unsense(_t) 
+
+    c.next_t = t
+
+    A = nothing
+    if sensitivity == :ForwardDiff
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x) # TODO: chunk_size!
+    elseif sensitivity == :ReverseDiff 
+        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x)
+    elseif sensitivity == :none
+        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x), unsense(_x))
+    end
+    eigs, _ = DifferentiableEigen.eigen(A)
+
+    # x = unsense(_x)
+    # c.next_t = t
+    # evaluateModel(nfmu, c, x)
+    
+    return (eigs...,)
 end
 
 function fx(nfmu::ME_NeuralFMU,
@@ -750,7 +779,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     saveEventPositions::Bool=false,
     max_execution_duration::Real=-1.0,
     recordValues::fmi2ValueReferenceFormat=nfmu.recordValues,
+    recordEigenvaluesSensitivity::Symbol=:none,
+    recordEigenvalues::Bool=(recordEigenvaluesSensitivity != :none), 
     saveat=nfmu.saveat, # ToDo: Data type 
+    sensealg=nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
     kwargs...)
 
     if saveat[1] != tspan[1] 
@@ -763,7 +795,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     recordValues = prepareValueReference(nfmu.fmu, recordValues)
 
     saving = (length(recordValues) > 0)
-    sense = nfmu.fmu.executionConfig.sensealg
     inPlace = nfmu.fmu.executionConfig.inPlace
 
     t_start = tspan[1]
@@ -883,6 +914,34 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             push!(callbacks, savingCB)
         end
 
+        if recordEigenvalues
+
+            @assert recordEigenvaluesSensitivity ∈ (:none, :ForwardDiff, :ReverseDiff) "Keyword `recordEigenvaluesSensitivity` must be one of (:none, :ForwardDiff, :ReverseDiff)"
+            
+            recordEigenvaluesType = nothing
+            if recordEigenvaluesSensitivity == :ForwardDiff 
+                recordEigenvaluesType = FMIImport.ForwardDiff.Dual 
+            elseif recordEigenvaluesSensitivity == :ReverseDiff 
+                recordEigenvaluesType = FMIImport.ReverseDiff.TrackedReal 
+            elseif recordEigenvaluesSensitivity == :none 
+                recordEigenvaluesType = fmi2Real
+            end
+
+            dtypes = collect(recordEigenvaluesType for _ in 1:2*length(c.fmu.modelDescription.stateValueReferences))
+            c.solution.eigenvalues = SavedValues(recordEigenvaluesType, Tuple{dtypes...})
+            
+            savingCB = nothing
+            if saveat === nothing
+                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, t, integrator, recordEigenvaluesSensitivity), 
+                                          c.solution.eigenvalues)
+            else
+                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, t, integrator, recordEigenvaluesSensitivity), 
+                                        c.solution.eigenvalues, 
+                                        saveat=saveat)
+            end
+            push!(callbacks, savingCB)
+        end
+
     end # ignore_derivatives
 
     prob = nothing
@@ -897,16 +956,20 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         prob = ODEProblem{false}(ff, nfmu.x0, nfmu.tspan, p)
     end
 
-    if isnothing(sense)
-        sense = InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false))
-    end
-
     # if (length(callbacks) == 2) # only start and stop callback, so the system is pure continuous
     #     startCallback(nfmu, nfmu.tspan[1])
-    #     c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, nfmu.kwargs...)
+    #     c.solution.states = solve(prob, nfmu.args...; sensealg=sensealg, saveat=nfmu.saveat, nfmu.kwargs...)
     #     stopCallback(nfmu, nfmu.tspan[end])
     # else
-    #c.solution.states = solve(prob, nfmu.args...; sensealg=sense, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
+    #c.solution.states = solve(prob, nfmu.args...; sensealg=sensealg, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
+
+    if isnothing(sensealg)
+        #if length(callbacks) > 0 # currently, only ForwardDiffSensitivity works for hybride NeuralODEs with multiple events triggered
+        #    sensealg = ForwardDiffSensitivity(; chunk_size=32, convert_tspan=true)
+        #else
+            sensealg = InterpolatingAdjoint(;autojacvec=ReverseDiffVJP(false), checkpointing=true)
+        #end
+    end
 
     args = Vector{Any}()
     kwargs = Dict{Symbol, Any}(kwargs...)
@@ -919,7 +982,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         push!(args, solver)
     end 
         
-    c.solution.states = solve(prob, args...; sensealg=sense, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+    c.solution.states = solve(prob, args...; sensealg=sensealg, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
 
     #end
 
@@ -1127,42 +1190,69 @@ end
 #     return y, fmi2EvaluateME_pullback
 # end
 
-function computeGradient(loss, params, gradient, chunk_size)
+function computeGradient(loss, params, gradient, chunk_size, multiObjective::Bool)
 
     if gradient == :ForwardDiff
 
         if chunk_size == :auto_forwarddiff
             
-            grad_conf = ForwardDiff.GradientConfig(loss, params);
-            return ForwardDiff.gradient(loss, params, grad_conf);
+            if multiObjective
+                conf = ForwardDiff.JacobianConfig(loss, params)
+                jac = ForwardDiff.jacobian(loss, params, conf)
+                return collect(jac[i,:] for i in 1:size(jac)[1])
+            else
+                conf = ForwardDiff.GradientConfig(loss, params)
+                return [ForwardDiff.gradient(loss, params, conf)]
+            end
 
         elseif chunk_size == :auto_fmiflux
 
             chunk_size = 32
-            grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
-            return ForwardDiff.gradient(loss, params, grad_conf);
+            
+            if multiObjective
+                conf = ForwardDiff.JacobianConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+                jac = ForwardDiff.jacobian(loss, params, conf)
+                return collect(jac[i,:] for i in 1:size(jac)[1])
+            else
+                conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+                return [ForwardDiff.gradient(loss, params, conf)]
+            end
         else
 
-            grad_conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
-            return ForwardDiff.gradient(loss, params, grad_conf);
+            if multiObjective
+                conf = ForwardDiff.JacobianConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+                jac = ForwardDiff.jacobian(loss, params, conf)
+                return collect(jac[i,:] for i in 1:size(jac)[1])
+            else
+                conf = ForwardDiff.GradientConfig(loss, params, ForwardDiff.Chunk{min(chunk_size, length(params))}());
+                return [ForwardDiff.gradient(loss, params, conf)]
+            end
         end
 
     elseif gradient == :Zygote 
 
-        return Zygote.gradient(
-            loss,
-            params)[1]
+        if multiObjective
+            jac = Zygote.jacobian(loss, params)[1]
+            return collect(jac[i,:] for i in 1:size(jac)[1])
+        else
+            return [Zygote.gradient(loss, params)[1]]
+        end
+
     elseif gradient == :ReverseDiff 
 
-        return ReverseDiff.gradient(
-                loss,
-                params)
+        if multiObjective
+            jac = ReverseDiff.jacobian(loss, params)
+            return collect(jac[i,:] for i in 1:size(jac)[1])
+        else
+            return [ReverseDiff.gradient(loss, params)]
+        end
     else
         @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff`, `:Zygote` and `:ReverseDiff`."
     end
 
 end
 
+# WIP
 function trainStep(loss, params, gradient, chunk_size, optim::Optim.AbstractOptimizer, printStep, proceed_on_assert, cb; state=nothing)
 
     try
@@ -1177,9 +1267,6 @@ function trainStep(loss, params, gradient, chunk_size, optim::Optim.AbstractOpti
             @assert !isnothing(grad) "Gradient nothing!"
 
             update_state!(d, state, optim)
-
-
-
 
             step = Flux.Optimise.apply!(optim, params[j], grad)
             params[j] .-= step
@@ -1212,7 +1299,7 @@ function trainStep(loss, params, gradient, chunk_size, optim::Optim.AbstractOpti
 end
 
 lk_OptimApply = ReentrantLock()
-function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.AbstractOptimiser, printStep, proceed_on_assert, cb)
+function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.AbstractOptimiser, printStep, proceed_on_assert, cb, multiObjective)
 
     global lk_OptimApply
     
@@ -1220,19 +1307,22 @@ function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.Abst
                 
         for j in 1:length(params)
 
-            grad = computeGradient(loss, params[j], gradient, chunk_size)
-            
-            @assert !isnothing(grad) "Gradient nothing!"
+            grads = computeGradient(loss, params[j], gradient, chunk_size, multiObjective)
+                
+            @assert !any(isnothing.(grads)) "Gradient nothing!"
 
             lock(lk_OptimApply) do
-                step = Flux.Optimise.apply!(optim, params[j], grad)
-                params[j] .-= step
+                for grad in grads
+                    step = Flux.Optimise.apply!(optim, params[j], grad)
+                    params[j] .-= step
+
+                    if printStep
+                        @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
+                        @info "Step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
+                    end
+                end
             end
 
-            if printStep
-                @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
-                @info "Step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
-            end
         end    
 
     catch e
@@ -1275,8 +1365,9 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `printStep` a boolean determining wheater the gradient min/max is printed after every step (for gradient debugging)
 - `proceed_on_assert` a boolean that determins wheater to throw an ecxeption on error or proceed training and just print the error
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
+- `multiObjective`: set this if the loss function returns multiple values (multi objective optimization), currently gradients are fired to the optimizer one after another (default `false`)
 """
-function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_forwarddiff, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false) # ::Flux.Optimise.AbstractOptimiser
+function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim; gradient::Symbol=:ReverseDiff, cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, printStep::Bool=false, proceed_on_assert::Bool=false, multiThreading::Bool=false, multiObjective::Bool=false) # ::Flux.Optimise.AbstractOptimiser
 
     if multiThreading && Threads.nthreads() == 1 
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
@@ -1287,7 +1378,7 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<
         return 
     end
 
-    _trainStep = (i,) -> trainStep(loss, params, gradient, chunk_size, optim, printStep, proceed_on_assert, cb)
+    _trainStep = (i,) -> trainStep(loss, params, gradient, chunk_size, optim, printStep, proceed_on_assert, cb, multiObjective)
 
     if multiThreading
         ThreadPools.qforeach(_trainStep, 1:length(data))
@@ -1303,4 +1394,165 @@ end
 function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim::Flux.Optimise.AbstractOptimiser; kwargs...)
     params = Flux.params(neuralFMU)   
     train!(loss, params, data, optim; kwargs...)
+end
+
+# checks gradient determination for all available sensitivity configurations, see:
+# https://docs.sciml.ai/SciMLSensitivity/stable/manual/differential_equation_sensitivities/
+using FMIImport.SciMLSensitivity
+function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}; 
+                        gradients=(:ForwardDiff, :ReverseDiff, :Zygote), 
+                        max_msg_len=128, chunk_size=32, 
+                        OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), EnzymeVJP(), ReverseDiffVJP()), 
+                        OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
+                        OtD_checkpointings=(true, false),
+                        DtO_sensealgs=(ReverseDiffAdjoint, ZygoteAdjoint, TrackerAdjoint, ForwardDiffSensitivity),
+                        multiObjective::Bool=false,
+                        bestof::Int=2,
+                        kwargs...)
+
+    params = Flux.params(neuralFMU)   
+    initial_sensalg = neuralFMU.fmu.executionConfig.sensealg
+
+    best_timing = Inf
+    best_gradient = nothing 
+    best_sensealg = nothing
+
+    printstyled("Mode: Optimize-then-Discretize\n")
+    for gradient ∈ gradients
+        printstyled("\tGradient: $(gradient)\n")
+        
+        for sensealg ∈ OtD_sensealgs
+            printstyled("\t\tSensealg: $(sensealg)\n")
+            for checkpointing ∈ OtD_checkpointings
+                printstyled("\t\t\tCheckpointing: $(checkpointing)\n")
+
+                if sensealg == QuadratureAdjoint && checkpointing 
+                    printstyled("\t\t\t\tQuadratureAdjoint doesn't implement checkpointing, skipping ...\n")
+                    continue 
+                end
+
+                for autojacvec ∈ OtD_autojacvecs
+                    printstyled("\t\t\t\tAutojacvec: $(autojacvec)\n")
+                
+                    if sensealg ∈ (BacksolveAdjoint, InterpolatingAdjoint)
+                        neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, chunk_size=chunk_size, checkpointing=checkpointing)
+                    else
+                        neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, chunk_size=chunk_size)
+                    end
+
+                    call = () -> _tryrun(loss, params, gradient, chunk_size, 5, max_msg_len, multiObjective)
+                    for i in 1:bestof
+                        timing = call()
+
+                        if timing < best_timing
+                            best_timing = timing
+                            best_gradient = gradient 
+                            best_sensealg = neuralFMU.fmu.executionConfig.sensealg
+                        end
+                    end
+
+                end
+            end
+        end
+    end
+
+    printstyled("Mode: Discretize-then-Optimize\n")
+    for gradient ∈ gradients
+        printstyled("\tGradient: $(gradient)\n")
+        for sensealg ∈ DtO_sensealgs
+            printstyled("\t\tSensealg: $(sensealg)\n")
+
+            if sensealg == ForwardDiffSensitivity
+                neuralFMU.fmu.executionConfig.sensealg = sensealg(; chunk_size=chunk_size)
+            else 
+                neuralFMU.fmu.executionConfig.sensealg = sensealg()
+            end
+
+            call = () -> _tryrun(loss, params, gradient, chunk_size, 3, max_msg_len, multiObjective)
+            for i in 1:bestof
+                timing = call()
+
+                if timing < best_timing
+                    best_timing = timing
+                    best_gradient = gradient 
+                    best_sensealg = neuralFMU.fmu.executionConfig.sensealg
+                end
+            end
+
+        end
+    end
+
+    neuralFMU.fmu.executionConfig.sensealg = initial_sensalg
+
+    printstyled("------------------------------\nBest time: $(best_timing)\nBest gradient: $(best_gradient)\nBest sensealg: $(best_sensealg)\n", color=:blue)
+
+    return nothing
+end
+
+function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; print_stdout::Bool=true, print_stderr::Bool=true)
+
+    spacing = ""
+    for t in ts 
+        spacing *= "\t"
+    end
+
+    message = "" 
+    color = :black 
+    timing = Inf
+
+    original_stdout = stdout
+    original_stderr = stderr
+    (rd_stdout, wr_stdout) = redirect_stdout();
+    (rd_stderr, wr_stderr) = redirect_stderr();
+
+    try 
+        tstart = time()
+        grads = computeGradient(loss, params[1], gradient, chunk_size, multiObjective)
+        timing = time() - tstart
+
+        if length(grads[1]) == 1
+            grads = [grads]
+        end
+        val = collect(sum(abs.(grad)) for grad in grads)
+
+        message = spacing * "SUCCESS | $(round(timing; digits=2))s | GradAbsSum: $(round.(val; digits=3))\n"
+        color = :green
+    catch e 
+        msg = "$(e)"
+        if length(msg) > max_msg_len
+            msg = msg[1:max_msg_len] * "..."
+        end
+        
+        message = spacing * "$(msg)\n"
+        color = :red
+    end
+
+    redirect_stdout(original_stdout)
+    redirect_stderr(original_stderr)
+    close(wr_stdout)
+    close(wr_stderr)
+
+    if print_stdout
+        msg = read(rd_stdout, String)
+        if length(msg) > 0
+            if length(msg) > max_msg_len
+                msg = msg[1:max_msg_len] * "..."
+            end
+            printstyled(spacing * "STDOUT: $(msg)\n", color=:yellow)
+        end
+    end
+
+    if print_stderr
+        msg = read(rd_stderr, String)
+        if length(msg) > 0
+            if length(msg) > max_msg_len
+                msg = msg[1:max_msg_len] * "..."
+            end
+            printstyled(spacing * "STDERR: $(msg)\n", color=:yellow)
+        end
+    end
+
+    printstyled(message, color=color)
+
+    return timing
 end

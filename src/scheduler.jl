@@ -214,8 +214,8 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     num = length(scheduler.batch)
 
     xs = 1:num 
-    ys = collect((length(b.losses) > 0 ? b.losses[end].loss : 0.0) for b in scheduler.batch)
-    ys_shadow = collect((length(b.losses) > 1 ? b.losses[end-1].loss : 1e-16) for b in scheduler.batch)
+    ys = collect((length(b.losses) > 0 ? nominalLoss(b.losses[end]) : 0.0) for b in scheduler.batch)
+    ys_shadow = collect((length(b.losses) > 1 ? nominalLoss(b.losses[end-1]) : 1e-16) for b in scheduler.batch)
     
     title = "[$(scheduler.step)]" 
     if hasfield(typeof(scheduler), :printMsg)
@@ -294,7 +294,7 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
 
     num = length(scheduler.batch)
     for i in 1:num
-        #l = scheduler.batch[i].losses[end].loss
+        #l = nominalLoss(scheduler.batch[i].losses[end])
 
         FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
         l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
@@ -335,12 +335,13 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
         l = 0.0
 
         if length(scheduler.batch[i].losses) >= 1
-            l = scheduler.batch[i].losses[end].loss
+            l = nominalLoss(scheduler.batch[i].losses[end])
         end
         
         if scheduler.step % scheduler.updateStep == 0
             FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-            l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+            l = nominalLoss(scheduler.batch[i].losses[end])
         end
 
         scheduler.lossAccu[i] += l
@@ -385,7 +386,7 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool=true)
 
         l_der = l # fallback for first run (greatest error)
         if length(scheduler.batch[i].losses) >= 2
-            l_der = (l - scheduler.batch[i].losses[end-1].loss)
+            l_der = (l - nominalLoss(scheduler.batch[i].losses[end-1]))
         end
         
         losssum += l
