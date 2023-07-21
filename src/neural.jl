@@ -156,6 +156,7 @@ end
 ##### EVENT HANDLING START
 
 function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, Nothing}, t)
+
     ignore_derivatives() do
         #nfmu.solveCycle += 1
         #@debug "[$(nfmu.solveCycle)][FIRST STEP]"
@@ -440,11 +441,14 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
             T, V, N = fd_eltypes(integrator.u)
 
             new_x = collect(ForwardDiff.Dual{T, V, N}(V(right_x[i]), ForwardDiff.partials(integrator.u[i]))   for i in 1:length(integrator.u))
-            set_u!(integrator, new_x)
+            #set_u!(integrator, new_x)
+            integrator.u .= new_x
             
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]. (ForwardDiff) "
         else
-            set_u!(integrator, right_x)
+            #set_u!(integrator, right_x)
+            integrator.u .= right_x
+
             @debug "affectFMU!(_, _, $idx): NeuralFMU event with state change at $t. Indicator [$idx]."
         end
        
@@ -558,7 +562,7 @@ end
 
 # TODO
 import DifferentiableEigen
-function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrator, sensitivity)
+function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, p, _t, integrator, sensitivity)
 
     #@assert c.state == fmi2ComponentStateContinuousTimeMode "saveEigenvalues(...): Must be in continuous time mode."
 
@@ -569,13 +573,15 @@ function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrato
     c.next_t = t
 
     A = nothing
-    if sensitivity == :ForwardDiff
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x) # TODO: chunk_size!
-    elseif sensitivity == :ReverseDiff 
-        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x)
-    elseif sensitivity == :none
-        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x), unsense(_x))
-    end
+    #if sensitivity == :ForwardDiff
+    A = ForwardDiff.jacobian(x -> evaluateReModel(nfmu, c, x, p), _x) # TODO: chunk_size!
+    # elseif sensitivity == :ReverseDiff 
+    #     A = ReverseDiff.jacobian(x -> evaluateReModel(nfmu, c, x, p), _x)
+    # elseif sensitivity == :Zygote 
+    #     A = Zygote.jacobian(x -> evaluateReModel(nfmu, c, x, p), _x)[1]
+    # elseif sensitivity == :none
+    #     A = ForwardDiff.jacobian(x -> evaluateReModel(nfmu, c, x, p), unsense(_x))
+    # end
     eigs, _ = DifferentiableEigen.eigen(A)
 
     # x = unsense(_x)
@@ -756,6 +762,10 @@ function checkExecTime(integrator, nfmu::ME_NeuralFMU, c, max_execution_duration
     return 1.0
 end
 
+function getComponent(nfmu::NeuralFMU)
+    return hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing
+end
+
 """
 Evaluates the ME_NeuralFMU in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
 
@@ -826,7 +836,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     callbacks = []
 
-    c = (hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing)
+    c = getComponent(nfmu)
     c = startCallback(nothing, nfmu, c, t_start)
     
     ignore_derivatives() do
@@ -834,6 +844,11 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         for cb in nfmu.customCallbacksBefore
             push!(callbacks, cb)
         end
+
+        # cb = FunctionCallingCallback((x, t, integrator) -> @info "Start"; # startCallback(integrator, nfmu, c, t);
+        #     funcat=[t_start],
+        #     func_start=true)
+        # push!(callbacks, cb)
 
         nfmu.fmu.hasStateEvents = (c.fmu.modelDescription.numberOfEventIndicators > 0)
         nfmu.fmu.hasTimeEvents = (c.eventInfo.nextEventTimeDefined == fmi2True)
@@ -891,6 +906,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         if showProgress
             c.progressMeter = ProgressMeter.Progress(1000; desc=progressDescr, color=:blue, dt=1.0) #, barglyphs=ProgressMeter.BarGlyphs("[=> ]"))
             ProgressMeter.update!(c.progressMeter, 0) # show it!
+        else
+            c.progressMeter = nothing
         end
 
         # integrator step callback
@@ -916,14 +933,14 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
         if recordEigenvalues
 
-            @assert recordEigenvaluesSensitivity ∈ (:none, :ForwardDiff, :ReverseDiff) "Keyword `recordEigenvaluesSensitivity` must be one of (:none, :ForwardDiff, :ReverseDiff)"
+            @assert recordEigenvaluesSensitivity ∈ (:none, :ForwardDiff, :ReverseDiff, :Zygote) "Keyword `recordEigenvaluesSensitivity` must be one of (:none, :ForwardDiff, :ReverseDiff, :Zygote)"
             
             recordEigenvaluesType = nothing
             if recordEigenvaluesSensitivity == :ForwardDiff 
                 recordEigenvaluesType = FMIImport.ForwardDiff.Dual 
             elseif recordEigenvaluesSensitivity == :ReverseDiff 
                 recordEigenvaluesType = FMIImport.ReverseDiff.TrackedReal 
-            elseif recordEigenvaluesSensitivity == :none 
+            elseif recordEigenvaluesSensitivity ∈ (:none, :Zygote)
                 recordEigenvaluesType = fmi2Real
             end
 
@@ -932,10 +949,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             
             savingCB = nothing
             if saveat === nothing
-                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, t, integrator, recordEigenvaluesSensitivity), 
+                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, p, t, integrator, recordEigenvaluesSensitivity), 
                                           c.solution.eigenvalues)
             else
-                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, t, integrator, recordEigenvaluesSensitivity), 
+                savingCB = SavingCallback((u,t,integrator) -> saveEigenvalues(nfmu, c, u, p, t, integrator, recordEigenvaluesSensitivity), 
                                         c.solution.eigenvalues, 
                                         saveat=saveat)
             end
@@ -967,7 +984,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         #if length(callbacks) > 0 # currently, only ForwardDiffSensitivity works for hybride NeuralODEs with multiple events triggered
         #    sensealg = ForwardDiffSensitivity(; chunk_size=32, convert_tspan=true)
         #else
-            sensealg = InterpolatingAdjoint(;autojacvec=ReverseDiffVJP(false), checkpointing=true)
+            sensealg = InterpolatingAdjoint(;autojacvec=ReverseDiffVJP(false), checkpointing=false) # ReverseDiffVJP()
         #end
     end
 
@@ -984,9 +1001,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         
     c.solution.states = solve(prob, args...; sensealg=sensealg, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
 
-    #end
-
     ignore_derivatives() do
+
+        @assert !isnothing(c.solution.states) "Solving NeuralODE returned `nothing`!"
+ 
         # ReverseDiff returns an array instead of an ODESolution, this needs to be corrected
         if isa(c.solution.states, TrackedArray)
            
@@ -1401,7 +1419,7 @@ end
 using FMIImport.SciMLSensitivity
 function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}; 
                         gradients=(:ForwardDiff, :ReverseDiff, :Zygote), 
-                        max_msg_len=128, chunk_size=32, 
+                        max_msg_len=192, chunk_size=32, 
                         OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), EnzymeVJP(), ReverseDiffVJP()), 
                         OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
                         OtD_checkpointings=(true, false),
@@ -1416,7 +1434,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     best_timing = Inf
     best_gradient = nothing 
     best_sensealg = nothing
-
+    
     printstyled("Mode: Optimize-then-Discretize\n")
     for gradient ∈ gradients
         printstyled("\tGradient: $(gradient)\n")
@@ -1463,7 +1481,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
             printstyled("\t\tSensealg: $(sensealg)\n")
 
             if sensealg == ForwardDiffSensitivity
-                neuralFMU.fmu.executionConfig.sensealg = sensealg(; chunk_size=chunk_size)
+                neuralFMU.fmu.executionConfig.sensealg = sensealg(; chunk_size=chunk_size, convert_tspan=true)
             else 
                 neuralFMU.fmu.executionConfig.sensealg = sensealg()
             end

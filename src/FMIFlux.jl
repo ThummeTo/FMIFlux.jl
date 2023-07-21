@@ -30,11 +30,9 @@ import FMIImport.SciMLSensitivity.DiffEqBase: set_u!
 function u_modified!(::FakeIntegrator, ::Bool)
     return nothing
 end
-
-# function set_u!(::FakeIntegrator, u)
-#     #integrator.u = u
-#     return nothing
-# end
+function set_u!(::FakeIntegrator, u)
+    return nothing
+end
 
 # ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.28
 # function Base.hasproperty(f::TrackedAffect, s::Symbol)

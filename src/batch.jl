@@ -28,11 +28,11 @@ struct FMU2Loss{T}
 end
 
 function nominalLoss(l::FMU2Loss{T}) where T <: AbstractArray
-    return sum(l.loss)
+    return unsense(sum(l.loss))
 end
 
 function nominalLoss(l::FMU2Loss{T}) where T <: Real
-    return l.loss
+    return unsense(l.loss)
 end
 
 abstract type FMU2BatchElement end
@@ -168,49 +168,35 @@ end
 
 function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; lastBatchElement=nothing, kwargs...)
 
-    ignore_derivatives() do
-
-        neuralFMU.customCallbacksAfter = []
-        neuralFMU.customCallbacksBefore = []
-
-        # START CALLBACK
-        # if !isnothing(batchElement.initialState)
-        #     startcb = FunctionCallingCallback((u, t, integrator) -> pasteState!(neuralFMU.fmu, batchElement);
-        #             funcat=[batchElement.tStart], func_start=true, func_everystep=false)
-        #     push!(neuralFMU.customCallbacksBefore, startcb)
-        # end
-        
-        # STOP CALLBACK
-        if lastBatchElement != nothing
-            stopcb = FunctionCallingCallback((u, t, integrator) -> copyState!(neuralFMU.fmu, lastBatchElement);
-                                        funcat=[batchElement.tStop])
-            push!(neuralFMU.customCallbacksAfter, stopcb)
-        end
+    neuralFMU.customCallbacksAfter = []
+    neuralFMU.customCallbacksBefore = []
+    
+    # STOP CALLBACK
+    if !isnothing(lastBatchElement)
+        stopcb = FunctionCallingCallback((u, t, integrator) -> copyState!(neuralFMU.fmu, lastBatchElement);
+                                    funcat=[batchElement.tStop])
+        push!(neuralFMU.customCallbacksAfter, stopcb)
     end
 
-    if !isnothing(batchElement.initialState)
-        pasteState!(neuralFMU.fmu, batchElement)
-    else
+    if isnothing(batchElement.initialState)
+        startcb = FunctionCallingCallback((u, t, integrator) -> copyState!(neuralFMU.fmu, batchElement);
+                funcat=[batchElement.tStart], func_start=true)
+        push!(neuralFMU.customCallbacksAfter, startcb)
+
         c = getCurrentComponent(neuralFMU.fmu)
         FMI.fmi2SetContinuousStates(c, batchElement.xStart)
         FMI.fmi2SetTime(c, batchElement.tStart)
+    else
+        pasteState!(neuralFMU.fmu, batchElement)
     end
 
     batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); saveat=batchElement.saveat, kwargs...)
 
-    ignore_derivatives() do 
+    neuralFMU.customCallbacksBefore = []
+    neuralFMU.customCallbacksAfter = []
 
-        if lastBatchElement != nothing
-            #lastBatchElement.tStart = ForwardDiff.value(batchElement.solution.states.t[end])
-            #lastBatchElement.xStart = collect(ForwardDiff.value(u) for u in batchElement.solution.states.u[end])
-        end
-
-        neuralFMU.customCallbacksBefore = []
-        neuralFMU.customCallbacksAfter = []
-
-        batchElement.step += 1
-    end
-
+    batchElement.step += 1
+    
     return batchElement.solution
 end
 

@@ -45,7 +45,7 @@ function losssum_multi(p)
     solution = problem(x0; p=p, showProgress=true)
 
     if !solution.success
-        return Inf 
+        return [Inf, Inf]
     end
 
     posNet = fmi2GetSolutionState(solution, 1; isIndex=true)

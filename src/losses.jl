@@ -7,6 +7,7 @@ module Losses
 
 using Flux
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMU2Solution
+import FMIImport: unsense
 
 mse = Flux.Losses.mse
 mae = Flux.Losses.mae
@@ -175,13 +176,11 @@ function loss(nfmu::NeuralFMU, batch::AbstractArray{<:FMU2BatchElement};
 
     solution = run!(nfmu, batch[batchIndex]; lastBatchElement=lastBatchElement, progressDescr="Sim. Batch $(batchIndex)/$(length(batch)) |", kwargs...)
     
-    if solution.success
-        return loss!(batch[batchIndex], lossFct; logLoss=logLoss)
-    else 
-        @warn "Solving the NeuralFMU as part of the loss function failed. This is often because the ODE cannot be solved. Did you initialize the NeuralFMU model? Often additional solver errors/warnings are printed before this warning."
-        return Inf
-    end
-
+    if !solution.success
+        @warn "Solving the NeuralFMU as part of the loss function failed with return code `$(solution.states.retcode)`.\nThis is often because the ODE cannot be solved. Did you initialize the NeuralFMU model?\nOften additional solver errors/warnings are printed before this warning.\nHowever, it is tried to compute a loss on the partial retrieved solution from $(unsense(solution.states.t[1]))s to $(unsense(solution.states.t[end]))s."
+    end 
+        
+    return loss!(batch[batchIndex], lossFct; logLoss=logLoss)
 end
 
 function loss(model, batch::AbstractArray{<:FMU2BatchElement}; 

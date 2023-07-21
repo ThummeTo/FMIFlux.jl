@@ -2,103 +2,183 @@
 # Licensed under the MIT license. 
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
+using LaTeXStrings
+
 # Hyperparameters are the results of hyperparameter optimization
-ETA, BETA1, BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS, EIGENLOSS, STIFFNESSRATIO = [0.001, 0.999, 0.999, 9.0, 0.8, :LossAccumulation, :MSE, :OFF, 0.5]
-RESSOURCE = 64.85555555555555
+ETA, BETA1, BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS, EIGENLOSS, STIFFNESSRATIO, FMUGATE, ANNGATE, LOSSRATIO = [0.0001, 0.9, 0.999, 10.0, 0.5, :LossAccumulation, :MAE, :MAE, 1.0, 0.97, 0.0, 1000.0]
+RESSOURCE = 581.0
 TRAINSTEPS = max(round(Int, RESSOURCE/BATCHDUR), 1) 
-MINIMUM =  16.575945029410605
+#MINIMUM =  28.868754186625036
+#VALIDATION = 2447.929471048355
 
 import FMIFlux: roundToLength
-import FMIImport: getCurrentComponent, fmi2SetFMUstate
-global scaleFac
-function checkLoss(init::Bool=false; cycle=:train)
+import FMIZoo:movavg
+import FMI: FMU2Solution
+
+function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFactor::Int=10, field=:consumption, mov_avg::Int=100, filename=nothing)
+    colorMin = 0
+    colorMax = 0
+    okregion = 0
+    label=""
+
+    tStart = data.consumption_t[1]
+    tStop = data.consumption_t[end]
+    x0 = FMIZoo.getStateVector(data, tStart)
+    result = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, recordValues=:derivatives) 
+
+    # Finite differences for acceleration
+    dt = data.consumption_t[2]-data.consumption_t[1]
+    acceleration_val = (data.speed_val[2:end] - data.speed_val[1:end-1]) / dt
+    acceleration_val = [acceleration_val..., 0.0]
+    acceleration_dev = (data.speed_dev[2:end] - data.speed_dev[1:end-1]) / dt
+    acceleration_dev = [acceleration_dev..., 0.0]
+
+    ANNInputs = fmiGetSolutionValue(result, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
+    ANNInputs = collect([ANNInputs[1][i], ANNInputs[2][i], ANNInputs[3][i], ANNInputs[4][i], ANNInputs[5][i], ANNInputs[6][i]] for i in 1:length(ANNInputs[1]))
+    ANNOutputs = fmiGetSolutionDerivative(result, 5:6; isIndex=true)
+    ANNOutputs = collect([ANNOutputs[1][i], ANNOutputs[2][i]] for i in 1:length(ANNOutputs[1]))
+
+    ANN_error = nothing 
+
+    if field == :consumption
+        ANN_consumption = collect(o[2] for o in ANNOutputs)
+        ANN_error = ANN_consumption - data.consumption_val
+        ANN_error = collect(ANN_error[i] > 0.0 ? max(0.0, ANN_error[i]-data.consumption_dev[i]) : min(0.0, ANN_error[i]+data.consumption_dev[i]) for i in 1:length(data.consumption_t))
+        
+        label = L"consumption [W]"
+        colorMin=-610.0
+        colorMax=610.0
+    else # :acceleration 
+        ANN_acceleration = collect(o[1] for o in ANNOutputs)
+        ANN_error = ANN_acceleration - acceleration_val
+        ANN_error = collect(ANN_error[i] > 0.0 ? max(0.0, ANN_error[i]-acceleration_dev[i]) : min(0.0, ANN_error[i]+acceleration_dev[i]) for i in 1:length(data.consumption_t))
+
+        label = L"acceleration [m/s^2]"
+        colorMin=-0.04
+        colorMax=0.04
+    end
+
+    ANN_error = movavg(ANN_error, mov_avg)
+
+    ANNInput_vel = collect(o[4] for o in ANNInputs)
+    ANNInput_acc = collect(o[5] for o in ANNInputs)
+    ANNInput_con = collect(o[6] for o in ANNInputs)
+    
+    _max = max(ANN_error...)
+    _min = min(ANN_error...)
+    neutral = -colorMin/(colorMax-colorMin) # -_min/(_max-_min)
+
+    if _max > colorMax
+        @warn "max value ($(_max)) is larger than colorMax ($(colorMax)) - values will be cut"
+    end
+
+    if _min < colorMin
+        @warn "min value ($(_min)) is smaller than colorMin ($(colorMin)) - values will be cut"
+    end
+
+    ANN_error = collect(min(max(e, colorMin), colorMax) for e in ANN_error)
+
+    @info "$(_min) $(_max) $(neutral)"
+
+    anim = @animate for ang in 0:5:360
+        l = Plots.@layout [Plots.grid(3,1) r{0.85w}]
+        fig = Plots.plot(layout=l, size=(1600,800), left_margin = 10Plots.mm, right_margin = 10Plots.mm, bottom_margin = 10Plots.mm)
+
+        colorgrad = cgrad([:orange, :white, :blue], [0.0, 0.5, 1.0]) # , scale = :log)
+
+        scatter!(fig[1], ANNInput_vel[1:reductionFactor:end], ANNInput_acc[1:reductionFactor:end],
+                    xlabel=L"velocity [m/s]", ylabel=L"acceleration [m/s^2]",
+                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
+   
+        scatter!(fig[2], ANNInput_acc[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
+                    xlabel=L"acceleration [m/s^2]", ylabel=L"consumption [W]",
+                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
+                 
+        scatter!(fig[3], ANNInput_vel[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
+                    xlabel=L"velocity [m/s]", ylabel=L"consumption [W]",
+                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
+
+        scatter!(fig[4], ANNInput_vel[1:reductionFactor:end], ANNInput_acc[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
+                    xlabel=L"velocity [m/s]", ylabel=L"acceleration [m/s^2]", zlabel=L"consumption [W]",
+                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], markersize=8, label=:none, camera=(ang,20), colorbar_title=" \n\n\n\n" * L"Δ" * label * " (smoothed)") # 
+    
+        # draw invisible dummys to scale colorbar to fixed size
+        for i in 1:3 
+            scatter!(fig[i], [0.0,0.0], [0.0,0.0],
+                color=colorgrad, zcolor=[colorMin, colorMax], 
+                markersize=0, label=:none)
+        end
+        for i in 4:4
+            scatter!(fig[i], [0.0,0.0], [0.0,0.0], [0.0,0.0],
+                color=colorgrad, zcolor=[colorMin, colorMax], 
+                markersize=0, label=:none)
+        end
+    end
+
+    return gif(anim, filename; fps=10)
+end
+
+function plotCumulativeConsumption(solutionNFMU::FMU2Solution, solutionFMU::FMU2Solution, data::FMIZoo.VLDM_Data, pfusch::Real=0.9734342706063525)
+    t        = data.consumption_t 
+    nfmu_val = fmiGetSolutionState(solutionNFMU, 6; isIndex=true)
+    fmu_val  = fmiGetSolutionState(solutionFMU,  6; isIndex=true)
+    data_val = data.cumconsumption_val
+    data_dev = data.cumconsumption_dev
+    pfu_val  = fmu_val .* pfusch
+
+    mse_nfmu = FMIFlux.Losses.mse_dev(nfmu_val, data_val, data_dev)
+    mse_fmu  = FMIFlux.Losses.mse_dev(fmu_val,  data_val, data_dev)
+    mse_pfu  = FMIFlux.Losses.mse_dev(pfu_val,  data_val, data_dev)
+
+    mae_nfmu = FMIFlux.Losses.mae_dev(nfmu_val, data_val, data_dev)
+    mae_fmu  = FMIFlux.Losses.mae_dev(fmu_val,  data_val, data_dev)
+    mae_pfu  = FMIFlux.Losses.mae_dev(pfu_val,  data_val, data_dev)
+
+    max_nfmu = FMIFlux.Losses.max_dev(nfmu_val, data_val, data_dev)
+    max_fmu  = FMIFlux.Losses.max_dev(fmu_val,  data_val, data_dev)
+    max_pfu  = FMIFlux.Losses.max_dev(pfu_val,  data_val, data_dev)
+
+    fig = plot(xlabel=L"t[s]", ylabel=L"x_6 [Ws]", dpi=600)
+    plot!(fig, t, data_val; label="Data", ribbon=data_dev, fillalpha=0.3)
+    plot!(fig, t,  fmu_val; label="FMU            [ MSE:$(roundToLength(mse_fmu,10)) | MAE:$(roundToLength(mae_fmu,10)) | MAX:$(roundToLength(max_fmu,10)) ]")
+    plot!(fig, t,  pfu_val; label="Pfusch-FMU [ MSE:$(roundToLength(mse_pfu,10)) | MAE:$(roundToLength(mae_pfu,10)) | MAX:$(roundToLength(max_pfu,10)) ]")
+    plot!(fig, t, nfmu_val; label="NeuralFMU  [ MSE:$(roundToLength(mse_nfmu,10)) | MAE:$(roundToLength(mae_nfmu,10)) | MAX:$(roundToLength(max_nfmu,10)) ]")
+
+    return fig
+end
+
+function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing)
+    d = FMIZoo.VLDM(cycle)
+    tStart = d.consumption_t[1]
+    tStop = d.consumption_t[end]
+    tSave = d.consumption_t
+    
+    resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=d.params, showProgress=true, saveat=tSave, maxiters=1e7) 
+    resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=d.params, showProgress=true, saveat=tSave)
+
+    fig = plotCumulativeConsumption(resultNFMU, resultFMU, d)
+    if !isnothing(filename)
+        savefig(fig, filename)
+    end
+    return fig
+end
+
+function checkMSE(cycle; init::Bool=false)
 
     data = FMIZoo.VLDM(cycle)
     tStart = data.consumption_t[1]
     tStop = data.consumption_t[end]
     tSave = data.consumption_t
-    data.params["drivingCycle.combiTimeTable.timeEvents"] = 1
-    data.params["drivingCycle.combiTimeTable1.timeEvents"] = 1
     
     if init
-        c = getCurrentComponent(fmu)
-        fmi2SetFMUstate(c, batch[1].initialState)
+        c = FMI.FMIImport.getCurrentComponent(fmu)
+        FMI.FMIImport.fmi2SetFMUstate(c, batch[1].initialState)
         c.eventInfo = deepcopy(batch[1].initialEventInfo)
         c.t = batch[1].tStart
     end
-    cl_resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, maxiters=1e7, saveat=tSave, recordEigenvalues=true) # [120s]
+    resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, maxiters=1e7, saveat=tSave) 
     
-    if init
-        c = getCurrentComponent(fmu)
-        fmi2SetFMUstate(c, batch[1].initialState)
-        c.eventInfo = deepcopy(batch[1].initialEventInfo)
-        c.t = batch[1].tStart
-    end
-    cl_resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=data.params, recordValues=:derivatives, saveat=tSave, recordEigenvalues=true)
-
-    mse_NFMU = FMIFlux.Losses.mse(data.cumconsumption_val, fmiGetSolutionState(cl_resultNFMU, 6; isIndex=true))
-    max_NFMU = max(abs.(data.cumconsumption_val .- fmiGetSolutionState(cl_resultNFMU, 6; isIndex=true))...)
-
-    mse_FMU  = FMIFlux.Losses.mse(data.cumconsumption_val, fmiGetSolutionState(cl_resultFMU, 6; isIndex=true))
-    max_FMU  = max(abs.(data.cumconsumption_val .- fmiGetSolutionState(cl_resultFMU, 6; isIndex=true))...)
-
-    global scaleFac 
-    if cycle == :train || cycle == "WLTCC2_Low"
-        d1 = data.cumconsumption_val
-        d2 = fmiGetSolutionState(cl_resultFMU, 6; isIndex=true)
-        dev = data.cumconsumption_dev 
-        opt = Optim.optimize(p -> objective(p, d1, d2, dev), [0.95]; iterations=250) # do max. 250 iterations
-        mse_scale = opt.minimum
-        #scaleFac = opt.minimizer[1]
-        scaleFac = d1[end]/d2[end]
-        @info "New computed scaling factor for cycle `$(cycle)` is $(round(scaleFac, digits=6)) with loss $(mse_scale)"
-    end
-    mse_scale = FMIFlux.Losses.mse(data.cumconsumption_val, fmiGetSolutionState(cl_resultFMU, 6; isIndex=true) .* scaleFac)
-    max_scale = max(abs.(data.cumconsumption_val .- fmiGetSolutionState(cl_resultFMU, 6; isIndex=true) .* scaleFac)...)
-
-    println("Errors [$(cycle)]   | better FMU? | better FMU (scaled)?")
-    println("  NeuralFMU | MSE = $(roundToLength(mse_NFMU , 12))   ($(mse_NFMU < mse_FMU ? '+' : '-')$(round(abs((mse_FMU/mse_NFMU-1)*100);digits=1))%)   ($(mse_NFMU < mse_scale ? '+' : '-')$(round(abs((mse_scale/mse_NFMU-1)*100);digits=1))%)")
-    println("            | MAX = $(roundToLength(max_NFMU , 12))   ($(max_NFMU < max_FMU ? '+' : '-')$(round(abs((max_FMU/max_NFMU-1)*100);digits=1))%)   ($(max_NFMU < max_scale ? '+' : '-')$(round(abs((max_scale/max_NFMU-1)*100);digits=1))%)")
-    println("  FMU       | MSE = $(roundToLength(mse_FMU  , 12))")
-    println("            | MAX = $(roundToLength(max_FMU  , 12))")
-    println("  FMU (sca) | MSE = $(roundToLength(mse_scale, 12))")
-    println("            | MAX = $(roundToLength(max_scale, 12))")
-
-    fig = fmiPlot(cl_resultNFMU; title="$(cycle)", stateIndices=6:6, values=false, stateEvents=false, label="NeuralFMU ($(roundToLength(mse_NFMU, 12)))");
-    fmiPlot!(fig, cl_resultFMU; stateIndices=6:6, stateEvents=false, values=false, label="FMU ($(roundToLength(mse_FMU, 12)))");
-    Plots.plot!(fig, data.consumption_t, fmiGetSolutionState(cl_resultFMU, 6; isIndex=true) .* scaleFac, label="FMU (scaled) ($(roundToLength(mse_scale, 12)))");
-    Plots.plot!(fig, data.consumption_t, data.cumconsumption_val, label="Data", ribbon=data.cumconsumption_dev, fillalpha=0.3)
-    display(fig) 
-
-    max_re = -Inf 
-    min_re = Inf
-    for i in 2:length(cl_resultNFMU.eigenvalues.t)
-        eigvals = cl_resultNFMU.eigenvalues.saveval[i]
-
-        for j in 1:Int(length(eigvals)/2)
-            re = eigvals[(j-1)*2+1]
-            im = eigvals[j*2]
-
-            if re > max_re 
-                max_re = re
-            end
-
-            if re < min_re 
-                min_re = re 
-            end
-        end
-    end
-
-    @info "Eigenvalues between real $(min_re) and $(max_re)"
-    @info "Events: $(length(cl_resultNFMU.events)) VS $(length(cl_resultFMU.events))"
-
+    mse_NFMU = FMIFlux.Losses.mse_dev(data.cumconsumption_val, fmiGetSolutionState(resultNFMU, 6; isIndex=true), data.cumconsumption_dev)
+    
     return mse_NFMU
-end
-
-function validate(init::Bool=false)
-    cycles = [:train, :test, :validate]
-
-    for cycle in cycles
-        checkLoss(init; cycle=cycle)
-    end
 end
