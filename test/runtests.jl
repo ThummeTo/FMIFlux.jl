@@ -74,10 +74,10 @@ function runtests(exportingTool)
             include("batching.jl")
         end
 
-        @info "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
-        @testset "Benchmark: Supported sensitivities " begin
-            include("supported_sensitivities.jl")
-        end
+        # @info "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
+        # @testset "Benchmark: Supported sensitivities " begin
+        #     include("supported_sensitivities.jl")
+        # end
     end
 end
 

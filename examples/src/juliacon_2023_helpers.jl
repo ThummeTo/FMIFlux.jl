@@ -153,8 +153,8 @@ function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing)
     tStop = d.consumption_t[end]
     tSave = d.consumption_t
     
-    resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=d.params, showProgress=true, saveat=tSave, maxiters=1e7) 
-    resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=d.params, showProgress=true, saveat=tSave)
+    resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=d.params, showProgress=false, saveat=tSave, maxiters=1e7) 
+    resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=d.params, showProgress=false, saveat=tSave)
 
     fig = plotCumulativeConsumption(resultNFMU, resultFMU, d)
     if !isnothing(filename)
