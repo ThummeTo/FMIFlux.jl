@@ -4,13 +4,6 @@
 
 using LaTeXStrings
 
-# Hyperparameters are the results of hyperparameter optimization
-ETA, BETA1, BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS, EIGENLOSS, STIFFNESSRATIO, FMUGATE, ANNGATE, LOSSRATIO = [0.0001, 0.9, 0.999, 10.0, 0.5, :LossAccumulation, :MAE, :MAE, 1.0, 0.97, 0.0, 1000.0]
-RESSOURCE = 581.0
-TRAINSTEPS = max(round(Int, RESSOURCE/BATCHDUR), 1) 
-#MINIMUM =  28.868754186625036
-#VALIDATION = 2447.929471048355
-
 import FMIFlux: roundToLength
 import FMIZoo:movavg
 
