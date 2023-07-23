@@ -33,29 +33,50 @@ function mae_last_element(a::AbstractArray, b::AbstractArray)
     return mae(a[end], b[end])
 end
 
-function mae_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray)
-    num = length(a)
+function deviation(a::AbstractArray, b::AbstractArray, dev::AbstractArray)
     Δ = abs.(a .- b)
     Δ -= abs.(dev)
     Δ = collect(max(val, 0.0) for val in Δ)
+
+    return Δ
+end
+
+function mae_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray)
+    num = length(a)
+    Δ = deviation(a, b, dev)
     Δ = sum(Δ) / num
     return Δ
 end
 
 function mse_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray)
     num = length(a)
-    Δ = abs.(a .- b)
-    Δ -= abs.(dev)
-    Δ = collect(max(val, 0.0) for val in Δ)
+    Δ = deviation(a, b, dev)
     Δ = sum(Δ .^ 2) / num
     return Δ
 end
 
 function max_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray)
-    Δ = abs.(a .- b)
-    Δ -= abs.(dev)
-    Δ = collect(max(val, 0.0) for val in Δ)
+    Δ = deviation(a, b, dev)
     Δ = max(Δ...)
+    return Δ
+end
+
+function mae_last_element_rel_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray, lastElementRatio::Real)
+    num = length(a)
+    Δ = deviation(a, b, dev)
+    Δ[1:end-1] .*= (1.0-lastElementRatio)
+    Δ[  end  ]  *= lastElementRatio
+    Δ = sum(Δ) / num
+    return Δ
+end
+
+function mse_last_element_rel_dev(a::AbstractArray, b::AbstractArray, dev::AbstractArray, lastElementRatio::Real)
+    num = length(a)
+    Δ = deviation(a, b, dev)
+    Δ = Δ .^ 2
+    Δ[1:end-1] .*= (1.0-lastElementRatio)
+    Δ[  end  ]  *= lastElementRatio
+    Δ = sum(Δ) / num
     return Δ
 end
 

@@ -13,7 +13,9 @@ TRAINSTEPS = max(round(Int, RESSOURCE/BATCHDUR), 1)
 
 import FMIFlux: roundToLength
 import FMIZoo:movavg
+
 import FMI: FMU2Solution
+import FMIZoo: VLDM, VLDM_Data
 
 function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFactor::Int=10, field=:consumption, mov_avg::Int=100, filename=nothing)
     colorMin = 0
@@ -118,36 +120,39 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
     return gif(anim, filename; fps=10)
 end
 
-function plotCumulativeConsumption(solutionNFMU::FMU2Solution, solutionFMU::FMU2Solution, data::FMIZoo.VLDM_Data, pfusch::Real=0.9734342706063525)
-    t        = data.consumption_t 
+function plotCumulativeConsumption(solutionNFMU::FMU2Solution, solutionFMU::FMU2Solution, data::FMIZoo.VLDM_Data; range=(0.0,1.0), filename=nothing)
+
+    len = length(data.consumption_t)
+    steps = (1+round(Int, range[1]*len)):(round(Int, range[end]*len))
+
+    t        = data.consumption_t
     nfmu_val = fmiGetSolutionState(solutionNFMU, 6; isIndex=true)
     fmu_val  = fmiGetSolutionState(solutionFMU,  6; isIndex=true)
     data_val = data.cumconsumption_val
     data_dev = data.cumconsumption_dev
-    pfu_val  = fmu_val .* pfusch
-
+    
     mse_nfmu = FMIFlux.Losses.mse_dev(nfmu_val, data_val, data_dev)
     mse_fmu  = FMIFlux.Losses.mse_dev(fmu_val,  data_val, data_dev)
-    mse_pfu  = FMIFlux.Losses.mse_dev(pfu_val,  data_val, data_dev)
-
+    
     mae_nfmu = FMIFlux.Losses.mae_dev(nfmu_val, data_val, data_dev)
     mae_fmu  = FMIFlux.Losses.mae_dev(fmu_val,  data_val, data_dev)
-    mae_pfu  = FMIFlux.Losses.mae_dev(pfu_val,  data_val, data_dev)
-
+    
     max_nfmu = FMIFlux.Losses.max_dev(nfmu_val, data_val, data_dev)
     max_fmu  = FMIFlux.Losses.max_dev(fmu_val,  data_val, data_dev)
-    max_pfu  = FMIFlux.Losses.max_dev(pfu_val,  data_val, data_dev)
-
+   
     fig = plot(xlabel=L"t[s]", ylabel=L"x_6 [Ws]", dpi=600)
-    plot!(fig, t, data_val; label="Data", ribbon=data_dev, fillalpha=0.3)
-    plot!(fig, t,  fmu_val; label="FMU            [ MSE:$(roundToLength(mse_fmu,10)) | MAE:$(roundToLength(mae_fmu,10)) | MAX:$(roundToLength(max_fmu,10)) ]")
-    plot!(fig, t,  pfu_val; label="Pfusch-FMU [ MSE:$(roundToLength(mse_pfu,10)) | MAE:$(roundToLength(mae_pfu,10)) | MAX:$(roundToLength(max_pfu,10)) ]")
-    plot!(fig, t, nfmu_val; label="NeuralFMU  [ MSE:$(roundToLength(mse_nfmu,10)) | MAE:$(roundToLength(mae_nfmu,10)) | MAX:$(roundToLength(max_nfmu,10)) ]")
+    plot!(fig, t[steps], data_val[steps]; label="Data", ribbon=data_dev, fillalpha=0.3)
+    plot!(fig, t[steps],  fmu_val[steps]; label="FMU            [ MSE:$(roundToLength(mse_fmu,10)) | MAE:$(roundToLength(mae_fmu,10)) | MAX:$(roundToLength(max_fmu,10)) ]")
+    plot!(fig, t[steps], nfmu_val[steps]; label="NeuralFMU  [ MSE:$(roundToLength(mse_nfmu,10)) | MAE:$(roundToLength(mae_nfmu,10)) | MAX:$(roundToLength(max_nfmu,10)) ]")
+
+    if !isnothing(filename)
+        savefig(fig, filename)
+    end
 
     return fig
 end
 
-function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing)
+function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing; kwargs...)
     d = FMIZoo.VLDM(cycle)
     tStart = d.consumption_t[1]
     tStop = d.consumption_t[end]
@@ -156,7 +161,7 @@ function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing)
     resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=d.params, showProgress=false, saveat=tSave, maxiters=1e7) 
     resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=d.params, showProgress=false, saveat=tSave)
 
-    fig = plotCumulativeConsumption(resultNFMU, resultFMU, d)
+    fig = plotCumulativeConsumption(resultNFMU, resultFMU, d, kwargs...)
     if !isnothing(filename)
         savefig(fig, filename)
     end
