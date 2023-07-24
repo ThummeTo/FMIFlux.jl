@@ -10,7 +10,7 @@ import FMIZoo:movavg
 import FMI: FMU2Solution
 import FMIZoo: VLDM, VLDM_Data
 
-function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFactor::Int=10, field=:consumption, mov_avg::Int=100, filename=nothing)
+function plotANNError(neuralFMU::NeuralFMU, fmu::FMU2, data::FMIZoo.VLDM_Data; reductionFactor::Int=10, field=:consumption, mov_avg::Int=100, filename=nothing)
     colorMin = 0
     colorMax = 0
     okregion = 0
@@ -19,7 +19,8 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
     tStart = data.consumption_t[1]
     tStop = data.consumption_t[end]
     x0 = FMIZoo.getStateVector(data, tStart)
-    result = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=true, recordValues=:derivatives) 
+    resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=false, recordValues=:derivatives)
+    resultFMU = fmiSimulate((tStart, tStop); parameters=data.params, showProgress=false, recordValues=:derivatives) 
 
     # Finite differences for acceleration
     dt = data.consumption_t[2]-data.consumption_t[1]
@@ -28,32 +29,44 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
     acceleration_dev = (data.speed_dev[2:end] - data.speed_dev[1:end-1]) / dt
     acceleration_dev = [acceleration_dev..., 0.0]
 
-    ANNInputs = fmiGetSolutionValue(result, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
+    ANNInputs = fmiGetSolutionValue(resultNFMU, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
     ANNInputs = collect([ANNInputs[1][i], ANNInputs[2][i], ANNInputs[3][i], ANNInputs[4][i], ANNInputs[5][i], ANNInputs[6][i]] for i in 1:length(ANNInputs[1]))
-    ANNOutputs = fmiGetSolutionDerivative(result, 5:6; isIndex=true)
+    
+    ANNOutputs = fmiGetSolutionDerivative(resultNFMU, 5:6; isIndex=true)
     ANNOutputs = collect([ANNOutputs[1][i], ANNOutputs[2][i]] for i in 1:length(ANNOutputs[1]))
 
+    FMUOutputs = fmiGetSolutionDerivative(resultFMU, 5:6; isIndex=true)
+    FMUOutputs = collect([FMUOutputs[1][i], FMUOutputs[2][i]] for i in 1:length(FMUOutputs[1]))
+
     ANN_error = nothing 
+    FMU_error = nothing
 
     if field == :consumption
-        ANN_consumption = collect(o[2] for o in ANNOutputs)
+        ANN_consumption = collect(o[2] for o in ANNOutputs) 
         ANN_error = ANN_consumption - data.consumption_val
         ANN_error = collect(ANN_error[i] > 0.0 ? max(0.0, ANN_error[i]-data.consumption_dev[i]) : min(0.0, ANN_error[i]+data.consumption_dev[i]) for i in 1:length(data.consumption_t))
+
+        FMU_consumption = collect(o[2] for o in FMUOutputs) 
+        FMU_error = FMU_consumption - data.consumption_val
+        FMU_error = collect(FMU_error[i] > 0.0 ? max(0.0, FMU_error[i]-data.consumption_dev[i]) : min(0.0, FMU_error[i]+data.consumption_dev[i]) for i in 1:length(data.consumption_t))
         
         label = L"consumption [W]"
         colorMin=-610.0
         colorMax=610.0
     else # :acceleration 
-        ANN_acceleration = collect(o[1] for o in ANNOutputs)
-        ANN_error = ANN_acceleration - acceleration_val
-        ANN_error = collect(ANN_error[i] > 0.0 ? max(0.0, ANN_error[i]-acceleration_dev[i]) : min(0.0, ANN_error[i]+acceleration_dev[i]) for i in 1:length(data.consumption_t))
+        # ANN_acceleration = collect(o[1] for o in ANNOutputs)
+        # ANN_error = ANN_acceleration - acceleration_val
+        # ANN_error = collect(ANN_error[i] > 0.0 ? max(0.0, ANN_error[i]-acceleration_dev[i]) : min(0.0, ANN_error[i]+acceleration_dev[i]) for i in 1:length(data.consumption_t))
 
-        label = L"acceleration [m/s^2]"
-        colorMin=-0.04
-        colorMax=0.04
+        # label = L"acceleration [m/s^2]"
+        # colorMin=-0.04
+        # colorMax=0.04
     end
 
+    FMU_error = movavg(FMU_error, mov_avg)
     ANN_error = movavg(ANN_error, mov_avg)
+    
+    ANN_error = ANN_error .- FMU_error
 
     ANNInput_vel = collect(o[4] for o in ANNInputs)
     ANNInput_acc = collect(o[5] for o in ANNInputs)
@@ -61,7 +74,7 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
     
     _max = max(ANN_error...)
     _min = min(ANN_error...)
-    neutral = -colorMin/(colorMax-colorMin) # -_min/(_max-_min)
+    neutral = 0.5 # -colorMin/(colorMax-colorMin) # -_min/(_max-_min)
 
     if _max > colorMax
         @warn "max value ($(_max)) is larger than colorMax ($(colorMax)) - values will be cut"
@@ -71,31 +84,31 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
         @warn "min value ($(_min)) is smaller than colorMin ($(colorMin)) - values will be cut"
     end
 
-    ANN_error = collect(min(max(e, colorMin), colorMax) for e in ANN_error)
+    # ANN_error = collect(min(max(e, colorMin), colorMax) for e in ANN_error)
 
     @info "$(_min) $(_max) $(neutral)"
 
     anim = @animate for ang in 0:5:360
         l = Plots.@layout [Plots.grid(3,1) r{0.85w}]
         fig = Plots.plot(layout=l, size=(1600,800), left_margin = 10Plots.mm, right_margin = 10Plots.mm, bottom_margin = 10Plots.mm)
-
-        colorgrad = cgrad([:orange, :white, :blue], [0.0, 0.5, 1.0]) # , scale = :log)
-
+    
+        colorgrad = cgrad([:green, :white, :red], [0.0, 0.5, 1.0]) # , scale = :log)
+    
         scatter!(fig[1], ANNInput_vel[1:reductionFactor:end], ANNInput_acc[1:reductionFactor:end],
-                    xlabel=L"velocity [m/s]", ylabel=L"acceleration [m/s^2]",
+                    xlabel="velocity [m/s]", ylabel="acceleration [m/s^2]",
                     color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
-   
+    
         scatter!(fig[2], ANNInput_acc[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
-                    xlabel=L"acceleration [m/s^2]", ylabel=L"consumption [W]",
+                    xlabel="acceleration [m/s^2]", ylabel="consumption [W]",
                     color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
-                 
+                
         scatter!(fig[3], ANNInput_vel[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
-                    xlabel=L"velocity [m/s]", ylabel=L"consumption [W]",
+                    xlabel="velocity [m/s]", ylabel="consumption [W]",
                     color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], label=:none, colorbar=:none) # 
-
+    
         scatter!(fig[4], ANNInput_vel[1:reductionFactor:end], ANNInput_acc[1:reductionFactor:end], ANNInput_con[1:reductionFactor:end],
-                    xlabel=L"velocity [m/s]", ylabel=L"acceleration [m/s^2]", zlabel=L"consumption [W]",
-                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], markersize=8, label=:none, camera=(ang,20), colorbar_title=" \n\n\n\n" * L"Δ" * label * " (smoothed)") # 
+                    xlabel="velocity [m/s]", ylabel="acceleration [m/s^2]", zlabel="consumption [W]",
+                    color=colorgrad, zcolor=ANN_error[1:reductionFactor:end], markersize=8, label=:none, camera=(ang,20), colorbar_title=" \n\n\n\n" * "Δ" * label * " (smoothed)") # 
     
         # draw invisible dummys to scale colorbar to fixed size
         for i in 1:3 
@@ -110,7 +123,11 @@ function plotANNError(neuralFMU::NeuralFMU, data::FMIZoo.VLDM_Data; reductionFac
         end
     end
 
-    return gif(anim, filename; fps=10)
+    if !isnothing(filename)
+        return gif(anim, filename; fps=10)
+    else
+        return gif(anim; fps=10)
+    end
 end
 
 function plotCumulativeConsumption(solutionNFMU::FMU2Solution, solutionFMU::FMU2Solution, data::FMIZoo.VLDM_Data; range=(0.0,1.0), filename=nothing)
