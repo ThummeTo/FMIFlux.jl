@@ -65,10 +65,6 @@ import Random
 Random.seed!(1234);
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMI [14a09403-18e3-468f-ad8a-74f8dda2d9ac]
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMIFlux [fabad875-0d53-4e47-9446-963b74cae21f]
-    
-
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The objec-orientated structure of the *SpringPendulumExtForce1D* can be seen in the following graphic. This model is a simple spring pendulum without friction, but with an external force. 
@@ -85,13 +81,6 @@ tStop = 5.0
 tSave = tStart:tStep:tStop
 ```
 
-
-
-
-    0.0:0.01:5.0
-
-
-
 ### ReferenceFMU
 
 In the next lines of code the FMU of the *referenceFMU* model is loaded from *FMIZoo.jl* and the information about the FMU is shown.  
@@ -101,38 +90,6 @@ In the next lines of code the FMU of the *referenceFMU* model is loaded from *FM
 referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
 fmiInfo(referenceFMU)
 ```
-
-    #################### Begin information for FMU ####################
-    	Model name:			SpringPendulumExtForce1D
-    	FMI-Version:			2.0
-    	GUID:				{df5ebe46-3c86-42a5-a68a-7d008395a7a3}
-    	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
-    	Generation time:		2022-05-19T06:54:33Z
-    	Var. naming conv.:		structured
-    	Event indicators:		0
-    	Inputs:				1
-    		352321536 ["extForce"]
-    	Outputs:			2
-    		335544320 ["accSensor.v", "der(accSensor.flange.s)", "v", "der(speedSensor.flange.s)", "speedSensor.v"]
-    		335544321 ["der(accSensor.v)", "a", "accSensor.a"]
-    	States:				2
-    		33554432 ["mass.s"]
-    		33554433 ["mass.v"]
-    	Supports Co-Simulation:		true
-    		Model identifier:	SpringPendulumExtForce1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    		Var. com. steps:	true
-    		Input interpol.:	true
-    		Max order out. der.:	1
-    	Supports Model-Exchange:	true
-    		Model identifier:	SpringPendulumExtForce1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    ##################### End information for FMU #####################
-    
 
 In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $1.3𝑚$. The second parameter is the initial velocity of the mass, which is initilized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *referenceFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *referenceFMU* can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.
 
@@ -144,15 +101,6 @@ referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, 
 fmiPlot(referenceSimData)
 ```
 
-
-
-
-    
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg)
-    
-
-
-
 The data from the simulation of the *referenceFMU*, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. 
 
 
@@ -161,39 +109,6 @@ posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
 velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
 accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
 ```
-
-
-
-
-    501-element Vector{Float64}:
-     -1.9999999999999996
-     -1.9988827275812904
-     -1.9958127258179004
-     -1.9907908533763607
-     -1.9837918439669844
-     -1.9748258342855118
-     -1.963890162864621
-     -1.9510089134488018
-     -1.9361810148909009
-     -1.9194099484303728
-     -1.9007374108186537
-     -1.8801634598739092
-     -1.8576990114645708
-      ⋮
-      1.9971927754348462
-      2.0126501310664713
-      2.026070116129912
-      2.037424725618772
-      2.0467236772128947
-      2.0541004250985972
-      2.0594240680173828
-      2.062679095787284
-      2.0638499982263325
-      2.0629212651525553
-      2.059877386383986
-      2.0548550901379925
-
-
 
 ### DefaultFMU
 
@@ -205,15 +120,6 @@ defaultFMU = referenceFMU
 param = Dict("mass_s0" => 0.5, "mass.v" => 0.0)
 ```
 
-
-
-
-    Dict{String, Float64} with 2 entries:
-      "mass_s0" => 0.5
-      "mass.v"  => 0.0
-
-
-
 The following simulate and plot the *defaultFMU* just like the *referenceFMU*. The differences between both systems can be clearly seen from the plots. In the plots for the *defaultFMU* you can see that other oscillations occur due to the different starting positions. On the one hand the oscillation of the *defaultFMU* starts in the opposite direction of the *referenceFMU* and on the other hand the graphs for the velocity and acceleration differ clearly in the amplitude. In the following we try to learn the initial shift of the position so that the graphs for the acceleration of both graphs match.
 
 
@@ -221,15 +127,6 @@ The following simulate and plot the *defaultFMU* just like the *referenceFMU*. T
 defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
 fmiPlot(defaultSimData)
 ```
-
-
-
-
-    
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_17_0.svg)
-    
-
-
 
 The data from the simualtion of the *defaultFMU*, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later.
 
@@ -239,39 +136,6 @@ posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
 velDefault = fmi2GetSolutionValue(defaultSimData, vrs[2])
 accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])
 ```
-
-
-
-
-    501-element Vector{Float64}:
-      6.0
-      5.996872980925033
-      5.987824566254761
-      5.9728274953129645
-      5.95187583433241
-      5.9249872805026715
-      5.892169834645022
-      5.853465119227542
-      5.808892969264781
-      5.75851573503067
-      5.702370188387734
-      5.640527685538739
-      5.573049035471661
-      ⋮
-     -5.842615646003006
-     -5.884869953422783
-     -5.921224800662572
-     -5.9516502108284985
-     -5.976144547672481
-     -5.994659284032171
-     -6.007174453690571
-     -6.013675684067705
-     -6.014154196220591
-     -6.008606804843264
-     -5.997055285530499
-     -5.979508813705998
-
-
 
 ## CS-NeuralFMU
 
@@ -286,13 +150,6 @@ function extForce(t)
     return [0.0]
 end 
 ```
-
-
-
-
-    extForce (generic function with 1 method)
-
-
 
 #### Loss function
 
@@ -314,13 +171,6 @@ function lossSum(p)
 end
 ```
 
-
-
-
-    lossSum (generic function with 1 method)
-
-
-
 #### Callback
 
 To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.
@@ -339,13 +189,6 @@ function callb(p)
 end
 ```
 
-
-
-
-    callb (generic function with 1 method)
-
-
-
 #### Structure of the CS-NeuralFMU
 
 In the following, the topology of the CS-NeuralFMU is constructed. It consists of an input layer, which then leads into the *defaultFMU* model. The CS-FMU computes the outputs for the given system state and time step. After the *defaultFMU* follows a dense layer, which has exactly as many inputs as the model has outputs. The output of this layer consists of 16 output nodes and a *tanh* activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of model outputs as output nodes. Here, it is important that no *tanh*-activation function follows, because otherwise the pendulums state values would be limited to the interval $[-1;1]$.
@@ -361,18 +204,6 @@ net = Chain(u -> defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueRefere
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
 ```
-
-
-
-
-    Chain(
-      var"#1#2"(),
-      Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
-      Dense(16 => 16, tanh),                [90m# 272 parameters[39m
-      Dense(16 => 2),                       [90m# 34 parameters[39m
-    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
-
-
 
 #### Definition of the CS-NeuralFMU
 
@@ -394,15 +225,6 @@ accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
 Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 ```
 
-
-
-
-    
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_32_0.svg)
-    
-
-
-
 #### Training of the CS-NeuralFMU
 
 For the training of the CS-NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
@@ -415,58 +237,6 @@ paramsNet = FMIFlux.params(csNeuralFMU)
 optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet))
 ```
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 2.37052
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.50853
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.06165
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.04292
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.02705
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0182
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.01173
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.00733
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.00446
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.00269
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00164
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.00103
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.00069
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.0005
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.0004
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.00035
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.00032
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.0003
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.00029
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.00029
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.00028
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.00028
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.00027
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.00027
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.00027
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.00027
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.00026
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.00025
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.00024
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.00024
-    
 
 #### Comparison of the plots
 
@@ -489,15 +259,6 @@ Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
 Plots.plot!(fig, tSave, accNeuralFMU, label="CS-NeuralFMU (1000 eps.)", linewidth=2)
 fig 
 ```
-
-
-
-
-    
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg)
-    
-
-
 
 Finally, the FMU is cleaned-up.
 

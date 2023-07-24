@@ -65,10 +65,6 @@ import Random
 Random.seed!(42);
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMI [14a09403-18e3-468f-ad8a-74f8dda2d9ac]
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling FMIFlux [fabad875-0d53-4e47-9446-963b74cae21f]
-    
-
 After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
 
 The object-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
@@ -89,39 +85,6 @@ tStop = 5.0
 tSave = collect(tStart:tStep:tStop)
 ```
 
-
-
-
-    501-element Vector{Float64}:
-     0.0
-     0.01
-     0.02
-     0.03
-     0.04
-     0.05
-     0.06
-     0.07
-     0.08
-     0.09
-     0.1
-     0.11
-     0.12
-     ⋮
-     4.89
-     4.9
-     4.91
-     4.92
-     4.93
-     4.94
-     4.95
-     4.96
-     4.97
-     4.98
-     4.99
-     5.0
-
-
-
 ### RealFMU
 
 In the next lines of code the FMU of the *realFMU* model from *FMIZoo.jl* is loaded and the information about the FMU is shown.
@@ -131,35 +94,6 @@ In the next lines of code the FMU of the *realFMU* model from *FMIZoo.jl* is loa
 realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
 fmiInfo(realFMU)
 ```
-
-    #################### Begin information for FMU ####################
-    	Model name:			SpringFrictionPendulum1D
-    	FMI-Version:			2.0
-    	GUID:				{2e178ad3-5e9b-48ec-a7b2-baa5669efc0c}
-    	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
-    	Generation time:		2022-05-19T06:54:12Z
-    	Var. naming conv.:		structured
-    	Event indicators:		24
-    	Inputs:				0
-    	Outputs:			0
-    	States:				2
-    		33554432 ["mass.s"]
-    		33554433 ["mass.v", "mass.v_relfric"]
-    	Supports Co-Simulation:		true
-    		Model identifier:	SpringFrictionPendulum1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    		Var. com. steps:	true
-    		Input interpol.:	true
-    		Max order out. der.:	1
-    	Supports Model-Exchange:	true
-    		Model identifier:	SpringFrictionPendulum1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    ##################### End information for FMU #####################
-    
 
 In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $0.5𝑚$. The second parameter is the initial velocity of the mass, which is initialized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *realFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
 
@@ -174,15 +108,6 @@ realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordVal
 fmiPlot(realSimData)
 ```
 
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_11_0.svg)
-    
-
-
-
 The data from the simulation of the *realFMU*, are divided into position and velocity data. These data will be needed later. 
 
 
@@ -190,39 +115,6 @@ The data from the simulation of the *realFMU*, are divided into position and vel
 velReal = fmi2GetSolutionValue(realSimData, "mass.v")
 posReal = fmi2GetSolutionValue(realSimData, "mass.s")
 ```
-
-
-
-
-    501-element Vector{Float64}:
-     0.5
-     0.5002235448486548
-     0.5008715291319449
-     0.5019478597521578
-     0.5034570452098334
-     0.5053993458877354
-     0.5077764240578201
-     0.5105886522837868
-     0.5138351439717114
-     0.5175150321322992
-     0.521627087567517
-     0.5261682148972211
-     0.5311370185654775
-     ⋮
-     1.0657564963384756
-     1.066930862706352
-     1.0679715872270086
-     1.068876303469867
-     1.0696434085045978
-     1.0702725656148622
-     1.0707609890298837
-     1.071107075846018
-     1.0713093338869186
-     1.0713672546639146
-     1.0713672546629138
-     1.071367254661913
-
-
 
 After extracting the data, the FMU is cleaned-up.
 
@@ -245,44 +137,6 @@ simpleSimData = fmiSimulate(simpleFMU, (tStart, tStop); recordValues=vrs, saveat
 fmiPlot(simpleSimData)
 ```
 
-    #################### Begin information for FMU ####################
-    	Model name:			SpringPendulum1D
-    	FMI-Version:			2.0
-    	GUID:				{fc15d8c4-758b-48e6-b00e-5bf47b8b14e5}
-    	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
-    	Generation time:		2022-05-19T06:54:23Z
-    	Var. naming conv.:		structured
-    	Event indicators:		0
-    	Inputs:				0
-    	Outputs:			0
-    	States:				2
-    		33554432 ["mass.s"]
-    		33554433 ["mass.v"]
-    	Supports Co-Simulation:		true
-    		Model identifier:	SpringPendulum1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    		Var. com. steps:	true
-    		Input interpol.:	true
-    		Max order out. der.:	1
-    	Supports Model-Exchange:	true
-    		Model identifier:	SpringPendulum1D
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    ##################### End information for FMU #####################
-    
-
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_17_1.svg)
-    
-
-
-
 The data from the simulation of the *simpleFMU*, are divided into position and velocity data. These data will be needed later to plot the results. 
 
 
@@ -290,39 +144,6 @@ The data from the simulation of the *simpleFMU*, are divided into position and v
 velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
 posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
 ```
-
-
-
-
-    501-element Vector{Float64}:
-     0.5
-     0.5003127019074967
-     0.5012175433745238
-     0.5027172504687035
-     0.504812416566759
-     0.5075012719497328
-     0.5107830165354977
-     0.5146534880772458
-     0.5191107030735219
-     0.5241484264969329
-     0.5297629811612266
-     0.5359472314461261
-     0.5426950964528339
-     ⋮
-     1.6842615646003007
-     1.6884869953422783
-     1.6921224800662573
-     1.69516502108285
-     1.6976144547672483
-     1.6994659284032172
-     1.7007174453690572
-     1.7013675684067706
-     1.7014154196220592
-     1.7008606804843265
-     1.69970552855305
-     1.6979508813706
-
-
 
 ## NeuralFMU
 
@@ -348,13 +169,6 @@ function lossSum(p)
 end
 ```
 
-
-
-
-    lossSum (generic function with 1 method)
-
-
-
 #### Callback
 
 To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.
@@ -372,13 +186,6 @@ function callb(p)
 end
 ```
 
-
-
-
-    callb (generic function with 1 method)
-
-
-
 #### Structure of the NeuralFMU
 
 In the following, the topology of the NeuralFMU is constructed. It consists of an input layer, which then leads into the *simpleFMU* model. The ME-FMU computes the state derivatives for a given system state. Following the *simpleFMU* is a dense layer that has exactly as many inputs as the model has states (and therefore state derivatives). The output of this layer consists of 16 output nodes and a *tanh* activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of states as outputs. Here, it is important that no *tanh*-activation function follows, because otherwise the pendulums state values would be limited to the interval $[-1;1]$.
@@ -393,18 +200,6 @@ net = Chain(x -> simpleFMU(x=x),
             Dense(16, 16, tanh),
             Dense(16, numStates))
 ```
-
-
-
-
-    Chain(
-      var"#1#2"(),
-      Dense(2 => 16, tanh),                 [90m# 48 parameters[39m
-      Dense(16 => 16, tanh),                [90m# 272 parameters[39m
-      Dense(16 => 2),                       [90m# 34 parameters[39m
-    ) [90m                  # Total: 6 arrays, [39m354 parameters, 1.758 KiB.
-
-
 
 #### Definition of the NeuralFMU
 
@@ -425,15 +220,6 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 ```
 
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_29_0.svg)
-    
-
-
-
 #### Training of the NeuralFMU
 
 For the training of the NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
@@ -446,23 +232,6 @@ paramsNet = FMIFlux.params(neuralFMU)
 optim = Adam()
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 ```
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 14.31508   Avg displacement in data: 3.78353
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 2.0444   Avg displacement in data: 1.42982
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.3616   Avg displacement in data: 0.60134
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.11463   Avg displacement in data: 0.33857
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.07369   Avg displacement in data: 0.27146
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0657   Avg displacement in data: 0.25632
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.06032   Avg displacement in data: 0.24561
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.05599   Avg displacement in data: 0.23662
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.05241   Avg displacement in data: 0.22894
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.0495   Avg displacement in data: 0.22249
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.04714   Avg displacement in data: 0.21711
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.04522   Avg displacement in data: 0.21265
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.04366   Avg displacement in data: 0.20896
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.04239   Avg displacement in data: 0.20589
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.04134   Avg displacement in data: 0.20333
-    
 
 #### Comparison of the plots
 
@@ -486,15 +255,6 @@ Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (300 epochs)", linewidth=
 fig 
 ```
 
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_33_0.svg)
-    
-
-
-
 #### Continue training and plotting
 
 As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFMU*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training can be recognized well, since the plot of the NeuralFMU had further converged. 
@@ -508,77 +268,6 @@ posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
 Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1500 epochs)", linewidth=2)
 fig 
 ```
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.04048   Avg displacement in data: 0.20119
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.03976   Avg displacement in data: 0.19939
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.03915   Avg displacement in data: 0.19787
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.03864   Avg displacement in data: 0.19657
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.03821   Avg displacement in data: 0.19546
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.03783   Avg displacement in data: 0.1945
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.03751   Avg displacement in data: 0.19366
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.03722   Avg displacement in data: 0.19292
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.03696   Avg displacement in data: 0.19225
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.03672   Avg displacement in data: 0.19163
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [501]: 0.03651   Avg displacement in data: 0.19107
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [521]: 0.0363   Avg displacement in data: 0.19054
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [541]: 0.03611   Avg displacement in data: 0.19003
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [561]: 0.03593   Avg displacement in data: 0.18955
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [581]: 0.03575   Avg displacement in data: 0.18908
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [601]: 0.03558   Avg displacement in data: 0.18862
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [621]: 0.03541   Avg displacement in data: 0.18817
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [641]: 0.03524   Avg displacement in data: 0.18772
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [661]: 0.03507   Avg displacement in data: 0.18728
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [681]: 0.0349   Avg displacement in data: 0.18683
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [701]: 0.03473   Avg displacement in data: 0.18637
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [721]: 0.03456   Avg displacement in data: 0.18591
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [741]: 0.03439   Avg displacement in data: 0.18544
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [761]: 0.03421   Avg displacement in data: 0.18495
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [781]: 0.03402   Avg displacement in data: 0.18445
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [801]: 0.03383   Avg displacement in data: 0.18394
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [821]: 0.03364   Avg displacement in data: 0.1834
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [841]: 0.03343   Avg displacement in data: 0.18284
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [861]: 0.03322   Avg displacement in data: 0.18226
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [881]: 0.03299   Avg displacement in data: 0.18164
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [901]: 0.03276   Avg displacement in data: 0.181
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [921]: 0.03252   Avg displacement in data: 0.18033
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [941]: 0.03226   Avg displacement in data: 0.17962
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [961]: 0.03199   Avg displacement in data: 0.17887
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [981]: 0.03171   Avg displacement in data: 0.17806
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1001]: 0.0314   Avg displacement in data: 0.1772
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1021]: 0.03109   Avg displacement in data: 0.17632
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1041]: 0.03075   Avg displacement in data: 0.17537
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1061]: 0.0304   Avg displacement in data: 0.17435
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1081]: 0.03001   Avg displacement in data: 0.17324
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1101]: 0.0296   Avg displacement in data: 0.17205
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1121]: 0.02916   Avg displacement in data: 0.17076
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1141]: 0.02868   Avg displacement in data: 0.16936
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1161]: 0.02816   Avg displacement in data: 0.16781
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1181]: 0.02759   Avg displacement in data: 0.16611
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1201]: 0.02697   Avg displacement in data: 0.16423
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1221]: 0.02627   Avg displacement in data: 0.16207
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1241]: 0.02549   Avg displacement in data: 0.15965
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1261]: 0.02462   Avg displacement in data: 0.15692
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1281]: 0.02366   Avg displacement in data: 0.15383
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1301]: 0.02261   Avg displacement in data: 0.15038
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1321]: 0.02148   Avg displacement in data: 0.14656
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1341]: 0.02029   Avg displacement in data: 0.14245
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1361]: 0.01909   Avg displacement in data: 0.13816
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1381]: 0.01791   Avg displacement in data: 0.13382
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1401]: 0.01679   Avg displacement in data: 0.12958
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1421]: 0.01576   Avg displacement in data: 0.12552
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1441]: 0.01482   Avg displacement in data: 0.12172
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1461]: 0.01397   Avg displacement in data: 0.11819
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1481]: 0.01321   Avg displacement in data: 0.11494
-    
-
-
-
-
-    
-![svg](simple_hybrid_ME_files/simple_hybrid_ME_35_1.svg)
-    
-
-
 
 Finally, the FMU is cleaned-up.
 
