@@ -11,13 +11,27 @@ if VERSION < v"1.7.0"
     @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
 end
 
-# ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.29
-import SciMLSensitivity: FakeIntegrator, u_modified!, TrackedAffect, set_u!
-function u_modified!(::FakeIntegrator, ::Bool)
-end
+# Overwrite tag printing and limit partials length from ForwardDiff.jl 
+# import FMIImport.ForwardDiff
+# function Base.show(io::IO, d::ForwardDiff.Dual{T,V,N}) where {T,V,N}
+#     print(io, "Dual(", ForwardDiff.value(d))
+#     for i in 1:min(N, 5)
+#         print(io, ", ", ForwardDiff.partials(d, i))
+#     end
+#     if N > 5
+#         print(io, ", [$(N-5) more]...")
+#     end
+#     print(io, ")")
+# end
 
-function set_u!(integrator::FakeIntegrator, u)
-    #integrator.u = u
+# ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.29
+import FMIImport.SciMLSensitivity: FakeIntegrator, u_modified!, TrackedAffect
+import FMIImport.SciMLSensitivity.DiffEqBase: set_u!
+function u_modified!(::FakeIntegrator, ::Bool)
+    return nothing
+end
+function set_u!(::FakeIntegrator, u)
+    return nothing
 end
 
 # ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.28

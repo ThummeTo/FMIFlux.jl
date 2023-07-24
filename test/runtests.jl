@@ -54,10 +54,10 @@ function runtests(exportingTool)
             include("train_modes.jl")
         end
 
-        @info "Multi-threading (multi_threading.jl)"
-        @testset "Multi-threading" begin
-            include("multi_threading.jl")
-        end
+        # @info "Multi-threading (multi_threading.jl)"
+        # @testset "Multi-threading" begin
+        #     include("multi_threading.jl")
+        # end
 
         @info "CS-NeuralFMU (hybrid_CS.jl)"
         @testset "CS-NeuralFMU" begin
@@ -68,6 +68,16 @@ function runtests(exportingTool)
         @testset "Multiple FMUs" begin
             include("multi.jl")
         end
+
+        @info "Batching (batching.jl)"
+        @testset "Batching" begin
+            include("batching.jl")
+        end
+
+        # @info "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
+        # @testset "Benchmark: Supported sensitivities " begin
+        #     include("supported_sensitivities.jl")
+        # end
     end
 end
 

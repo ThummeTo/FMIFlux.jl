@@ -182,7 +182,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
 
     lastIndex = 0
     scheduler.step = 0
-    scheduler.elementIndex = 1
+    scheduler.elementIndex = 0
 
     if hasfield(typeof(scheduler), :runkwargs)
         scheduler.runkwargs = runkwargs
@@ -214,8 +214,8 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     num = length(scheduler.batch)
 
     xs = 1:num 
-    ys = collect((length(b.losses) > 0 ? b.losses[end].loss : 0.0) for b in scheduler.batch)
-    ys_shadow = collect((length(b.losses) > 1 ? b.losses[end-1].loss : 1e-16) for b in scheduler.batch)
+    ys = collect((length(b.losses) > 0 ? nominalLoss(b.losses[end]) : 0.0) for b in scheduler.batch)
+    ys_shadow = collect((length(b.losses) > 1 ? nominalLoss(b.losses[end-1]) : 1e-16) for b in scheduler.batch)
     
     title = "[$(scheduler.step)]" 
     if hasfield(typeof(scheduler), :printMsg)
@@ -248,9 +248,9 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     end
     
     if lastIndex > 0
-        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID", markersize = 5.0) # current batch element
+        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID [$(lastIndex)]", markersize = 5.0) # current batch element
     end
-    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID", markersize = 3.0) # next batch element
+    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID [$(scheduler.elementIndex)]", markersize = 3.0) # next batch element
     display(fig)
 end
 
@@ -294,7 +294,7 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
 
     num = length(scheduler.batch)
     for i in 1:num
-        #l = scheduler.batch[i].losses[end].loss
+        #l = nominalLoss(scheduler.batch[i].losses[end])
 
         FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
         l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
@@ -325,7 +325,9 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
     nextind = 1
 
     # reset current accu loss
-    scheduler.lossAccu[scheduler.elementIndex] = 0.0
+    if scheduler.elementIndex > 0
+        scheduler.lossAccu[scheduler.elementIndex] = 0.0
+    end
 
     num = length(scheduler.batch)
     for i in 1:num
@@ -333,12 +335,13 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
         l = 0.0
 
         if length(scheduler.batch[i].losses) >= 1
-            l = scheduler.batch[i].losses[end].loss
+            l = nominalLoss(scheduler.batch[i].losses[end])
         end
         
         if scheduler.step % scheduler.updateStep == 0
             FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-            l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+            l = nominalLoss(scheduler.batch[i].losses[end])
         end
 
         scheduler.lossAccu[i] += l
@@ -383,7 +386,7 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool=true)
 
         l_der = l # fallback for first run (greatest error)
         if length(scheduler.batch[i].losses) >= 2
-            l_der = (l - scheduler.batch[i].losses[end-1].loss)
+            l_der = (l - nominalLoss(scheduler.batch[i].losses[end-1]))
         end
         
         losssum += l
@@ -410,22 +413,24 @@ end
 
 function apply!(scheduler::RandomScheduler; print::Bool=true)
 
+    next = rand(1:length(scheduler.batch))
+
     if print
-        @info "$(scheduler.elementIndex) [$(scheduler.step)]"
+        @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"
     end
 
-    return rand(1:length(scheduler.batch))
+    return next
 end
 
 function apply!(scheduler::SequentialScheduler; print::Bool=true)
 
-    if print
-        @info "$(scheduler.elementIndex) [$(scheduler.step)]"
-    end
-
     next = scheduler.elementIndex+1
     if next > length(scheduler.batch)
         next = 1
+    end
+
+    if print
+        @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"
     end
 
     return next
