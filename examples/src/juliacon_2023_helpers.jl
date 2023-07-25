@@ -10,6 +10,26 @@ import FMIZoo: movavg
 import FMI: FMU2Solution
 import FMIZoo: VLDM, VLDM_Data
 
+function fmiSingleInstanceMode(fmu::FMU2, mode::Bool)
+    if mode 
+        # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
+        # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
+        fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NOTHING
+        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type, true, false, false, false, true, data.params; x0=x0)
+    else
+        c = FMI.getCurrentComponent(fmu)
+        # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
+        # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
+        fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NO_RESET
+        FMIFlux.finishSolveFMU(fmu, c, false, true)
+    end
+    return nothing
+end
+
+function dataIndexForTime(t::Real)
+    return 1+round(Int, t/dt)
+end
+
 function plotEnhancements(neuralFMU::NeuralFMU, fmu::FMU2, data::FMIZoo.VLDM_Data; reductionFactor::Int=10, mov_avg::Int=100, filename=nothing)
     colorMin = 0
     colorMax = 0
