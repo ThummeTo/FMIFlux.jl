@@ -16,13 +16,9 @@ nprocs()
 workers = addprocs(5) 
 @everywhere include(joinpath(@__DIR__, "workshop_module.jl"))
 
-# set the current hyperparameter optimization run
-@everywhere NODE_Training.HPRUN = 1
-@info "Run: $(NODE_Training.HPRUN)"
-
 # creating paths for log files (logs), parameter sets (params) and hyperparameter plots (plots) 
-for dir ∈ ("logs", "params", "plots", "results") 
-    path = joinpath(@__DIR__, dir, "$(NODE_Training.HPRUN)")
+for dir ∈ ("logs", "params", "plots") 
+    path = joinpath(@__DIR__, dir)
     @info "Creating (if not already) path: $(path)"
     mkpath(path)
 end 
@@ -43,8 +39,8 @@ DistributedHyperOpt.optimize(optimization;
                           sampler=sampler, 
                           plot=true, 
                           plot_ressources=true,
-                          save_plot=joinpath(@__DIR__, "plots", "$(NODE_Training.HPRUN)", "hyperoptim.png"),
-                          redirect_worker_io_dir=joinpath(@__DIR__, "logs", "$(NODE_Training.HPRUN)"))
+                          save_plot=joinpath(@__DIR__, "plots", "hyperoptim.png"),
+                          redirect_worker_io_dir=joinpath(@__DIR__, "logs"))
 
 Plots.plot(optimization; size=(1024, 1024), ressources=true)
 minimum, minimizer, ressource = DistributedHyperOpt.results(optimization)
