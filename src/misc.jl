@@ -6,7 +6,7 @@
 using Flux
 
 """
-Compares non-equidistant (or equdistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
+Compares non-equidistant (or equidistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
 (Zygote-friendly: Zygote can differentiate through via AD.)
 """
 function mse_interpolate(t1, x1, t2, x2, t_comp)
