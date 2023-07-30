@@ -5,7 +5,7 @@ This list some common - often numerical - errors, that can be fixed by better un
 
 ## Double callback crossing
 ### Description
-Error message, a double zero-crossing happended, often during training a NeuralFMU.
+Error message, a double zero-crossing happened, often during training a NeuralFMU.
 
 ### Example
 - `Double callback crossing floating pointer reducer errored. Report this issue.`
