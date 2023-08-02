@@ -2,7 +2,10 @@
 # FMIFlux.jl
 
 ## What is FMIFlux.jl?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to set up NeuralFMUs just like NeuralODEs: You can place FMUs ([fmi-standard.org](http://fmi-standard.org/)) simply inside any feed-forward ANN topology and still keep the resulting hybrid model trainable with a standard (or custom) FluxML training process.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to simply place your FMU ([fmi-standard.org](http://fmi-standard.org/)) everywhere inside of your ML topologies and still keep the resulting models trainable with a standard (or custom) FluxML training process. This includes for example:
+- NeuralODEs including FMUs, so called *Neural Functional Mock-up Units* (NeuralFMUs): You can place FMUs inside of your ML topology.
+- PINNs including FMUs, so called *Functional Mock-Up Unit informed Neural Networks* (FMUINNs): You can evaluate FMUs inside of your loss function. 
+
 
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
 [![Test (latest)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/TestLatest.yml)
@@ -12,7 +15,7 @@
 [![Run PkgEval](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Eval.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Eval.yml)
 [![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
-
+[![FMIFlux Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FMIFlux)](https://pkgs.genieframework.com?packages=FMIFlux).
 
 ## How can I use FMIFlux.jl?
 
@@ -20,19 +23,20 @@
 
 2\. Install  [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-(@v1.x) pkg> add FMIFlux
+(@v1) pkg> add FMIFlux
 ```
 
 3\. If you want to check that everything works correctly, you can run the tests bundled with [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl):
 ```julia-repl
-(@v1.x) pkg> test FMIFlux
+(@v1) pkg> test FMIFlux
 ```
 
 4\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
 
 ## What is currently supported in FMIFlux.jl?
-- building and training ME-NeuralFMUs (event-handling is supported) with the default Flux-Front-End
-- building and training CS-NeuralFMUs with the default Flux-Front-End
+- building and training ME-NeuralFMUs (NeuralODEs) with support for event-handling 
+- building and training CS-NeuralFMUs 
+- building and training FMUINNs (PINNs)
 - different AD-frameworks: ForwardDiff.jl, ReverseDiff.jl (default setting) and Zygote.jl
 - ...
 
@@ -43,9 +47,9 @@
 - ...
 
 ## What Platforms are supported?
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *1.6* (LTS) and *1.8* (latest) on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
+[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *v1.6* (LTS) and *v1* (latest) on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
 [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) currently only works with FMI2-FMUs. 
-All shipped examples are automatically tested under Julia version *1.8* (latest) on Windows (latest).
+All shipped examples are automatically tested under Julia version *v1* (latest) on Windows (latest).
 
 ## What FMI.jl-Library should I use?
 ![FMI.jl Family](https://github.com/ThummeTo/FMI.jl/blob/main/docs/src/assets/FMI_JL_family.png?raw=true "FMI.jl Family")
