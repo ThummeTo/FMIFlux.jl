@@ -3,8 +3,10 @@
 
 ## What is FMIFlux.jl?
 [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is a free-to-use software library for the Julia programming language, which offers the ability to simply place your FMU ([fmi-standard.org](http://fmi-standard.org/)) everywhere inside of your ML topologies and still keep the resulting models trainable with a standard (or custom) FluxML training process. This includes for example:
-- NeuralODEs including FMUs, so called *Neural Functional Mock-up Units* (NeuralFMUs): You can place FMUs inside of your ML topology.
-- PINNs including FMUs, so called *Functional Mock-Up Unit informed Neural Networks* (FMUINNs): You can evaluate FMUs inside of your loss function. 
+- NeuralODEs including FMUs, so called *Neural Functional Mock-up Units* (NeuralFMUs): 
+You can place FMUs inside of your ML topology.
+- PINNs including FMUs, so called *Functional Mock-Up Unit informed Neural Networks* (FMUINNs): 
+You can evaluate FMUs inside of your loss function. 
 
 
 [![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://ThummeTo.github.io/FMIFlux.jl/dev) 
@@ -15,7 +17,7 @@
 [![Run PkgEval](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Eval.yml/badge.svg)](https://github.com/ThummeTo/FMIFlux.jl/actions/workflows/Eval.yml)
 [![Coverage](https://codecov.io/gh/ThummeTo/FMIFlux.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/FMIFlux.jl)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
-[![FMIFlux Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FMIFlux)](https://pkgs.genieframework.com?packages=FMIFlux).
+[![FMIFlux Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FMIFlux)](https://pkgs.genieframework.com?packages=FMIFlux)
 
 ## How can I use FMIFlux.jl?
 
