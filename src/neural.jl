@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import ChainRulesCore: ignore_derivatives
+import FMIImport.ChainRulesCore: ignore_derivatives
 import FMIImport: assert_integrator_valid, fd_eltypes, fd_set!, finishSolveFMU,
     handleEvents, isdual, istracked, prepareSolveFMU, rd_set!, undual, unsense, untrack
 import Optim
@@ -1190,23 +1190,6 @@ function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=true)
         return Flux.params(nfmu.model)
     end
 end
-
-# FMI version independent dosteps
-
-# function ChainRulesCore.rrule(f::Union{typeof(fmi2SetupExperiment), 
-#                                        typeof(fmi2EnterInitializationMode), 
-#                                        typeof(fmi2ExitInitializationMode),
-#                                        typeof(fmi2Reset),
-#                                        typeof(fmi2Terminate)}, args...)
-
-#     y = f(args...)
-
-#     function pullback(ȳ)
-#         return collect(ZeroTangent() for arg in args)
-#     end
-
-#     return y, fmi2EvaluateME_pullback
-# end
 
 function computeGradient(loss, params, gradient, chunk_size, multiObjective::Bool)
 
