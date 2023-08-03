@@ -984,7 +984,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         #if length(callbacks) > 0 # currently, only ForwardDiffSensitivity works for hybride NeuralODEs with multiple events triggered
         #    sensealg = ForwardDiffSensitivity(; chunk_size=32, convert_tspan=true)
         #else
-            sensealg = ReverseDiffAdjoint()
+            sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(), checkpointing=true) # ReverseDiffAdjoint()
         #end
     end
 
@@ -1403,12 +1403,13 @@ using FMIImport.SciMLSensitivity
 function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}; 
                         gradients=(:ForwardDiff, :ReverseDiff, :Zygote), 
                         max_msg_len=192, chunk_size=32, 
-                        OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), EnzymeVJP(), ReverseDiffVJP()), 
+                        OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), ReverseDiffVJP()), # EnzymeVJP() deadlocks in the current release xD
                         OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
                         OtD_checkpointings=(true, false),
                         DtO_sensealgs=(ReverseDiffAdjoint, ZygoteAdjoint, TrackerAdjoint, ForwardDiffSensitivity),
                         multiObjective::Bool=false,
                         bestof::Int=2,
+                        timeout_seconds::Real=60.0,
                         kwargs...)
 
     params = Flux.params(neuralFMU)   
@@ -1441,7 +1442,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                         neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, chunk_size=chunk_size)
                     end
 
-                    call = () -> _tryrun(loss, params, gradient, chunk_size, 5, max_msg_len, multiObjective)
+                    call = () -> _tryrun(loss, params, gradient, chunk_size, 5, max_msg_len, multiObjective; timeout_seconds=timeout_seconds)
                     for i in 1:bestof
                         timing = call()
 
@@ -1469,7 +1470,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                 neuralFMU.fmu.executionConfig.sensealg = sensealg()
             end
 
-            call = () -> _tryrun(loss, params, gradient, chunk_size, 3, max_msg_len, multiObjective)
+            call = () -> _tryrun(loss, params, gradient, chunk_size, 3, max_msg_len, multiObjective; timeout_seconds=timeout_seconds)
             for i in 1:bestof
                 timing = call()
 
@@ -1490,7 +1491,34 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     return nothing
 end
 
-function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; print_stdout::Bool=true, print_stderr::Bool=true)
+# Thanks to:
+# https://discourse.julialang.org/t/help-writing-a-timeout-macro/16591/11
+function timeout(f, arg, seconds, fail)
+    tsk = @task f(arg...)
+    schedule(tsk)
+    Timer(seconds) do timer
+        istaskdone(tsk) || Base.throwto(tsk, InterruptException())
+    end
+    try
+        fetch(tsk)
+    catch _;
+        fail
+    end
+end
+
+function runGrads(loss, params, gradient, chunk_size, multiObjective)
+    tstart = time()
+    grads = computeGradient(loss, params[1], gradient, chunk_size, multiObjective)
+    timing = time() - tstart
+
+    if length(grads[1]) == 1
+        grads = [grads]
+    end
+
+    return grads, timing
+end
+
+function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; print_stdout::Bool=true, print_stderr::Bool=true, timeout_seconds::Real=60.0)
 
     spacing = ""
     for t in ts 
@@ -1506,18 +1534,20 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
     (rd_stdout, wr_stdout) = redirect_stdout();
     (rd_stderr, wr_stderr) = redirect_stderr();
 
-    try 
-        tstart = time()
-        grads = computeGradient(loss, params[1], gradient, chunk_size, multiObjective)
-        timing = time() - tstart
+    try
+       
+        #grads, timing = timeout(runGrads, (loss, params, gradient, chunk_size, multiObjective), timeout_seconds, ([Inf], -1.0))
+        grads, timing = runGrads(loss, params, gradient, chunk_size, multiObjective)
 
-        if length(grads[1]) == 1
-            grads = [grads]
+        if timing == -1.0
+            message = spacing * "TIMEOUT\n"
+            color = :red
+        else
+            val = collect(sum(abs.(grad)) for grad in grads)
+            message = spacing * "SUCCESS | $(round(timing; digits=2))s | GradAbsSum: $(round.(val; digits=3))\n"
+            color = :green
         end
-        val = collect(sum(abs.(grad)) for grad in grads)
 
-        message = spacing * "SUCCESS | $(round(timing; digits=2))s | GradAbsSum: $(round.(val; digits=3))\n"
-        color = :green
     catch e 
         msg = "$(e)"
         if length(msg) > max_msg_len
