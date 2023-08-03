@@ -1553,7 +1553,7 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
             color = :red
         else
             val = collect(sum(abs.(grad)) for grad in grads)
-            message = spacing * "SUCCESS | $(round(timing; digits=2))s | GradAbsSum: $(round.(val; digits=3))\n"
+            message = spacing * "SUCCESS | $(round(timing; digits=2))s | GradAbsSum: $(round.(val; digits=6))\n"
             color = :green
         end
 
