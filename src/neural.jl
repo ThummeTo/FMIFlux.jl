@@ -12,6 +12,7 @@ import FMIImport.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, OD
     VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
 import FMIImport.SciMLSensitivity.ForwardDiff
 import FMIImport.SciMLSensitivity.ReverseDiff
+import FMIImport.SciMLSensitivity.FiniteDiff
 using FMIImport.SciMLSensitivity.ReverseDiff: TrackedArray
 import FMIImport.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
@@ -984,7 +985,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         #if length(callbacks) > 0 # currently, only ForwardDiffSensitivity works for hybride NeuralODEs with multiple events triggered
         #    sensealg = ForwardDiffSensitivity(; chunk_size=32, convert_tspan=true)
         #else
-            sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(), checkpointing=true) # ReverseDiffAdjoint()
+            sensealg = QuadratureAdjoint(; autojacvec=ReverseDiffVJP()) # ReverseDiffAdjoint()
         #end
     end
 
@@ -1247,8 +1248,15 @@ function computeGradient(loss, params, gradient, chunk_size, multiObjective::Boo
         else
             return [ReverseDiff.gradient(loss, params)]
         end
+    elseif gradient == :FiniteDiff 
+
+        if multiObjective
+            @assert false "FiniteDiff is currently not implemented for multi-objective optimization. Please open an issue on FMIFlux.jl if this is needed."
+        else
+            return [FiniteDiff.finite_difference_gradient(loss, params)]
+        end
     else
-        @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff`, `:Zygote` and `:ReverseDiff`."
+        @assert false "Unknown `gradient=$(gradient)`, supported are `:ForwardDiff`, `:Zygote`, `:FiniteDiff` and `:ReverseDiff`."
     end
 
 end
@@ -1401,7 +1409,7 @@ end
 # https://docs.sciml.ai/SciMLSensitivity/stable/manual/differential_equation_sensitivities/
 using FMIImport.SciMLSensitivity
 function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}; 
-                        gradients=(:ForwardDiff, :ReverseDiff, :Zygote), 
+                        gradients=(:ForwardDiff, :ReverseDiff, :Zygote), # :FiniteDiff is slow ...
                         max_msg_len=192, chunk_size=32, 
                         OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), ReverseDiffVJP()), # EnzymeVJP() deadlocks in the current release xD
                         OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
@@ -1418,7 +1426,10 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     best_timing = Inf
     best_gradient = nothing 
     best_sensealg = nothing
-    
+
+    printstyled("Computing correct gradient (via FiniteDiff)\n")
+    neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, checkpointing=checkpointing)
+
     printstyled("Mode: Optimize-then-Discretize\n")
     for gradient ∈ gradients
         printstyled("\tGradient: $(gradient)\n")

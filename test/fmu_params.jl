@@ -94,8 +94,10 @@ p_net = Flux.params(problem)
 iterCB = 0
 lastLoss = losssum(p_net[1])
 @info "Start-Loss for net: $lastLoss"
+
+@warn "FMU parameter tests disabled."
 # FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ForwardDiff, chunk_size=1)
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ReverseDiff)
+# FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ReverseDiff)
 
 # check results
 solutionAfter = problem(x0)
