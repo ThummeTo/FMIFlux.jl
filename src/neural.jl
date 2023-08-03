@@ -60,7 +60,7 @@ mutable struct ME_NeuralFMU{M, P, R} <: NeuralFMU
     customCallbacksBefore::Array
     customCallbacksAfter::Array
 
-    x0::Array{Float64}
+    x0::Union{Array{Float64}, Nothing}
     firstRun::Bool
     
     tolerance::Union{Real, Nothing}
@@ -87,6 +87,7 @@ mutable struct ME_NeuralFMU{M, P, R} <: NeuralFMU
         inst.model = model 
         inst.p = p 
         inst.re = re 
+        inst.x0 = nothing
 
         inst.modifiedState = true
 
@@ -1426,9 +1427,6 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     best_timing = Inf
     best_gradient = nothing 
     best_sensealg = nothing
-
-    printstyled("Computing correct gradient (via FiniteDiff)\n")
-    neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, checkpointing=checkpointing)
 
     printstyled("Mode: Optimize-then-Discretize\n")
     for gradient ∈ gradients
