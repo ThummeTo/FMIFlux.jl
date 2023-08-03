@@ -17,14 +17,14 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"])
+realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION)
 pdict = Dict("mass.m" => 1.3)
 realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
 @test x0 == [0.5, 0.0]
 
 # load FMU for NeuralFMU
-myFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
+myFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # setup traing data
 posData = fmi2GetSolutionValue(realSimData, "mass.s")
@@ -121,7 +121,7 @@ for handleEvents in [true, false]
                 lastInstCount = length(problem.fmu.components)
 
                 @info "[ $(iterCB)] Loss: $lastLoss"
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net))
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net))
 
                 # check results
                 solutionAfter = problem(x0)

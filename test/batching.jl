@@ -20,7 +20,7 @@ velData = sin.(tData.*3.0)
 x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
+fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
 
 using FMI.FMIImport
 using FMI.FMIImport.FMICore
@@ -90,12 +90,12 @@ iterCB = 0
 # single objective
 lastLoss = losssum_single(p_net[1])
 optim = Adam(1e-3)
-FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(losssum_single, p_net), gradient=:ReverseDiff)
+FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_single, p_net), gradient=GRADIENT)
 
 # multi objective
 lastLoss = sum(losssum_multi(p_net[1]))
 optim = Adam(1e-3)
-FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(losssum_multi,  p_net), gradient=:ReverseDiff, multiObjective=true)
+FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
 
 # check results
 solutionAfter = problem(x0)

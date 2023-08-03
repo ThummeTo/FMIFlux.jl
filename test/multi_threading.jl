@@ -10,26 +10,20 @@ using DifferentialEquations: Tsit5, Rosenbrock23
 import Random 
 Random.seed!(5678);
 
-# Test
-# ENV["EXPORTINGTOOL"] = "Dymola"
-# ENV["EXPORTINGVERSION"] = "2022x"
-# ENV["NUMSTEPS"] = 100
-# using Test, FMIFlux, FMIZoo
-
 t_start = 0.0
 t_step = 0.1
 t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
+realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 pdict = Dict("mass.m" => 1.3)
 realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
 @test x0 == [0.5, 0.0]
 
 # load FMU for training
-realFMU = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
+realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
 
 # setup traing data
 velData = fmi2GetSolutionValue(realSimData, "mass.v")
@@ -119,7 +113,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
@@ -127,7 +121,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
@@ -135,7 +129,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (not pre-compiled): $(dt)s"
 
@@ -143,7 +137,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (pre-compiled): $(dt)s"
 

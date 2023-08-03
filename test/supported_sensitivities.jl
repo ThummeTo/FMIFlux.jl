@@ -16,7 +16,7 @@ tData = t_start:t_step:t_stop
 velData = sin.(tData)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=:ME)
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 x0 = [1.0, 0.0]
 numStates = length(x0)

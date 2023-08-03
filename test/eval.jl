@@ -2,7 +2,7 @@ using PkgEval
 using FMIFlux
 using Test
 
-config = Configuration(; julia="1.8", time_limit=120*60);
+config = Configuration(; julia="1.9", time_limit=120*60);
 
 package = Package(; name="FMIFlux");
 
