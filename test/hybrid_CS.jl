@@ -74,7 +74,7 @@ p_net = Flux.params(problem)
 
 optim = Adam(1e-4)
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net))
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
 @test length(myFMU.components) <= 1
 

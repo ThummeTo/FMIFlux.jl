@@ -93,9 +93,7 @@ p_net = Flux.params(problem)
 
 optim = Adam(1e-6)
 
-# ToDo: In CS-Mode, each training step takes longer than the previuous one... this is a very strange behaviour.
-# Because this can only be cured by restarting Julia (not by reevaluation of code/constructors), this may be a error somewhere deeper than in FMIFlux.jl 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), 1), optim; cb=()->callb(p_net))
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
 # check results
 solutionAfter = problem(extForce, t_step)

@@ -113,7 +113,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
@@ -121,7 +121,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=1)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
@@ -129,7 +129,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (not pre-compiled): $(dt)s"
 
@@ -137,7 +137,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true)
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         dt = round(time()-st; digits=1)
         @info "Training time multi threaded (pre-compiled): $(dt)s"
 
