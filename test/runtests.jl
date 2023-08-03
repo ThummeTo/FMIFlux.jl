@@ -27,64 +27,69 @@ for exec in [FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATI
 end
 
 function runtests(exportingTool)
+
     global EXPORTINGTOOL = exportingTool[1]
     global EXPORTINGVERSION = exportingTool[2]
+    @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
+    @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-    for grad ∈ (:ReverseDiff, :ForwardDiff)
-        global GRADIENT = grad
-        
-        @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION)) | Gradient $(GRADIENT)" begin
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
             
-            @info "Layers (layers.jl)"
+            global GRADIENT = _GRADIENT
+            @info "   Gradient: $(GRADIENT)"
+            @testset "Gradient: $(GRADIENT)" begin
+    
+            @info    "Layers (layers.jl)"
             @testset "Layers" begin
                 include("layers.jl")
             end
 
-            @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+            @info    "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
             @testset "ME-NeuralFMU (Continuous)" begin
                 include("hybrid_ME.jl")
             end
 
-            @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+            @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
             @testset "ME-NeuralFMU (Discontinuous)" begin
                 include("hybrid_ME_dis.jl")
             end
 
-            @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+            @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
             @testset "NeuralFMU with FMU parameter optimization" begin
                 include("fmu_params.jl")
             end
 
-            @info "Training modes (train_modes.jl)"
+            @info    "Training modes (train_modes.jl)"
             @testset "Training modes" begin
                 include("train_modes.jl")
             end
 
-            # @info "Multi-threading (multi_threading.jl)"
+            # @info    "Multi-threading (multi_threading.jl)"
             # @testset "Multi-threading" begin
             #     include("multi_threading.jl")
             # end
 
-            @info "CS-NeuralFMU (hybrid_CS.jl)"
+            @info    "CS-NeuralFMU (hybrid_CS.jl)"
             @testset "CS-NeuralFMU" begin
                 include("hybrid_CS.jl")
             end
 
-            @info "Multiple FMUs (multi.jl)"
+            @info    "Multiple FMUs (multi.jl)"
             @testset "Multiple FMUs" begin
                 include("multi.jl")
             end
 
-            @info "Batching (batching.jl)"
+            @info    "Batching (batching.jl)"
             @testset "Batching" begin
                 include("batching.jl")
             end
-
-            @info "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
-            @testset "Benchmark: Supported sensitivities " begin
-                include("supported_sensitivities.jl")
-            end
         end
+
+        @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
+        @testset "Benchmark: Supported sensitivities " begin
+            include("supported_sensitivities.jl")
+        end
+   
     end
 end
 
