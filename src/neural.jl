@@ -983,11 +983,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     #c.solution.states = solve(prob, nfmu.args...; sensealg=sensealg, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
 
     if isnothing(sensealg)
-        #if length(callbacks) > 0 # currently, only ForwardDiffSensitivity works for hybride NeuralODEs with multiple events triggered
-        #    sensealg = ForwardDiffSensitivity(; chunk_size=32, convert_tspan=true)
-        #else
-            sensealg = QuadratureAdjoint(; autojacvec=ReverseDiffVJP()) # ReverseDiffAdjoint()
-        #end
+        sensealg = QuadratureAdjoint(; autojacvec=ReverseDiffVJP()) # ReverseDiffAdjoint()
     end
 
     args = Vector{Any}()
