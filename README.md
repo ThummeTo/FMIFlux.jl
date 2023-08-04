@@ -36,16 +36,18 @@ You can evaluate FMUs inside of your loss function.
 4\. Have a look inside the [examples folder](https://github.com/ThummeTo/FMIFlux.jl/tree/examples/examples) in the examples branch or the [examples section](https://thummeto.github.io/FMIFlux.jl/dev/examples/overview/) of the documentation. All examples are available as Julia-Script (*.jl*), Jupyter-Notebook (*.ipynb*) and Markdown (*.md*).
 
 ## What is currently supported in FMIFlux.jl?
-- building and training ME-NeuralFMUs (NeuralODEs) with support for event-handling 
+- building and training ME-NeuralFMUs (NeuralODEs) with support for event-handling (*DiffEqCallbacks.jl*) and discontinuous sensitivity analysis (*SciMLSensitivity.jl*)
 - building and training CS-NeuralFMUs 
+- building and training NeuralFMUs consisiting of multiple FMUs
 - building and training FMUINNs (PINNs)
-- different AD-frameworks: ForwardDiff.jl, ReverseDiff.jl (default setting) and Zygote.jl
+- different AD-frameworks: ForwardDiff.jl (CI-tested), ReverseDiff.jl (CI-tested, default setting), FiniteDiff.jl (not CI-tested) and Zygote.jl (not CI-tested)
 - ...
 
 ## What is under development in FMIFlux.jl?
 - performance optimizations
 - improved documentation
 - more examples
+- FMI3 integration
 - ...
 
 ## What Platforms are supported?

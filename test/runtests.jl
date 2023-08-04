@@ -36,7 +36,7 @@ function runtests(exportingTool)
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
             
             global GRADIENT = _GRADIENT
-            @info "   Gradient: $(GRADIENT)"
+            @info    "Gradient: $(GRADIENT)"
             @testset "Gradient: $(GRADIENT)" begin
     
                 @info    "Layers (layers.jl)"

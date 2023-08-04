@@ -983,7 +983,12 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     #c.solution.states = solve(prob, nfmu.args...; sensealg=sensealg, saveat=nfmu.saveat, callback = CallbackSet(callbacks...), nfmu.kwargs...)
 
     if isnothing(sensealg)
-        sensealg = QuadratureAdjoint(; autojacvec=ReverseDiffVJP()) # ReverseDiffAdjoint()
+        # when using state events, we (currently) need AD-through-Solver
+        if c.fmu.hasStateEvents && c.fmu.executionConfig.handleStateEvents
+            sensealg = ReverseDiffAdjoint() # Support for multi-state-event simulations, but a little bit slower than QuadratureAdjoint
+        else # otherwise, we can use the faster Adjoint-over-Solver
+            sensealg = QuadratureAdjoint(; autojacvec=ReverseDiffVJP()) # Faster than ReverseDiffAdjoint
+        end
     end
 
     args = Vector{Any}()
@@ -1008,7 +1013,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
            
             t = collect(saveat)
             u = c.solution.states
-            c.solution.success = (size(u)[2] == length(t)) 
+            c.solution.success = (size(u) == (length(nfmu.x0), length(t))) 
 
             if c.solution.success
                 c.solution.states = build_solution(prob, nfmu.solver, t, collect(u[:,i] for i in 1:size(u)[2]))
@@ -1314,8 +1319,21 @@ function trainStep(loss, params, gradient, chunk_size, optim::Flux.Optimise.Abst
         for j in 1:length(params)
 
             grads = computeGradient(loss, params[j], gradient, chunk_size, multiObjective)
+
+            has_nan = any(collect(any(isnan.(grad)) for grad in grads))
+            has_nothing = any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
+
+            if gradient != :ForwardDiff && (has_nan || has_nothing)
+                @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
+                gradient = :ForwardDiff
+                grads = computeGradient(loss, params[j], gradient, chunk_size, multiObjective)
+            end
+
+            has_nan = any(collect(any(isnan.(grad)) for grad in grads))
+            has_nothing = any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
                 
-            @assert !any(isnothing.(grads)) "Gradient nothing!"
+            @assert !has_nan "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nNo back-up options available."
+            @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nNo back-up options available."
 
             lock(lk_OptimApply) do
                 for grad in grads
