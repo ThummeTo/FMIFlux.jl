@@ -5,7 +5,6 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
 Random.seed!(5678);
@@ -17,10 +16,10 @@ tData = t_start:t_step:t_stop
 velData = sin.(tData)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
-numStates = fmiGetNumberOfStates(fmu)
-x0 = [1.0, 1.0]
+x0 = [1.0, 0.0]
+numStates = length(x0)
 
 c1 = CacheLayer()
 c2 = CacheRetrieveLayer(c1)
@@ -29,11 +28,13 @@ c4 = CacheRetrieveLayer(c3)
 
 # default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
-            Dense(numStates, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
             x -> c2([1], x[2], []),
             x -> fmu(;x=x), 
             x -> c3(x),
-            Dense(numStates, numStates, identity; init=Flux.identity_init),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
             x -> c4([1], x[2], []))
 
 # loss function for training

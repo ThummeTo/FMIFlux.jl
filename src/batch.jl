@@ -4,22 +4,22 @@
 #
 
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
-import ChainRulesCore: ignore_derivatives
+import FMIImport.ChainRulesCore: ignore_derivatives
 using DiffEqCallbacks: FunctionCallingCallback
 using FMIImport.ForwardDiff
 import FMIImport: unsense
 
-struct FMU2Loss{T}
+struct FMULoss{T}
     loss::T
     step::Integer 
     time::Real 
 
-    function FMU2Loss{T}(loss::T, step::Integer=0, time::Real=time()) where {T}
+    function FMULoss{T}(loss::T, step::Integer=0, time::Real=time()) where {T}
         inst = new{T}(loss, step, time)
         return inst
     end
 
-    function FMU2Loss(loss, step::Integer=0, time::Real=time())
+    function FMULoss(loss, step::Integer=0, time::Real=time())
         loss = unsense(loss)
         T = typeof(loss)
         inst = new{T}(loss, step, time)
@@ -27,11 +27,11 @@ struct FMU2Loss{T}
     end
 end
 
-function nominalLoss(l::FMU2Loss{T}) where T <: AbstractArray
+function nominalLoss(l::FMULoss{T}) where T <: AbstractArray
     return unsense(sum(l.loss))
 end
 
-function nominalLoss(l::FMU2Loss{T}) where T <: Real
+function nominalLoss(l::FMULoss{T}) where T <: Real
     return unsense(l.loss)
 end
 
@@ -45,7 +45,7 @@ mutable struct FMU2SolutionBatchElement <: FMU2BatchElement
     initialState::Union{fmi2FMUstate, Nothing}
     initialComponentState::fmi2ComponentState
     initialEventInfo::Union{fmi2EventInfo, Nothing}
-    losses::Array{<:FMU2Loss} 
+    losses::Array{<:FMULoss} 
     step::Integer
 
     saveat::Union{AbstractVector{<:Real}, Nothing}
@@ -65,7 +65,7 @@ mutable struct FMU2SolutionBatchElement <: FMU2BatchElement
 
         inst.initialState = nothing
         inst.initialEventInfo = nothing 
-        inst.losses = Array{FMU2Loss,1}()
+        inst.losses = Array{FMULoss,1}()
         inst.step = 0
 
         inst.saveat = nothing
@@ -83,7 +83,7 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
     tStart::fmi2Real 
     tStop::fmi2Real 
 
-    losses::Array{<:FMU2Loss} 
+    losses::Array{<:FMULoss} 
     step::Integer
 
     saveat::Union{AbstractVector{<:Real}, Nothing}
@@ -102,7 +102,7 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
         inst.tStart = -Inf
         inst.tStop = Inf
 
-        inst.losses = Array{FMU2Loss,1}()
+        inst.losses = Array{FMULoss,1}()
         inst.step = 0
 
         inst.saveat = nothing
@@ -335,7 +335,7 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=tr
 
     ignore_derivatives() do 
         if logLoss
-            push!(batchElement.losses, FMU2Loss(loss, batchElement.step))
+            push!(batchElement.losses, FMULoss(loss, batchElement.step))
         end
     end
 
@@ -370,7 +370,7 @@ function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool=
      
     ignore_derivatives() do 
         if logLoss
-            push!(batchElement.losses, FMU2Loss(loss, batchElement.step))
+            push!(batchElement.losses, FMULoss(loss, batchElement.step))
         end
     end
 

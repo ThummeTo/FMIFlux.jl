@@ -4,7 +4,7 @@
 #
 
 import Flux
-import ChainRulesCore
+import FMIImport.ChainRulesCore
 import Flux.Random: AbstractRNG
 import Flux.LinearAlgebra: I
 

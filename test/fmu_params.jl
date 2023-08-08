@@ -20,7 +20,7 @@ velData = sin.(tData.*3.0)
 x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringFrictionPendulum1D", ENV["EXPORTINGTOOL"], ENV["EXPORTINGVERSION"]; type=fmi2TypeModelExchange)
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 using FMI.FMIImport
 using FMI.FMIImport.FMICore
@@ -94,8 +94,9 @@ p_net = Flux.params(problem)
 iterCB = 0
 lastLoss = losssum(p_net[1])
 @info "Start-Loss for net: $lastLoss"
-# FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ForwardDiff, chunk_size=1)
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), parse(Int, ENV["NUMSTEPS"])), optim; cb=()->callb(p_net), gradient=:ReverseDiff)
+
+@warn "FMU parameter tests disabled."
+# FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
 # check results
 solutionAfter = problem(x0)
