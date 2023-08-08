@@ -291,8 +291,8 @@ function train!(hyper_params, ressource, ind)
                    params,                          # the parameters to train
                    Iterators.repeated((), steps),   # an iterator repeating `steps` times
                    optim;                           # the optimizer to train
-                   gradient=:ForwardDiff,           # we use *ForwardDiff.jl* for gradient determination
-                   chunk_size=32,                   # the ForwardDiff chunk size is 32, so 32 parameter sensitivites are determined at a time
+                   gradient=:ForwardDiff,           # currently, only ForwarDiff leads to good results for multi-event systems
+                   chunk_size=32,                   # ForwardDiff chunk_size (=number of parameter estimations per run)
                    cb=() -> update!(scheduler),     # update the scheduler after every step 
                    proceed_on_assert=true)          # proceed, even if assertions are thrown, with the next step
     
@@ -309,7 +309,7 @@ function train!(hyper_params, ressource, ind)
     validation_loss = nothing 
     if resultNFMU.success
         # compute the loss on VALIDATION data 
-        validation_loss = _lossFct(resultNFMU,       # the NeuralFMU
+        validation_loss = _lossFct(resultNFMU,      # the NeuralFMU
                                   data_validation,  # the validation data set 
                                   :MSE)             # use MSE 
     end        
@@ -321,9 +321,9 @@ function train!(hyper_params, ressource, ind)
     return validation_loss
 end
 
-# check if the train function is working for a set of given hyperparameters
+# check if the train function is working for a set of given (random) hyperparameters
 #     ([  ETA, BETA1,  BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS], RESSOURCE, INDEX)
-train!([0.001,   0.9, 0.9999,      4.0,        0.7,   :Random, :MSE],      4.0,     1) 
+train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0,     1) 
 
 # load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
 fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME)
