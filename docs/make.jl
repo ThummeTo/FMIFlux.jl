@@ -19,7 +19,7 @@ makedocs(sitename="FMIFlux.jl",
                     "Simple CS-NeuralFMU" => "examples/simple_hybrid_CS.md"
                     "Simple ME-NeuralFMU" => "examples/simple_hybrid_ME.md"
                     "Advanced ME-NeuralFMU" => "examples/advanced_hybrid_ME.md"
-                    "JuliaCon 2023" => "examples/julicon_2023.md"
+                    "JuliaCon 2023" => "examples/juliacon_2023.md"
                     "MDPI 2022" => "examples/mdpi_2022.md"
                     "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
             ]
