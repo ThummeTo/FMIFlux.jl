@@ -26,13 +26,13 @@ Random.seed!(1234)
 solver = Tsit5();   
 
 # load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
-fmu = fmiLoad("VLDM", "Dymola", "2022x"; type=:ME, logLevel=FMI.FMIImport.FMULogLevelInfo)  # `FMULogLevelInfo` = "Log everything that might be interesting!", default is `FMULogLevelWarn`
+fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME, logLevel=FMI.FMIImport.FMULogLevelInfo)  # `FMULogLevelInfo` = "Log everything that might be interesting!", default is `FMULogLevelWarn`
 
 # let's have a look on the model meta data
 fmiInfo(fmu)
 
 # load data from FMIZoo.jl, gather simulation parameters for FMU
-data = FMIZoo.VLDM(split=:train)
+data = FMIZoo.VLDM(:train)
 tStart = data.consumption_t[1]
 tStop = data.consumption_t[end]
 tSave = data.consumption_t
