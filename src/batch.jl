@@ -4,10 +4,7 @@
 #
 
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
-import FMIImport.ChainRulesCore: ignore_derivatives
 using DiffEqCallbacks: FunctionCallingCallback
-using FMIImport.ForwardDiff
-import FMIImport: unsense
 
 struct FMULoss{T}
     loss::T
