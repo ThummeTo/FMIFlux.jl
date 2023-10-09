@@ -9,51 +9,33 @@ using Flux
 import Random 
 Random.seed!(5678);
 
-# setup BouncingBallODE 
-function fx_bb(x)
-    dx = [x[2], -9.81]
-    dx 
-end
-function fx(dx, x, p, t)
-    dx[:] = re(p)(x)
-end
-
-net = Chain(fx_bb,
-            Dense([1.0 0.0; 0.0 1.0], [0.0, 0.0], identity))
-
-ff = ODEFunction{true}(fx) # , tgrad=nothing)
-bb_prob = ODEProblem{true}(ff, x0, tspan, params)
-
-function condition(out, x, t, integrator)
-    out[1] = x[1]
-end
-
-function affect!(integrator, idx)
-    u_new = [max(integrator.u[1], 0.0), -integrator.u[2]*0.9]
-    integrator.u .= u_new
-end
-
-eventCb = VectorContinuousCallback(condition,
-                                   affect!,
-                                   2;
-                                   rootfind=RightRootFind, save_positions=(false, false))
-
 t_start = 0.0
 t_step = 0.1
-t_stop = 5.0
+t_stop = 3.0
 tData = t_start:t_step:t_stop
-posData = ones(length(tData))
+velData = sin.(tData)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
-fmu.handleEventIndicators = [1]
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 x0 = [1.0, 0.0]
-dx = [0.0, 0.0]
 numStates = length(x0)
 
-net = Chain(x -> fmu(;x=x, dx=dx), 
-            Dense([1.0 0.0; 0.0 1.0], [0.0; 0.0], identity))
+c1 = CacheLayer()
+c2 = CacheRetrieveLayer(c1)
+c3 = CacheLayer()
+c4 = CacheRetrieveLayer(c3)
+
+# default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
+net = Chain(x -> c1(x),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
+            x -> c2([1], x[2], []),
+            x -> fmu(;x=x), 
+            x -> c3(x),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
+            x -> c4([1], x[2], []))
 
 # loss function for training
 function losssum(p)
@@ -64,43 +46,12 @@ function losssum(p)
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    return FMIFlux.Losses.mse(posNet, posData)
-end
-
-function losssum_bb(p)
-    global nfmu, x0, posData
-    solution = nfmu(x0; p=p)
-
-    if !solution.success
-        return Inf 
-    end
-
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    
-    return FMIFlux.Losses.mse(posNet, posData)
+    return FMIFlux.Losses.mse(velNet, velData)
 end
 
 nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop); saveat=tData) 
-nfmu.modifiedState = false
-
-using SciMLSensitivity
-params = Flux.params(nfmu)
-fmu.executionConfig.sensealg = ReverseDiffAdjoint() # QuadratureAdjoint(autojacvec=ReverseDiffVJP(false))
-grad_fd = ForwardDiff.gradient(losssum, params[1])
-grad_rd = ReverseDiff.gradient(losssum, params[1])
-abc = 1
-
-import ReverseDiff: increment_deriv!, ZeroTangent
-function ReverseDiff.increment_deriv!(::ReverseDiff.TrackedReal, ::ZeroTangent)
-    return nothing 
-end
-
-import DifferentialEquations.DiffEqBase: AbstractODEIntegrator
-function Base.show(io::IO, ::MIME"text/plain", ::AbstractODEIntegrator)
-    print(io, "[AbstractODEIntegrator]")
-end
 
 FMIFlux.checkSensalgs!(losssum, nfmu)
 
