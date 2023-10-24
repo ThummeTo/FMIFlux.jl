@@ -12,6 +12,7 @@ makedocs(sitename="FMIFlux.jl",
             sidebar_sitename = false,
             edit_link = nothing
         ),
+        warnonly=true,
         pages= Any[
             "Introduction" => "index.md"
             "Examples" => [

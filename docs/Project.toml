@@ -1,5 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+FMIFlux = "fabad875-0d53-4e47-9446-963b74cae21f"
 
 [compat]
 julia = "1.6"
