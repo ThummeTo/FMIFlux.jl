@@ -10,8 +10,10 @@ makedocs(sitename="FMIFlux.jl",
         format = Documenter.HTML(
             collapselevel = 1,
             sidebar_sitename = false,
-            edit_link = nothing
+            edit_link = nothing,
+            size_threshold_ignore = ["examples/juliacon_2023.md"]
         ),
+        warnonly=true,
         pages= Any[
             "Introduction" => "index.md"
             "Examples" => [
