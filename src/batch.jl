@@ -4,7 +4,7 @@
 #
 
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
-using DiffEqCallbacks: FunctionCallingCallback
+using DifferentialEquations.DiffEqCallbacks: FunctionCallingCallback
 
 struct FMULoss{T}
     loss::T
