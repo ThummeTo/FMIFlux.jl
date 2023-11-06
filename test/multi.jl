@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 using DifferentialEquations: Tsit5
 
@@ -16,10 +15,10 @@ t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
+myFMU = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
 parameters = Dict("mass_s0" => 1.3)
 realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
-fmiUnload(myFMU)
+fmi2Unload(myFMU)
 
 # setup traing data
 function extForce(t)
@@ -62,7 +61,7 @@ end
 # Load FMUs
 fmus = Vector{FMU2}()
 for i in 1:2 # how many FMUs do you want?
-    _fmu = fmiLoad("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
+    _fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
     push!(fmus, _fmu)
 end
 
@@ -99,5 +98,5 @@ FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->c
 solutionAfter = problem(extForce, t_step)
 
 for i in 1:length(fmus)
-    fmiUnload(fmus[i])
+    fmi2Unload(fmus[i])
 end

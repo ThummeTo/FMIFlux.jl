@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 using DifferentialEquations
 using FMIFlux, FMIZoo, Test
@@ -90,7 +89,7 @@ leftCb = VectorContinuousCallback(condition,
                                    rootfind=LeftRootFind, save_positions=(false, false))
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 fmu.handleEventIndicators = nothing
 
 net = Chain(#Dense([1.0 0.0; 0.0 1.0], [0.0, 0.0], identity),
@@ -274,4 +273,4 @@ atol = 1e-4
 
 ###
 
-fmiUnload(fmu)
+fmi2Unload(fmu)

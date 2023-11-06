@@ -3,8 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
-using Flux
+using FMIFlux.Flux
 
 import Random 
 Random.seed!(1234);
@@ -111,4 +110,4 @@ solutionAfter = problem(x0)
 
 @test length(fmu.components) <= 1
 
-fmiUnload(fmu)
+fmi2Unload(fmu)

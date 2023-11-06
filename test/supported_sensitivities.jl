@@ -3,9 +3,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
-using FMI.DifferentialEquations
+using FMIFlux.DifferentialEquations
 
 import Random 
 Random.seed!(5678);
@@ -19,7 +18,7 @@ posData = ones(length(tData))
 tspan = (t_start, t_stop)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = fmi2Load("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 fmu.handleEventIndicators = [1]
 
 x0 = [1.0, 0.0]
@@ -49,4 +48,4 @@ nfmu.modifiedState = false
 
 FMIFlux.checkSensalgs!(losssum, nfmu)
 
-fmiUnload(fmu)
+fmi2Unload(fmu)

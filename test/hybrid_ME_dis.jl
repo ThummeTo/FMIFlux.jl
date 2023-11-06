@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
@@ -16,7 +15,7 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-fmu = fmiLoad("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 pdict = Dict("g" => 9.0)
 realSimData = fmiSimulate(fmu, (t_start, t_stop); parameters=pdict, recordValues=["h", "v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
@@ -196,4 +195,4 @@ end
 
 @test length(fmu.components) <= 1
 
-fmiUnload(fmu)
+fmi2Unload(fmu)

@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 using DifferentialEquations: Tsit5
 
@@ -16,14 +15,14 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
+fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
 realSimData = fmiSimulateCS(fmu, (t_start, t_stop); recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
 @test x0 == [0.5, 0.0]
-fmiUnload(fmu)
+fmi2Unload(fmu)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
+fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
 
 # setup traing data
 velData = fmi2GetSolutionValue(realSimData, "mass.v")
@@ -200,4 +199,4 @@ end
 
 @test length(fmu.components) <= 1
 
-fmiUnload(fmu)
+fmi2Unload(fmu)

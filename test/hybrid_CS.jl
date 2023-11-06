@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 
 import Random 
@@ -15,7 +14,7 @@ t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmiLoad("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
+myFMU = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
 parameters = Dict("mass_s0" => 1.3)
 realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
 
@@ -78,4 +77,4 @@ FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->c
 
 @test length(myFMU.components) <= 1
 
-fmiUnload(myFMU)
+fmi2Unload(myFMU)

@@ -3,7 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
@@ -16,7 +15,7 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+realFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 pdict = Dict("mass.m" => 1.3)
 realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
@@ -24,7 +23,7 @@ x0 = collect(realSimData.values.saveval[1])
 @test x0 == [0.5, 0.0]
 
 # load FMU for training
-realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
+realFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
 
 # setup traing data
 velData = fmi2GetSolutionValue(realSimData, "mass.v")
@@ -154,4 +153,4 @@ for i in 1:length(nets)
     end
 end
 
-fmiUnload(realFMU)
+fmi2Unload(realFMU)
