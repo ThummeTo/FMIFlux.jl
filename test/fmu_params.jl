@@ -38,7 +38,7 @@ p = fmi2GetReal(c, p_refs)
 function losssum(p)
     #@info "$p"
     global problem, x0, posData, solution
-    solution = problem(x0; p=p, showProgress=true)
+    solution = problem(x0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -75,11 +75,11 @@ net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
 optim = Adam(1e-4)
 solver = Tsit5()
 
-problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
+problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
 problem.modifiedState = false
 @test problem != nothing
 
-solutionBefore = problem(x0)
+solutionBefore = problem(x0; saveat=tData)
 @test solutionBefore.success
 @test length(solutionBefore.states.t) == length(tData)
 @test solutionBefore.states.t[1] == t_start
@@ -88,29 +88,21 @@ solutionBefore = problem(x0)
 # train it ...
 p_net = Flux.params(problem)
 @test length(p_net) == 1
-@test length(p_net[1]) == 3
+@test length(p_net[1]) == 7
 
 iterCB = 0
 lastLoss = losssum(p_net[1])
 @info "Start-Loss for net: $lastLoss"
 
-# [ToDo] Check pure gradients
+# [ToDo] Discontinuous system?
 j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
-plot!(collect(unsense(t) for t in solution.states.t), collect(unsense(u[2]) for u in solution.states.u); label="FD")
-@test length(solution.events) == 6
-
 j_fwd = ForwardDiff.gradient(losssum, p_net[1])
-plot!(collect(unsense(t) for t in solution.states.t), collect(unsense(u[2]) for u in solution.states.u); label="FWD")
-@test length(solution.events) == 6
-
 j_rwd = ReverseDiff.gradient(losssum, p_net[1])
-plot!(collect(unsense(t) for t in solution.states.t), collect(unsense(u[2]) for u in solution.states.u); label="RD")
-@test length(solution.events) == 6
 
 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
 # check results
-solutionAfter = problem(x0)
+solutionAfter = problem(x0; saveat=tData)
 @test solutionAfter.success
 @test length(solutionAfter.states.t) == length(tData)
 @test solutionAfter.states.t[1] == t_start

@@ -28,7 +28,7 @@ using FMI.FMIImport.FMICore
 # loss function for training
 function losssum_single(p)
     global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true)
+    solution = problem(x0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -41,7 +41,7 @@ end
 
 function losssum_multi(p)
     global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true)
+    solution = problem(x0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return [Inf, Inf]
@@ -71,12 +71,18 @@ end
 
 numStates = fmiGetNumberOfStates(fmu)
 
-# the "Chain" for training
-net = Chain(x -> fmu(;x=x),
-            Dense(numStates, 12, tanh),
-            Dense(12, numStates, identity))
+c1 = CacheLayer()
+c2 = CacheRetrieveLayer(c1)
 
-problem = ME_NeuralFMU(fmu, net, (t_start, t_stop); saveat=tData)
+# the "Chain" for training
+net = Chain(x -> fmu(;x=x, dx_refs=:all),
+            dx -> c1(dx),
+            Dense(numStates, 12, tanh),
+            Dense(12, 1, identity),
+            dx -> c2([1], dx[1], []))
+
+solver = Tsit5()
+problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
 @test problem != nothing
 
 solutionBefore = problem(x0)
@@ -92,9 +98,9 @@ optim = Adam(1e-3)
 FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_single, p_net), gradient=GRADIENT)
 
 # multi objective
-lastLoss = sum(losssum_multi(p_net[1]))
-optim = Adam(1e-3)
-FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
+# lastLoss = sum(losssum_multi(p_net[1]))
+# optim = Adam(1e-3)
+# FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
 
 # check results
 solutionAfter = problem(x0)

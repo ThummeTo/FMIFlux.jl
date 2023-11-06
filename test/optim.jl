@@ -5,39 +5,42 @@
 
 using FMI
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
+using DifferentialEquations: Tsit5
+using FMIFlux.Optim
 
 import Random 
-Random.seed!(5678);
+Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.1
-t_stop = 3.0
+t_step = 0.01
+t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-fmu = fmiLoad("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-pdict = Dict("g" => 9.0)
-realSimData = fmiSimulate(fmu, (t_start, t_stop); parameters=pdict, recordValues=["h", "v"], saveat=tData)
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
+realSimData = fmiSimulateCS(fmu, (t_start, t_stop); recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
-@test x0 == [1.0, 0.0]
+@test x0 == [0.5, 0.0]
+fmiUnload(fmu)
+
+# load FMU for NeuralFMU
+fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
 
 # setup traing data
-velData = fmi2GetSolutionValue(realSimData, "v")
+velData = fmi2GetSolutionValue(realSimData, "mass.v")
 
 # loss function for training
 function losssum(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, saveat=tData)
+    global problem, x0
+    solution = problem(x0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
-    # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
+    return Flux.Losses.mse(velNet, velData)
 end
 
 # callback function for training
@@ -50,19 +53,15 @@ function callb(p)
     if iterCB % 5 == 0
         loss = losssum(p[1])
         @info "[$(iterCB)] Loss: $loss"
-
-        # This test condition is not good, because when the FMU passes an event, the error might increase.  
-        @test loss <= lastLoss
+        @test loss < lastLoss  
         lastLoss = loss
     end
 end
 
-vr = fmi2StringToValueReference(fmu, "g")
-
 numStates = fmiGetNumberOfStates(fmu)
 
 # some NeuralFMU setups
-nets = []
+nets = [] 
 
 c1 = CacheLayer()
 c2 = CacheRetrieveLayer(c1)
@@ -70,10 +69,10 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "h")]
-y = zeros(fmi2Real, length(getVRs))
+getVRs = [fmi2StringToValueReference(fmu, "mass.s")]
 numGetVRs = length(getVRs)
-setVRs = [fmi2StringToValueReference(fmu, "v")]
+y = zeros(fmi2Real, numGetVRs)
+setVRs = [fmi2StringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
@@ -158,21 +157,21 @@ net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
 for i in 1:length(nets)
-    @testset "Net setup $(i)/$(length(nets))" begin
+    @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
 
-        optim = Adam(1e-6)
+        optim = GradientDescent(;alphaguess=1e-6) # BFGS()
         solver = Tsit5()
 
         net = nets[i]
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
+        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
+        @test problem != nothing
 
         # train it ...
         p_net = Flux.params(problem)
-        
-        @test problem !== nothing
+        @test length(p_net) == 1
 
-        solutionBefore = problem(x0; p=p_net[1], saveat=tData)
+        solutionBefore = problem(x0; p=p_net[1], showProgress=true, saveat=tData)
         if solutionBefore.success
             @test length(solutionBefore.states.t) == length(tData)
             @test solutionBefore.states.t[1] == t_start
@@ -181,11 +180,11 @@ for i in 1:length(nets)
 
         iterCB = 0
         lastLoss = losssum(p_net[1])
-        @info "[ $(iterCB)] Loss: $lastLoss"
+        @info "Start-Loss for net #$i: $lastLoss"
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
         # check results
-        solutionAfter = problem(x0; p=p_net[1], saveat=tData)
+        solutionAfter = problem(x0; p=p_net[1], showProgress=true, saveat=tData)
         if solutionAfter.success
             @test length(solutionAfter.states.t) == length(tData)
             @test solutionAfter.states.t[1] == t_start

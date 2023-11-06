@@ -17,6 +17,7 @@ tData = t_start:t_step:t_stop
 
 # generate training data
 realFMU = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+
 pdict = Dict("mass.m" => 1.3)
 realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
 x0 = collect(realSimData.values.saveval[1])
@@ -31,7 +32,7 @@ velData = fmi2GetSolutionValue(realSimData, "mass.v")
 # loss function for training
 function losssum(p)
     global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true)
+    solution = problem(x0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -72,15 +73,15 @@ c4 = CacheRetrieveLayer(c3)
 
 # 1. Discontinuous ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity; init=Flux.identity_init),
-            Dense(16, numStates, identity; init=Flux.identity_init),
-            x -> c2([1], x[2], []),
-            x -> realFMU(;x=x), 
+            Dense(numStates, 16, identity),
+            Dense(16, 1, identity),
+            x -> c2([], x[1], [1]),
+            x -> realFMU(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 16, identity, init=Flux.identity_init),
-            Dense(16, 16, identity, init=Flux.identity_init),
-            Dense(16, numStates, identity, init=Flux.identity_init),
-            x -> c4([1], x[2], []))
+            Dense(numStates, 16, identity),
+            Dense(16, 16, identity),
+            Dense(16, 1, identity),
+            x -> c4([1], x[1], []))
 push!(nets, net)
 
 for i in 1:length(nets)
@@ -112,34 +113,36 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        optim = Adam(1e-4)
+        optim = Adam(1e-6)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
-        dt = round(time()-st; digits=1)
+        dt = round(time()-st; digits=2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        optim = Adam(1e-4)
+        optim = Adam(1e-6)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
-        dt = round(time()-st; digits=1)
+        dt = round(time()-st; digits=2)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
-        p_net[1][:] = p_start[:]
-        lastLoss = startLoss
-        st = time()
-        optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
-        dt = round(time()-st; digits=1)
-        @info "Training time multi threaded (not pre-compiled): $(dt)s"
+        # [ToDo] currently not implemented 
+        
+        # p_net[1][:] = p_start[:]
+        # lastLoss = startLoss
+        # st = time()
+        # optim = Adam(1e-6)
+        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # dt = round(time()-st; digits=2)
+        # @info "Training time multi threaded x$(Threads.nthreads()) (not pre-compiled): $(dt)s"
 
-        p_net[1][:] = p_start[:]
-        lastLoss = startLoss
-        st = time()
-        optim = Adam(1e-4)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
-        dt = round(time()-st; digits=1)
-        @info "Training time multi threaded (pre-compiled): $(dt)s"
+        # p_net[1][:] = p_start[:]
+        # lastLoss = startLoss
+        # st = time()
+        # optim = Adam(1e-6)
+        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # dt = round(time()-st; digits=2)
+        # @info "Training time multi threaded x$(Threads.nthreads()) (pre-compiled): $(dt)s"
 
         # check results
         solutionAfter = problem(x0)

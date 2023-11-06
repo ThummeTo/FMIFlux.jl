@@ -83,7 +83,7 @@ net = Chain(
     Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=Flux.identity_init),
 )
 
-problem = CS_NeuralFMU(fmus, net, (t_start, t_stop); saveat=tData)
+problem = CS_NeuralFMU(fmus, net, (t_start, t_stop))
 @test problem != nothing
 
 solutionBefore = problem(extForce, t_step)

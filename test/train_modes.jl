@@ -33,7 +33,7 @@ velData = fmi2GetSolutionValue(realSimData, "mass.v")
 # loss function for training
 function losssum(p)
     global problem, x0, posData
-    solution = problem(x0; p=p)
+    solution = problem(x0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -94,19 +94,20 @@ for handleEvents in [true, false]
 
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
-                net = Chain(states -> myFMU(;x=states),
+
+                net = Chain(states -> myFMU(;x=states, dx_refs=:all),
                             dx -> c1(dx),
-                            Dense(numStates, 16, tanh; init=Flux.identity_init),
-                            Dense(16, 1, identity; init=Flux.identity_init),
+                            Dense(numStates, 16, tanh),
+                            Dense(16, 1, identity),
                             dx -> c2([1], dx[1], []) )
                 
                 optim = Adam(1e-8)
                 solver = Tsit5()
 
-                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), solver; saveat=tData)
+                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), solver)
                 @test problem != nothing
                 
-                solutionBefore = problem(x0)
+                solutionBefore = problem(x0; saveat=tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)
                     @test solutionBefore.states.t[1] == t_start
@@ -124,7 +125,7 @@ for handleEvents in [true, false]
                 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
                 # check results
-                solutionAfter = problem(x0)
+                solutionAfter = problem(x0; saveat=tData)
                 if solutionAfter.success
                     @test length(solutionAfter.states.t) == length(tData)
                     @test solutionAfter.states.t[1] == t_start

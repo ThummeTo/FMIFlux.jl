@@ -66,7 +66,7 @@ net = Chain(u -> myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u,
             Dense(16, 16, tanh; init=Flux.identity_init),
             Dense(16, numOutputs; init=Flux.identity_init))
 
-problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop); saveat=tData)
+problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop))
 @test problem != nothing
 
 # train it ...

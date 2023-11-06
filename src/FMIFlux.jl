@@ -34,6 +34,7 @@ using FMIImport: fmi2True, fmi2False
 
 import FMIImport.FMICore: fmi2ValueReferenceFormat
 
+include("optimiser.jl")
 include("hotfixes.jl")
 include("convert.jl")
 include("flux_overload.jl")
@@ -44,7 +45,7 @@ include("deprecated.jl")
 include("batch.jl")
 include("losses.jl")
 include("scheduler.jl")
-#include("optimiser.jl")
+include("compatibility_check.jl")
 
 # from Plots.jl 
 # No export here, Plots.plot is extended if available.
