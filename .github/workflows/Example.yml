@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [windows-latest] # , ubuntu-latest]
         file-name: [advanced_hybrid_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
-        julia-version: ['1.9'] 
+        julia-version: ['1.8'] 
         julia-arch: [x64]
         experimental: [false]
 
@@ -44,7 +44,7 @@ jobs:
         env:
           FILE: examples/src/${{ matrix.file-name }}.ipynb
         run: |
-          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.9" --to notebook --inplace --execute ${{ env.FILE }}
+          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.8" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
 
