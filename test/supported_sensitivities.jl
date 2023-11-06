@@ -13,21 +13,32 @@ Random.seed!(5678);
 # boundaries
 t_start = 0.0
 t_step = 0.1
-t_stop = 5.0
+t_stop = 3.0
 tData = t_start:t_step:t_stop
 posData = ones(length(tData))
 tspan = (t_start, t_stop)
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
-fmu.handleEventIndicators = [1]
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 x0 = [1.0, 0.0]
-dx = [0.0, 0.0]
 numStates = length(x0)
 
-net = Chain(x -> fmu(;x=x, dx=dx), 
-            Dense([1.0 0.0; 0.0 1.0], [0.0; 0.0], identity))
+c1 = CacheLayer()
+c2 = CacheRetrieveLayer(c1)
+c3 = CacheLayer()
+c4 = CacheRetrieveLayer(c3)
+
+# default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
+net = Chain(x -> c1(x),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
+            x -> c2([1], x[2], []),
+            x -> fmu(;x=x), 
+            x -> c3(x),
+            Dense(numStates, 32, identity; init=Flux.identity_init),
+            Dense(32, numStates, identity; init=Flux.identity_init),
+            x -> c4([1], x[2], []))
 
 # loss function for training
 function losssum(p)

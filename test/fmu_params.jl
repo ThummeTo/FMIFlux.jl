@@ -16,15 +16,15 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-velData = sin.(tData.*4.0)
+velData = sin.(tData.*3.0)
 x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-# [TODO] Replace by a suitable discontinuous FMU
-fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 using FMI.FMIImport
 using FMI.FMIImport.FMICore
+import FMI.FMIImport: unsense
 
 c = fmi2Instantiate!(fmu)
 fmi2SetupExperiment(c, 0.0, 1.0)
@@ -44,9 +44,10 @@ function losssum(p)
         return Inf 
     end
 
+    # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(velNet, velData)
+    return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
@@ -60,19 +61,21 @@ function callb(p)
         loss = losssum(p[1])
         @info "[$(iterCB)] Loss: $loss"
         @test loss < lastLoss  
+        #@test p[1][1] == fmu.optim_p[1]
+        #@info "$(fmu.optim_p[1])"
+        #@info "$(p)"
+        #@info "$(problem.parameters)"
         lastLoss = loss
     end
 end
 
 numStates = fmiGetNumberOfStates(fmu)
 
-dx = zeros(fmi2Real, numStates)
-
 # the "Chain" for training
 net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
-            x -> fmu(x=x, dx=dx)) # , fmuLayer(p))
+            x -> fmu(;x=x)) # , fmuLayer(p))
 
-optim = Adam(1e-4)
+optim = Adam(1e-3)
 solver = Tsit5()
 
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)

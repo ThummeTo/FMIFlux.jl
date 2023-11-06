@@ -24,6 +24,7 @@ fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2Type
 
 using FMI.FMIImport
 using FMI.FMIImport.FMICore
+import FMI.FMIImport: unsense
 
 # loss function for training
 function losssum_single(p)

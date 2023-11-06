@@ -7,10 +7,8 @@ using FMIFlux
 using Test
 using FMIZoo
 
-import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
-
 using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU
-using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATIONS
+using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
 exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0.25")]
@@ -22,8 +20,8 @@ global GRADIENT = nothing
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
 
-# enable assertions for warnings/errors for all default execution configurations - we want strict tests here
-for exec in FMU2_EXECUTION_CONFIGURATIONS
+# enable assertions for warnings/errors for all default execution configurations 
+for exec in [FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET]
     exec.assertOnError = true
     exec.assertOnWarning = true
 end
