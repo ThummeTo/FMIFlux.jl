@@ -13,7 +13,7 @@ using FMISensitivity.ReverseDiff: TrackedArray
 import FMISensitivity.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
 
-using DiffEqCallbacks
+using DifferentialEquations.DiffEqCallbacks
 using DifferentialEquations: ODEFunction, ODEProblem, solve
 using FMIImport: FMU2Component, FMU2Event, FMU2Solution, fmi2ComponentState,
     fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateError,
