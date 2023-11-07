@@ -15,18 +15,13 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
-
-pdict = Dict("mass.m" => 1.3)
-realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
-x0 = collect(realSimData.values.saveval[1])
-@test x0 == [0.5, 0.0]
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
 
 # load FMU for training
-realFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
-
-# setup traing data
-velData = fmi2GetSolutionValue(realSimData, "mass.v")
+fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 function losssum(p)
@@ -60,7 +55,7 @@ function callb(p)
     end
 end
 
-numStates = fmiGetNumberOfStates(realFMU)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
 nets = []
@@ -75,7 +70,7 @@ net = Chain(x -> c1(x),
             Dense(numStates, 16, identity),
             Dense(16, 1, identity),
             x -> c2([], x[1], [1]),
-            x -> realFMU(;x=x, dx_refs=:all), 
+            x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, identity),
             Dense(16, 16, identity),
@@ -89,7 +84,7 @@ for i in 1:length(nets)
 
         net = nets[i]
         solver = Tsit5()
-        problem = ME_NeuralFMU(realFMU, net, (t_start, t_stop), solver; saveat=tData)
+        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
         
         @test problem !== nothing
 
@@ -153,4 +148,4 @@ for i in 1:length(nets)
     end
 end
 
-fmi2Unload(realFMU)
+fmi2Unload(fmu)

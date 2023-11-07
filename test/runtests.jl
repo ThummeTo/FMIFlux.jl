@@ -6,6 +6,8 @@
 using FMIFlux
 using Test
 using FMIZoo
+using FMIFlux.FMIImport
+using FMIFlux.FMIImport.FMICore
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 

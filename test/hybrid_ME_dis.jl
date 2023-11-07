@@ -15,14 +15,10 @@ t_stop = 3.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-pdict = Dict("g" => 9.0)
-realSimData = fmiSimulate(fmu, (t_start, t_stop); parameters=pdict, recordValues=["h", "v"], saveat=tData)
-x0 = collect(realSimData.values.saveval[1])
-@test x0 == [1.0, 0.0]
-
-# setup traing data
-velData = fmi2GetSolutionValue(realSimData, "v")
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
 
 # loss function for training
 function losssum(p)
@@ -58,7 +54,7 @@ end
 
 vr = fmi2StringToValueReference(fmu, "g")
 
-numStates = fmiGetNumberOfStates(fmu)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
 nets = []

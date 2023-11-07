@@ -15,7 +15,9 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-velData = sin.(tData.*4.0)
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
 x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
@@ -63,7 +65,7 @@ function callb(p)
     end
 end
 
-numStates = fmiGetNumberOfStates(fmu)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 dx = zeros(fmi2Real, numStates)
 

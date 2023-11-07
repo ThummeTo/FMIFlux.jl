@@ -20,6 +20,9 @@ end
 import FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, unsense
 import FMIImport.FMICore.ChainRulesCore: ignore_derivatives
 
+import DifferentialEquations
+import FMIImport
+
 using Requires
 import Flux
 

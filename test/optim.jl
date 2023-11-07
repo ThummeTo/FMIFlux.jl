@@ -16,17 +16,13 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
-realSimData = fmiSimulateCS(fmu, (t_start, t_stop); recordValues=["mass.s", "mass.v"], saveat=tData)
-x0 = collect(realSimData.values.saveval[1])
-@test x0 == [0.5, 0.0]
-fmi2Unload(fmu)
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
-
-# setup traing data
-velData = fmi2GetSolutionValue(realSimData, "mass.v")
+fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 function losssum(p)
@@ -57,7 +53,7 @@ function callb(p)
     end
 end
 
-numStates = fmiGetNumberOfStates(fmu)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
 nets = [] 

@@ -14,15 +14,17 @@ t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
-parameters = Dict("mass_s0" => 1.3)
-realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
+
+fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
 
 # sine(t) as external force
 function extForce(t)
     return [sin(t)]
 end
-accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
 function losssum(p)
@@ -57,15 +59,15 @@ function callb(p)
 end
 
 # NeuralFMU setup
-numInputs = length(myFMU.modelDescription.inputValueReferences)
-numOutputs = length(myFMU.modelDescription.outputValueReferences)
+numInputs = length(fmu.modelDescription.inputValueReferences)
+numOutputs = length(fmu.modelDescription.outputValueReferences)
 
-net = Chain(u -> myFMU(;u_refs=myFMU.modelDescription.inputValueReferences, u=u, y_refs=myFMU.modelDescription.outputValueReferences),
+net = Chain(u -> fmu(;u_refs=fmu.modelDescription.inputValueReferences, u=u, y_refs=fmu.modelDescription.outputValueReferences),
             Dense(numOutputs, 16, tanh; init=Flux.identity_init),
             Dense(16, 16, tanh; init=Flux.identity_init),
             Dense(16, numOutputs; init=Flux.identity_init))
 
-problem = CS_NeuralFMU(myFMU, net, (t_start, t_stop))
+problem = CS_NeuralFMU(fmu, net, (t_start, t_stop))
 @test problem != nothing
 
 # train it ...
@@ -75,6 +77,6 @@ optim = Adam(1e-4)
 
 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
-@test length(myFMU.components) <= 1
+@test length(fmu.components) <= 1
 
-fmi2Unload(myFMU)
+fmi2Unload(fmu)

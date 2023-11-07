@@ -14,15 +14,16 @@ t_stop = 50.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = cos.(tData.*3.0)*2.0
-velData = sin.(tData.*3.0)
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
 x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeModelExchange)
+fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
-using FMI.FMIImport
-using FMI.FMIImport.FMICore
+using FMIFlux.FMIImport
+using FMIFlux.FMIImport.FMICore
 
 # loss function for training
 function losssum_single(p)
@@ -68,7 +69,7 @@ function callb(losssum, p)
     end
 end
 
-numStates = fmiGetNumberOfStates(fmu)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 c1 = CacheLayer()
 c2 = CacheRetrieveLayer(c1)

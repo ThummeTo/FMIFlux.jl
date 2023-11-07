@@ -5,7 +5,7 @@
 
 using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
-import FMI.FMIImport: fmi2FreeInstance!
+import FMIFlux.FMIImport: fmi2FreeInstance!
 
 import Random 
 Random.seed!(5678);
@@ -16,18 +16,13 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-realFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION)
-pdict = Dict("mass.m" => 1.3)
-realSimData = fmiSimulate(realFMU, (t_start, t_stop); parameters=pdict, recordValues=["mass.s", "mass.v"], saveat=tData)
-x0 = collect(realSimData.values.saveval[1])
-@test x0 == [0.5, 0.0]
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
 
 # load FMU for NeuralFMU
-myFMU = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
-
-# setup traing data
-posData = fmi2GetSolutionValue(realSimData, "mass.s")
-velData = fmi2GetSolutionValue(realSimData, "mass.v")
+fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 function losssum(p)
@@ -59,9 +54,9 @@ function callb(p)
     end
 end
 
-vr = fmi2StringToValueReference(myFMU, "mass.m")
+vr = fmi2StringToValueReference(fmu, "mass.m")
 
-numStates = fmiGetNumberOfStates(myFMU)
+numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
 nets = [] 
@@ -75,26 +70,26 @@ for handleEvents in [true, false]
                 
                 global problem, lastLoss, iterCB, comp
 
-                myFMU.executionConfig = config
-                myFMU.executionConfig.handleStateEvents = handleEvents
-                myFMU.executionConfig.handleTimeEvents = handleEvents
-                myFMU.executionConfig.externalCallbacks = true
-                myFMU.executionConfig.loggingOn = true
-                myFMU.executionConfig.assertOnError = true
-                myFMU.executionConfig.assertOnWarning = true
+                fmu.executionConfig = config
+                fmu.executionConfig.handleStateEvents = handleEvents
+                fmu.executionConfig.handleTimeEvents = handleEvents
+                fmu.executionConfig.externalCallbacks = true
+                fmu.executionConfig.loggingOn = true
+                fmu.executionConfig.assertOnError = true
+                fmu.executionConfig.assertOnWarning = true
 
-                @info "handleEvents: $(handleEvents) | instantiate: $(myFMU.executionConfig.instantiate) | reset: $(myFMU.executionConfig.reset)  | terminate: $(myFMU.executionConfig.terminate) | freeInstance: $(myFMU.executionConfig.freeInstance)"
+                @info "handleEvents: $(handleEvents) | instantiate: $(fmu.executionConfig.instantiate) | reset: $(fmu.executionConfig.reset)  | terminate: $(fmu.executionConfig.terminate) | freeInstance: $(fmu.executionConfig.freeInstance)"
 
-                # if myFMU.executionConfig.instantiate == false 
+                # if fmu.executionConfig.instantiate == false 
                 #     @info "instantiate = false, instantiating..."
                 #     instantiate = true
-                #     comp, _ = prepareSolveFMU(myFMU, comp, fmi2TypeModelExchange, instantiate, nothing, nothing, nothing, nothing, nothing, t_start, t_stop, nothing; x0=x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+                #     comp, _ = prepareSolveFMU(fmu, comp, :ME, instantiate, nothing, nothing, nothing, nothing, nothing, t_start, t_stop, nothing; x0=x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
                 # end
 
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
 
-                net = Chain(states -> myFMU(;x=states, dx_refs=:all),
+                net = Chain(states -> fmu(;x=states, dx_refs=:all),
                             dx -> c1(dx),
                             Dense(numStates, 16, tanh),
                             Dense(16, 1, identity),
@@ -103,7 +98,7 @@ for handleEvents in [true, false]
                 optim = Adam(1e-8)
                 solver = Tsit5()
 
-                problem = ME_NeuralFMU(myFMU, net, (t_start, t_stop), solver)
+                problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
                 
                 solutionBefore = problem(x0; saveat=tData)
@@ -142,5 +137,4 @@ for handleEvents in [true, false]
     end
 end
 
-fmi2Unload(realFMU)
-fmi2Unload(myFMU)
+fmi2Unload(fmu)

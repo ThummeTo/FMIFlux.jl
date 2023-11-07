@@ -15,16 +15,15 @@ t_stop = 1.0
 tData = t_start:t_step:t_stop
 
 # generate traing data
-myFMU = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
-parameters = Dict("mass_s0" => 1.3)
-realSimData = fmiSimulateCS(myFMU, (t_start, t_stop); parameters=parameters, recordValues=["mass.a"], saveat=tData)
-fmi2Unload(myFMU)
+posData = sin.(tData.*3.0)*2.0
+velData = cos.(tData.*3.0)*6.0
+accData = sin.(tData.*3.0)*-18.0
+x0 = [0.5, 0.0]
 
 # setup traing data
 function extForce(t)
     return [sin(t), cos(t)]
 end
-accData = fmi2GetSolutionValue(realSimData, "mass.a")
 
 # loss function for training
 function losssum(p)
@@ -61,7 +60,7 @@ end
 # Load FMUs
 fmus = Vector{FMU2}()
 for i in 1:2 # how many FMUs do you want?
-    _fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=fmi2TypeCoSimulation)
+    _fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
     push!(fmus, _fmu)
 end
 
