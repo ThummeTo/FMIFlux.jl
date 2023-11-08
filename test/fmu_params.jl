@@ -42,9 +42,9 @@ function losssum(p)
         return Inf 
     end
 
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
-    return Flux.Losses.mse(velNet, velData)
+    return Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
