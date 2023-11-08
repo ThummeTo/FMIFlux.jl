@@ -10,8 +10,8 @@ import Random
 Random.seed!(5678);
 
 t_start = 0.0
-t_step = 0.1
-t_stop = 15.0 
+t_step = 0.01
+t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
@@ -163,6 +163,7 @@ for i in 1:length(nets)
 
         # train it ...
         p_net = Flux.params(problem)
+        @test length(p_net) == 1
         
         @test problem !== nothing
 
@@ -175,7 +176,12 @@ for i in 1:length(nets)
 
         iterCB = 0
         lastLoss = losssum(p_net[1])
-        @info "[ $(iterCB)] Loss: $lastLoss"
+        @info "Start-Loss for net #$i: $lastLoss"
+
+        if length(p_net[1]) == 0
+            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
+        end
+
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
         # check results

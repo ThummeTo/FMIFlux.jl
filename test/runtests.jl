@@ -27,9 +27,9 @@ global x0 = [2.0, 0.0]
 
 # training data for pendulum experiment 
 function syntTrainingData(tData)
-    posData = cos.(tData)* 1.0
-    velData = sin.(tData)*-1.0
-    accData = cos.(tData)*-1.0
+    posData = cos.(tData*3.0)* 2.0
+    velData = sin.(tData*3.0)*-6.0
+    accData = cos.(tData*3.0)*-18.0
     return posData, velData, accData
 end
 

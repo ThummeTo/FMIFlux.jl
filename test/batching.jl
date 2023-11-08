@@ -9,8 +9,8 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.1
-t_stop = 150.0
+t_step = 0.01
+t_stop = 50.0
 tData = t_start:t_step:t_stop
 
 # generate training data

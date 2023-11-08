@@ -10,8 +10,8 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.1
-t_stop = 15.0
+t_step = 0.01
+t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
@@ -66,7 +66,7 @@ numStates = length(fmu.modelDescription.stateValueReferences)
 
 # the "Chain" for training
 net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
-            x -> fmu(x=x, dx=:all)) # , fmuLayer(p))
+            x -> fmu(x=x, dx_refs=:all)) # , fmuLayer(p))
 
 optim = Adam(ETA)
 solver = Tsit5()
