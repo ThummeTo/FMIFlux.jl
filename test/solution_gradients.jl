@@ -28,6 +28,7 @@ t_step = 0.05
 t_stop = 2.0
 tData = t_start:t_step:t_stop
 posData = ones(Float64, length(tData))
+x0_bb = [1.0, 0.0]
 
 numStates = 2
 solver = Tsit5()
@@ -48,7 +49,7 @@ net_bb = Chain(#Dense([1.0 0.0; 0.0 1.0], [0.0, 0.0], identity),
 p_net_bb, re_bb = Flux.destructure(net_bb)
 
 ff = ODEFunction{true}(fx_bb) 
-prob_bb = ODEProblem{true}(ff, x0, (t_start, t_stop), p_net_bb)
+prob_bb = ODEProblem{true}(ff, x0_bb, (t_start, t_stop), p_net_bb)
 
 function condition(out, x, t, integrator)
     out[1] = x[1]-RADIUS
@@ -116,10 +117,10 @@ end
 
 function mysolve(p; sensealg=nothing)
     global solution, events # write
-    global prob, x0, posData, solver # read-only
+    global prob, x0_bb, posData, solver # read-only
     events = 0
 
-    solution = prob(x0; p=p, solver=solver, saveat=tData)
+    solution = prob(x0_bb; p=p, solver=solver, saveat=tData)
 
     return collect(u[1] for u in solution.states.u)
 end
@@ -155,7 +156,7 @@ using FMIFlux.FMISensitivity.SciMLSensitivity
 sensealg = ReverseDiffAdjoint() 
 
 c = nothing
-c, x0 = FMIFlux.prepareSolveFMU(prob.fmu, c, fmi2TypeModelExchange, nothing, nothing, nothing, nothing, nothing, prob.parameters, prob.tspan[1], prob.tspan[end], nothing; x0=prob.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+c, _ = FMIFlux.prepareSolveFMU(prob.fmu, c, fmi2TypeModelExchange, nothing, nothing, nothing, nothing, nothing, prob.parameters, prob.tspan[1], prob.tspan[end], nothing; x0=prob.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
 
 ### START CHECK CONDITIONS 
 
@@ -169,14 +170,14 @@ function condition_nfmu_check(x)
     FMIFlux.condition!(prob, FMIFlux.getComponent(prob), buffer, x, t_start, nothing, [UInt32(1)])
     return buffer 
 end
-jac_fwd1 = ForwardDiff.jacobian(condition_bb_check, x0)
-jac_fwd2 = ForwardDiff.jacobian(condition_nfmu_check, x0)
+jac_fwd1 = ForwardDiff.jacobian(condition_bb_check, x0_bb)
+jac_fwd2 = ForwardDiff.jacobian(condition_nfmu_check, x0_bb)
 
-jac_rwd1 = ReverseDiff.jacobian(condition_bb_check, x0)
-jac_rwd2 = ReverseDiff.jacobian(condition_nfmu_check, x0)
+jac_rwd1 = ReverseDiff.jacobian(condition_bb_check, x0_bb)
+jac_rwd2 = ReverseDiff.jacobian(condition_nfmu_check, x0_bb)
 
-jac_fin1 = FiniteDiff.finite_difference_jacobian(condition_bb_check, x0)
-jac_fin2 = FiniteDiff.finite_difference_jacobian(condition_nfmu_check, x0)
+jac_fin1 = FiniteDiff.finite_difference_jacobian(condition_bb_check, x0_bb)
+jac_fin2 = FiniteDiff.finite_difference_jacobian(condition_nfmu_check, x0_bb)
 
 atol = 1e-8
 @test isapprox(jac_fin1, jac_fwd1; atol=atol)
@@ -206,17 +207,17 @@ atol = 1e-8
 # t_first_event_time = 0.451523640985728
 # x_first_event_right = [2.2250738585072014e-308, 3.1006128426489954]
 
-# jac_con1 = ForwardDiff.jacobian(affect_bb_check, x0)
-# jac_con2 = ForwardDiff.jacobian(affect_nfmu_check, x0)
+# jac_con1 = ForwardDiff.jacobian(affect_bb_check, x0_bb)
+# jac_con2 = ForwardDiff.jacobian(affect_nfmu_check, x0_bb)
 
-# jac_con1 = ReverseDiff.jacobian(affect_bb_check, x0)
-# jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x0)
+# jac_con1 = ReverseDiff.jacobian(affect_bb_check, x0_bb)
+# jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x0_bb)
 
 ###
 
 # Solution (plain)
 losssum(p_net; sensealg=sensealg) 
-#@test length(solution.events) == NUMEVENTS
+@test length(solution.events) == NUMEVENTS
 
 losssum_bb(p_net_bb; sensealg=sensealg) 
 @test events == NUMEVENTS

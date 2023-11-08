@@ -7,6 +7,7 @@ using FMIFlux
 using Test
 using FMIZoo
 using FMIFlux.FMIImport
+using FMIFlux.FMIImport.FMICore
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
@@ -50,7 +51,7 @@ function runtests(exportingTool)
         @testset "Solution Gradients" begin
             include("solution_gradients.jl")
         end
-        
+
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
             global GRADIENT = _GRADIENT
