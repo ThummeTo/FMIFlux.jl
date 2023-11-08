@@ -9,15 +9,12 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.01
-t_stop = 50.0
+t_step = 0.1
+t_stop = 150.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
 fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
@@ -94,12 +91,12 @@ iterCB = 0
 
 # single objective
 lastLoss = losssum_single(p_net[1])
-optim = Adam(1e-3)
+optim = Adam(ETA)
 FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_single, p_net), gradient=GRADIENT)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
-# optim = Adam(1e-3)
+# optim = Adam(ETA)
 # FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
 
 # check results

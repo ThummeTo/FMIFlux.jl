@@ -7,11 +7,10 @@ using FMIFlux
 using Test
 using FMIZoo
 using FMIFlux.FMIImport
-using FMIFlux.FMIImport.FMICore
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU
+using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
 using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATIONS
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
@@ -20,9 +19,19 @@ exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 10
+global ETA = 1e-6
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
+global x0 = [2.0, 0.0]
+
+# training data for pendulum experiment 
+function syntTrainingData(tData)
+    posData = cos.(tData)* 1.0
+    velData = sin.(tData)*-1.0
+    accData = cos.(tData)*-1.0
+    return posData, velData, accData
+end
 
 # enable assertions for warnings/errors for all default execution configurations - we want strict tests here
 for exec in FMU2_EXECUTION_CONFIGURATIONS

@@ -10,15 +10,12 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.01
-t_stop = 1.0
+t_step = 0.1
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
 
-# generate traing data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+# generate training data
+posData, velData, accData = syntTrainingData(tData)
 
 # setup traing data
 function extForce(t)
@@ -89,7 +86,7 @@ solutionBefore = problem(extForce, t_step)
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam(1e-6)
+optim = Adam(ETA)
 
 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 

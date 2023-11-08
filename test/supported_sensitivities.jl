@@ -12,9 +12,8 @@ Random.seed!(5678);
 # boundaries
 t_start = 0.0
 t_step = 0.1
-t_stop = 5.0
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
-posData = ones(length(tData))
 tspan = (t_start, t_stop)
 
 # load FMU for NeuralFMU

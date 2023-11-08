@@ -11,14 +11,11 @@ Random.seed!(5678);
 
 t_start = 0.0
 t_step = 0.1
-t_stop = 3.0
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for training
 fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
@@ -107,7 +104,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        optim = Adam(1e-6)
+        optim = Adam(ETA)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
@@ -115,7 +112,7 @@ for i in 1:length(nets)
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
-        optim = Adam(1e-6)
+        optim = Adam(ETA)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (pre-compiled): $(dt)s"
@@ -125,7 +122,7 @@ for i in 1:length(nets)
         # p_net[1][:] = p_start[:]
         # lastLoss = startLoss
         # st = time()
-        # optim = Adam(1e-6)
+        # optim = Adam(ETA)
         # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (not pre-compiled): $(dt)s"
@@ -133,7 +130,7 @@ for i in 1:length(nets)
         # p_net[1][:] = p_start[:]
         # lastLoss = startLoss
         # st = time()
-        # optim = Adam(1e-6)
+        # optim = Adam(ETA)
         # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (pre-compiled): $(dt)s"

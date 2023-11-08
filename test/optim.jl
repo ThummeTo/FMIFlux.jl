@@ -11,15 +11,12 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.01
-t_stop = 5.0
+t_step = 0.1
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
 fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
@@ -155,7 +152,7 @@ for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
 
-        optim = GradientDescent(;alphaguess=1e-6) # BFGS()
+        optim = GradientDescent(;alphaguess=ETA) # BFGS()
         solver = Tsit5()
 
         net = nets[i]

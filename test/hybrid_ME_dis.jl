@@ -11,14 +11,13 @@ Random.seed!(5678);
 
 t_start = 0.0
 t_step = 0.1
-t_stop = 3.0
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
+
+fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
 
 # loss function for training
 function losssum(p)
@@ -156,7 +155,7 @@ for i in 1:length(nets)
     @testset "Net setup $(i)/$(length(nets))" begin
         global nets, problem, lastLoss, iterCB
 
-        optim = Adam(1e-6)
+        optim = Adam(ETA)
         solver = Tsit5()
 
         net = nets[i]

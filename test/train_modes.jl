@@ -11,15 +11,12 @@ import Random
 Random.seed!(5678);
 
 t_start = 0.0
-t_step = 0.01
-t_stop = 5.0
+t_step = 0.1
+t_stop = 15.0 
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
 fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
@@ -95,7 +92,7 @@ for handleEvents in [true, false]
                             Dense(16, 1, identity),
                             dx -> c2([1], dx[1], []) )
                 
-                optim = Adam(1e-8)
+                optim = Adam(ETA)
                 solver = Tsit5()
 
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)

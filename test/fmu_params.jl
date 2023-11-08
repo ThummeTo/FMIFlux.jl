@@ -10,15 +10,12 @@ import Random
 Random.seed!(1234);
 
 t_start = 0.0
-t_step = 0.01
-t_stop = 5.0
+t_step = 0.1
+t_stop = 15.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData = sin.(tData.*3.0)*2.0
-velData = cos.(tData.*3.0)*6.0
-accData = sin.(tData.*3.0)*-18.0
-x0 = [0.5, 0.0]
+posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
 # [TODO] Replace by a suitable discontinuous FMU
@@ -67,13 +64,11 @@ end
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
-dx = zeros(fmi2Real, numStates)
-
 # the "Chain" for training
 net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
-            x -> fmu(x=x, dx=dx)) # , fmuLayer(p))
+            x -> fmu(x=x, dx=:all)) # , fmuLayer(p))
 
-optim = Adam(1e-4)
+optim = Adam(ETA)
 solver = Tsit5()
 
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
