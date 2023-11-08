@@ -27,6 +27,7 @@ t_start = 0.0
 t_step = 0.05
 t_stop = 2.0
 tData = t_start:t_step:t_stop
+posData = ones(Float64, length(tData))
 
 numStates = 2
 solver = Tsit5()
