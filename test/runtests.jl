@@ -46,6 +46,11 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
+        @info    "Solution Gradients (solution_gradients.jl)"
+        @testset "Solution Gradients" begin
+            include("solution_gradients.jl")
+        end
+        
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
             global GRADIENT = _GRADIENT
@@ -102,11 +107,6 @@ function runtests(exportingTool)
                     include("optim.jl")
                 end
             end
-        end
-
-        @info    "Solution Gradients (solution_gradients.jl)"
-        @testset "Solution Gradients" begin
-            include("solution_gradients.jl")
         end
 
         @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
