@@ -111,7 +111,7 @@ for handleEvents in [true, false]
                 iterCB = 0
                 lastLoss = losssum(p_net[1])
                 lastInstCount = length(problem.fmu.components)
-                @info "Start-Loss for net #$i: $lastLoss"
+                @info "Start-Loss for net: $lastLoss"
 
                 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
