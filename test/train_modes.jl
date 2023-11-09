@@ -92,7 +92,7 @@ for handleEvents in [true, false]
                             Dense(16, 1, identity),
                             dx -> c2([1], dx[1], []) )
                 
-                optim = Adam(ETA)
+                optim = OPTIMISER(ETA)
                 solver = Tsit5()
 
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)

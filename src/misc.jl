@@ -52,7 +52,7 @@ function transferFlatParams!(net, p_net, c=1; netRange=nothing)
         netRange = 1:length(net.layers)
     end
     for l in netRange
-        if !isa(net.layers[l], FMIFlux.Dense)
+        if !isa(net.layers[l], Dense)
             continue
         end
         ni = size(net.layers[l].weight,2)

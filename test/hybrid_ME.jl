@@ -152,7 +152,7 @@ for i in 1:length(nets)
     @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
 
-        optim = Adam(ETA)
+        optim = OPTIMISER(ETA)
         solver = Tsit5()
 
         net = nets[i]

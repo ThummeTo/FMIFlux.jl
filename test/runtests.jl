@@ -8,6 +8,7 @@ using Test
 using FMIZoo
 using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
+using FMIFlux.Flux
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
@@ -25,6 +26,7 @@ global GRADIENT = nothing
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
 global x0 = [2.0, 0.0]
+global OPTIMISER = Descent
 
 # training data for pendulum experiment 
 function syntTrainingData(tData)

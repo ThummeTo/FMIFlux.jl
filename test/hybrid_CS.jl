@@ -70,7 +70,7 @@ problem = CS_NeuralFMU(fmu, net, (t_start, t_stop))
 # train it ...
 p_net = Flux.params(problem)
 
-optim = Adam(ETA)
+optim = OPTIMISER(ETA)
 
 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 

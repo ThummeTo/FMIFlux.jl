@@ -12,25 +12,25 @@ Random.seed!(5678);
 # boundaries
 t_start = 0.0
 t_step = 0.1
-t_stop = 15.0 
+t_stop = 5.0 
 tData = t_start:t_step:t_stop
 tspan = (t_start, t_stop)
+posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
 fmu = fmi2Load("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 fmu.handleEventIndicators = [1]
 
-x0 = [1.0, 0.0]
-dx = [0.0, 0.0]
-numStates = length(x0)
+x0_bb = [1.0, 0.0]
+numStates = length(x0_bb)
 
-net = Chain(x -> fmu(;x=x, dx=dx), 
+net = Chain(x -> fmu(;x=x, dx_refs=:all), 
             Dense([1.0 0.0; 0.0 1.0], [0.0; 0.0], identity))
 
 # loss function for training
 function losssum(p)
-    global nfmu, x0, posData
-    solution = nfmu(x0; p=p, saveat=tData)
+    global nfmu, x0_bb, posData
+    solution = nfmu(x0_bb; p=p, saveat=tData)
 
     if !solution.success
         return Inf 

@@ -68,7 +68,7 @@ numStates = length(fmu.modelDescription.stateValueReferences)
 net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
             x -> fmu(x=x, dx_refs=:all)) # , fmuLayer(p))
 
-optim = Adam(ETA)
+optim = OPTIMISER(ETA)
 solver = Tsit5()
 
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)

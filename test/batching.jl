@@ -91,12 +91,12 @@ iterCB = 0
 
 # single objective
 lastLoss = losssum_single(p_net[1])
-optim = Adam(ETA)
+optim = OPTIMISER(ETA)
 FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_single, p_net), gradient=GRADIENT)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
-# optim = Adam(ETA)
+# optim = OPTIMISER(ETA)
 # FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
 
 # check results
