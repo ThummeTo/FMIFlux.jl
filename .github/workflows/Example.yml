@@ -48,6 +48,10 @@ jobs:
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
 
+      - name: "Fix GIF"
+        run: |
+          sed -i -E 's~(<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+]*=" \/>)~```@raw html\n\1\n```~g' juliacon_2023.md
+
       - name: Archive examples artifacts
         if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3

@@ -3,6 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+import Pkg; Pkg.develop(path=joinpath(@__DIR__,"../../FMIFlux.jl"))
 using Documenter, FMIFlux
 using Documenter: GitHubActions
 
@@ -11,7 +12,7 @@ makedocs(sitename="FMIFlux.jl",
             collapselevel = 1,
             sidebar_sitename = false,
             edit_link = nothing,
-            size_threshold_ignore = ["examples/juliacon_2023.md"]
+            size_threshold_ignore = ["examples\\juliacon_2023.md"]
         ),
         warnonly=true,
         pages= Any[
