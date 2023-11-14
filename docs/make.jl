@@ -12,7 +12,7 @@ makedocs(sitename="FMIFlux.jl",
             collapselevel = 1,
             sidebar_sitename = false,
             edit_link = nothing,
-            size_threshold_ignore = ["examples\\juliacon_2023.md"]
+            size_threshold_ignore = [joinpath("examples","juliacon_2023.md")]
         ),
         warnonly=true,
         pages= Any[

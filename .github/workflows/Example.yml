@@ -50,7 +50,13 @@ jobs:
 
       - name: "Fix GIF"
         run: |
-          sed -i -E 's~(<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+]*=" \/>)~```@raw html\n\1\n```~g' juliacon_2023.md
+          if ("${{ matrix.file-name }}" -eq "juliacon_2023")
+          {
+            echo "starting the mess"
+            $env:Path += ";C:\Program Files\Git\usr\bin"
+            sed -i -E 's~(<img src=\"data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*\" \/>)~\`\`\`@raw html\n\1\n\`\`\`~g' examples/src/${{ matrix.file-name }}.md
+            echo "mess finished"
+          }          
 
       - name: Archive examples artifacts
         if: success() && matrix.os == 'windows-latest'
