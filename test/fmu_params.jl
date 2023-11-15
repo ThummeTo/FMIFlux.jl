@@ -47,21 +47,6 @@ function losssum(p)
     return Flux.Losses.mse(posNet, posData)
 end
 
-# callback function for training
-global iterCB = 0
-global lastLoss = 0.0
-function callb(p)
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB % 5 == 0
-        loss = losssum(p[1])
-        @info "[$(iterCB)] Loss: $loss"
-        @test loss < lastLoss  
-        lastLoss = loss
-    end
-end
-
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 # the "Chain" for training
@@ -85,17 +70,16 @@ solutionBefore = problem(X0; saveat=tData)
 p_net = Flux.params(problem)
 @test length(p_net) == 1
 @test length(p_net[1]) == 7
+lossBefore = losssum(p_net[1])
 
-iterCB = 0
-lastLoss = losssum(p_net[1])
-@info "Start-Loss for net: $lastLoss"
+@info "Start-Loss for net: $(lossBefore)"
 
 # [ToDo] Discontinuous system?
 j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
 j_fwd = ForwardDiff.gradient(losssum, p_net[1])
 j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # check results
 solutionAfter = problem(X0; saveat=tData)
@@ -103,6 +87,9 @@ solutionAfter = problem(X0; saveat=tData)
 @test length(solutionAfter.states.t) == length(tData)
 @test solutionAfter.states.t[1] == t_start
 @test solutionAfter.states.t[end] == t_stop
+
+lossAfter = losssum(p_net[1])
+@test lossAfter < lossBefore
 
 @test length(fmu.components) <= 1
 

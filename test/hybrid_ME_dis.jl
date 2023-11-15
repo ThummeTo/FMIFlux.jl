@@ -34,23 +34,6 @@ function losssum(p)
     return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
-# callback function for training
-global iterCB = 0
-global lastLoss = 0.0
-function callb(p)
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB % 5 == 0
-        loss = losssum(p[1])
-        @info "[$(iterCB)] Loss: $loss"
-
-        # This test condition is not good, because when the FMU passes an event, the error might increase.  
-        @test loss <= lastLoss
-        lastLoss = loss
-    end
-end
-
 vr = fmi2StringToValueReference(fmu, "g")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
@@ -90,11 +73,9 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
-net = Chain(x -> c1(x),
-            Dense(numStates, 16, tanh, init=init),
+net = Chain(Dense(numStates, 16, tanh, init=init),
             Dense(16, 16, tanh, init=init),
-            Dense(16, 1, identity, init=init),
-            x -> c2([], x[1], [1]),
+            Dense(16, 2, identity, init=init),
             x -> fmu(;x=x, dx_refs=:all))
 push!(nets, net)
 
@@ -182,7 +163,16 @@ for i in 1:length(nets)
             @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
         end
 
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
+        lossBefore = losssum(p_net[1])
+
+        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+
+        lossAfter = losssum(p_net[1])
+        if length(p_net[1]) == 0
+            @test lossAfter == lossBefore
+        else
+            @test lossAfter < lossBefore
+        end
 
         # check results
         solutionAfter = problem(X0; p=p_net[1], saveat=tData)

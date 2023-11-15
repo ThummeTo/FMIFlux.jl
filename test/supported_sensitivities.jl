@@ -25,7 +25,8 @@ x0_bb = [1.0, 0.0]
 numStates = length(x0_bb)
 
 net = Chain(x -> fmu(;x=x, dx_refs=:all), 
-            Dense([1.0 0.0; 0.0 1.0], [0.0; 0.0], identity))
+            Dense(2, 16, tanh),
+            Dense(16, 2, identity))
 
 # loss function for training
 function losssum(p)

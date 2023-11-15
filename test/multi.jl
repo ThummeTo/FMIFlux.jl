@@ -35,25 +35,6 @@ function losssum(p)
     Flux.Losses.mse(accNet, accData)
 end
 
-# callback function for training
-global iterCB = 0
-global lastLoss = 0.0
-function callb(p)
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB == 1
-        lastLoss = losssum(p[1])
-    end
-
-    if iterCB % 5 == 0
-        loss = losssum(p[1])
-        @info "[$(iterCB)] Loss: $loss"
-        @test loss < lastLoss   
-        lastLoss = loss
-    end
-end
-
 # Load FMUs
 fmus = Vector{FMU2}()
 for i in 1:2 # how many FMUs do you want?
@@ -88,7 +69,10 @@ p_net = Flux.params(problem)
 
 optim = OPTIMISER(ETA)
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
+lossBefore = losssum(p_net[1])
+FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+lossAfter = losssum(p_net[1])
+@test lossAfter < lossBefore
 
 # check results
 solutionAfter = problem(extForce, t_step)

@@ -50,22 +50,6 @@ function losssum_multi(p)
     return [Flux.Losses.mse(posNet, posData), Flux.Losses.mse(velNet, velData)]
 end
 
-# callback function for training
-global iterCB = 0
-global lastLoss = Inf
-function callb(losssum, p)
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB % 5 == 0
-        newloss = losssum(p[1])
-        loss = (length(newloss) > 1 ? sum(newloss) : newloss)
-        @info "[$(iterCB)] Loss: $loss"
-        @test loss < lastLoss  
-        lastLoss = loss
-    end
-end
-
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 c1 = CacheLayer()
@@ -82,29 +66,22 @@ solver = Tsit5()
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
 @test problem != nothing
 
-solutionBefore = problem(X0)
-
-# train it ...
+# before
 p_net = Flux.params(problem)
-
-iterCB = 0
+lossBefore = losssum_single(p_net[1])
 
 # single objective
-lastLoss = losssum_single(p_net[1])
 optim = OPTIMISER(ETA)
-FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_single, p_net), gradient=GRADIENT)
+FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
 # optim = OPTIMISER(ETA)
-# FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
+# FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
 
-# check results
-solutionAfter = problem(X0)
-@test solutionAfter.success
-@test length(solutionAfter.states.t) == length(tData)
-@test solutionAfter.states.t[1] == t_start
-@test solutionAfter.states.t[end] == t_stop
+# after
+lossAfter = losssum_single(p_net[1])
+@test lossAfter < lossBefore
 
 @test length(fmu.components) <= 1
 

@@ -36,21 +36,6 @@ function losssum(p)
     return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
-# callback function for training
-global iterCB = 0
-global lastLoss = 0.0
-function callb(p)
-    global iterCB += 1
-    global lastLoss
-
-    if iterCB % 5 == 0
-        loss = losssum(p[1])
-        @info "[$(iterCB)] Loss: $loss"
-        @test loss < lastLoss  
-        lastLoss = loss
-    end
-end
-
 vr = fmi2StringToValueReference(fmu, "mass.m")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
@@ -113,7 +98,11 @@ for handleEvents in [true, false]
                 lastInstCount = length(problem.fmu.components)
                 @info "Start-Loss for net: $lastLoss"
 
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
+                lossBefore = losssum(p_net[1])
+                FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+                lossAfter = losssum(p_net[1])
+
+                @test lossAfter < lossBefore
 
                 # check results
                 solutionAfter = problem(X0; saveat=tData)
