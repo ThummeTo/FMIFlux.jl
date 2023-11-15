@@ -4,7 +4,6 @@
 #
 
 using Statistics: mean, std
-import FMIImport: fmi2Real, fmi2ValueReferenceFormat
 
 ### FMUParameterRegistrator ###
 

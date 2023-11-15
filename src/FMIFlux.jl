@@ -35,7 +35,7 @@ using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicator
 using FMIImport: fmi2SampleJacobian, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
-import FMIImport.FMICore: fmi2ValueReferenceFormat
+import FMIImport.FMICore: fmi2ValueReferenceFormat, fmi2Real
 
 include("optimiser.jl")
 include("hotfixes.jl")

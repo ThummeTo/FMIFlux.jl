@@ -113,12 +113,14 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     
     tspan
     
+    p::Union{AbstractArray{<:Real}, Nothing}
     re # restrucure function
 
     function CS_NeuralFMU{F, C}() where {F, C}
         inst = new{F, C}()
 
         inst.re = nothing
+        inst.p = nothing
 
         return inst
     end
@@ -933,7 +935,7 @@ Via optional argument `reset`, the FMU is reset every time evaluation is started
 function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     t_step::Real, 
     tspan::Tuple{Float64, Float64} = nfmu.tspan; 
-    p=nothing,
+    p=nfmu.p,
     tolerance::Union{Real, Nothing} = nothing,
     parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
     setup::Union{Bool, Nothing} = nothing,
@@ -1072,8 +1074,8 @@ end
 
 function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=true)
     if destructure 
-        p, nfmu.re = Flux.destructure(nfmu.model)
-        return Flux.params(p)
+        nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
+        return Flux.params(nfmu.p)
     else
         return Flux.params(nfmu.model)
     end

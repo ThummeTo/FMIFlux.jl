@@ -21,8 +21,8 @@ fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
 
 # loss function for training
 function losssum(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, saveat=tData)
+    global problem, X0, posData
+    solution = problem(X0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -167,7 +167,7 @@ for i in 1:length(nets)
         
         @test problem !== nothing
 
-        solutionBefore = problem(x0; p=p_net[1], saveat=tData)
+        solutionBefore = problem(X0; p=p_net[1], saveat=tData)
         if solutionBefore.success
             @test length(solutionBefore.states.t) == length(tData)
             @test solutionBefore.states.t[1] == t_start
@@ -185,7 +185,7 @@ for i in 1:length(nets)
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
         # check results
-        solutionAfter = problem(x0; p=p_net[1], saveat=tData)
+        solutionAfter = problem(X0; p=p_net[1], saveat=tData)
         if solutionAfter.success
             @test length(solutionAfter.states.t) == length(tData)
             @test solutionAfter.states.t[1] == t_start

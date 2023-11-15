@@ -18,7 +18,7 @@ tspan = (t_start, t_stop)
 posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("BouncingBall1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 fmu.handleEventIndicators = [1]
 
 x0_bb = [1.0, 0.0]

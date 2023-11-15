@@ -24,8 +24,8 @@ using FMIFlux.FMIImport.FMICore
 
 # loss function for training
 function losssum_single(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true, saveat=tData)
+    global problem, X0, posData
+    solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -37,8 +37,8 @@ function losssum_single(p)
 end
 
 function losssum_multi(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true, saveat=tData)
+    global problem, X0, posData
+    solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return [Inf, Inf]
@@ -82,7 +82,7 @@ solver = Tsit5()
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
 @test problem != nothing
 
-solutionBefore = problem(x0)
+solutionBefore = problem(X0)
 
 # train it ...
 p_net = Flux.params(problem)
@@ -100,7 +100,7 @@ FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; c
 # FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(losssum_multi,  p_net), gradient=GRADIENT, multiObjective=true)
 
 # check results
-solutionAfter = problem(x0)
+solutionAfter = problem(X0)
 @test solutionAfter.success
 @test length(solutionAfter.states.t) == length(tData)
 @test solutionAfter.states.t[1] == t_start

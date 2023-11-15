@@ -22,8 +22,8 @@ fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type
 
 # loss function for training
 function losssum(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, showProgress=true, saveat=tData)
+    global problem, X0, posData
+    solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -64,13 +64,13 @@ c4 = CacheRetrieveLayer(c3)
 
 # 1. Discontinuous ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity),
+            Dense(numStates, 16, tanh),
             Dense(16, 1, identity),
             x -> c2([], x[1], [1]),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 16, identity),
-            Dense(16, 16, identity),
+            Dense(numStates, 16, tanh),
+            Dense(16, 16, tanh),
             Dense(16, 1, identity),
             x -> c4([1], x[1], []))
 push!(nets, net)
@@ -85,7 +85,7 @@ for i in 1:length(nets)
         
         @test problem !== nothing
 
-        solutionBefore = problem(x0)
+        solutionBefore = problem(X0)
         if solutionBefore.success
             @test length(solutionBefore.states.t) == length(tData)
             @test solutionBefore.states.t[1] == t_start
@@ -136,7 +136,7 @@ for i in 1:length(nets)
         # @info "Training time multi threaded x$(Threads.nthreads()) (pre-compiled): $(dt)s"
 
         # check results
-        solutionAfter = problem(x0)
+        solutionAfter = problem(X0)
         if solutionAfter.success
             @test length(solutionAfter.states.t) == length(tData)
             @test solutionAfter.states.t[1] == t_start

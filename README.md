@@ -46,6 +46,7 @@ You can evaluate FMUs inside of your loss function.
 
 ## What is under development in FMIFlux.jl?
 - performance optimizations
+- multi threaded CPU training
 - improved documentation
 - more examples
 - FMI3 integration

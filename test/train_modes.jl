@@ -23,8 +23,8 @@ fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type
 
 # loss function for training
 function losssum(p)
-    global problem, x0, posData
-    solution = problem(x0; p=p, saveat=tData)
+    global problem, X0, posData
+    solution = problem(X0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -80,7 +80,7 @@ for handleEvents in [true, false]
                 # if fmu.executionConfig.instantiate == false 
                 #     @info "instantiate = false, instantiating..."
                 #     instantiate = true
-                #     comp, _ = prepareSolveFMU(fmu, comp, :ME, instantiate, nothing, nothing, nothing, nothing, nothing, t_start, t_stop, nothing; x0=x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+                #     comp, _ = prepareSolveFMU(fmu, comp, :ME, instantiate, nothing, nothing, nothing, nothing, nothing, t_start, t_stop, nothing; x0=X0, handleEvents=FMIFlux.handleEvents, cleanup=true)
                 # end
 
                 c1 = CacheLayer()
@@ -98,7 +98,7 @@ for handleEvents in [true, false]
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
                 
-                solutionBefore = problem(x0; saveat=tData)
+                solutionBefore = problem(X0; saveat=tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)
                     @test solutionBefore.states.t[1] == t_start
@@ -116,7 +116,7 @@ for handleEvents in [true, false]
                 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
                 # check results
-                solutionAfter = problem(x0; saveat=tData)
+                solutionAfter = problem(X0; saveat=tData)
                 if solutionAfter.success
                     @test length(solutionAfter.states.t) == length(tData)
                     @test solutionAfter.states.t[1] == t_start

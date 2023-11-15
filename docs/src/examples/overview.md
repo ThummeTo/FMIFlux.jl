@@ -10,7 +10,7 @@ The examples show how to combine FMUs with machine learning ("NeuralFMU") and il
 ## Examples
 - [__Simple CS-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_CS/): Showing how to train a NeuralFMU in Co-Simulation-Mode.
 - [__Simple ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/simple_hybrid_ME/): Showing how to train a NeuralFMU in Model-Exchange-Mode.
-- [__Advanced ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/advanced_hybrid_ME/): Advanced training techniques for a ME-NeuralFMU.
+- [__Growing Horizon ME-NeuralFMU__](https://thummeto.github.io/FMIFlux.jl/dev/examples/growing_horizon_ME/): Growing horizon training technique for a ME-NeuralFMU.
 
 ## Advanced examples: Demo applications
 - [__JuliaCon 2023: Using NeuralODEs in real life applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/juliacon_2023/): An example for a NeuralODE in a real world engineering scenario.

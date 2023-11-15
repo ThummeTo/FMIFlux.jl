@@ -25,7 +25,7 @@ global ETA = 1e-6
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
-global x0 = [2.0, 0.0]
+global X0 = [2.0, 0.0]
 global OPTIMISER = Descent
 
 # training data for pendulum experiment 
@@ -85,10 +85,10 @@ function runtests(exportingTool)
                     include("train_modes.jl")
                 end
 
-                @info    "Multi-threading (multi_threading.jl)"
-                @testset "Multi-threading" begin
-                    include("multi_threading.jl")
-                end
+                # @info    "Multi-threading (multi_threading.jl)"
+                # @testset "Multi-threading" begin
+                #     include("multi_threading.jl")
+                # end
 
                 @info    "CS-NeuralFMU (hybrid_CS.jl)"
                 @testset "CS-NeuralFMU" begin

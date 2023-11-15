@@ -35,8 +35,8 @@ p = fmi2GetReal(c, p_refs)
 # loss function for training
 function losssum(p)
     #@info "$p"
-    global problem, x0, posData, solution
-    solution = problem(x0; p=p, showProgress=true, saveat=tData)
+    global problem, X0, posData, solution
+    solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -75,7 +75,7 @@ problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
 problem.modifiedState = false
 @test problem != nothing
 
-solutionBefore = problem(x0; saveat=tData)
+solutionBefore = problem(X0; saveat=tData)
 @test solutionBefore.success
 @test length(solutionBefore.states.t) == length(tData)
 @test solutionBefore.states.t[1] == t_start
@@ -98,7 +98,7 @@ j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), gradient=GRADIENT)
 
 # check results
-solutionAfter = problem(x0; saveat=tData)
+solutionAfter = problem(X0; saveat=tData)
 @test solutionAfter.success
 @test length(solutionAfter.states.t) == length(tData)
 @test solutionAfter.states.t[1] == t_start

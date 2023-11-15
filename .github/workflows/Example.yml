@@ -19,8 +19,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest] # , ubuntu-latest]
-        file-name: [advanced_hybrid_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
-        julia-version: ['1.8'] 
+        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
+        julia-version: ['1.9'] 
         julia-arch: [x64]
         experimental: [false]
 
