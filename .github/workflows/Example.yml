@@ -44,7 +44,7 @@ jobs:
         env:
           FILE: examples/src/${{ matrix.file-name }}.ipynb
         run: |
-          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.8" --to notebook --inplace --execute ${{ env.FILE }}
+          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.9" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
 

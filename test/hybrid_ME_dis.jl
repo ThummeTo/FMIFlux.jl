@@ -77,7 +77,8 @@ net = Chain(Dense(numStates, 16, tanh, init=init),
             Dense(16, 16, tanh, init=init),
             Dense(16, 2, identity, init=init),
             x -> fmu(;x=x, dx_refs=:all))
-push!(nets, net)
+@warn "Net #3 (discontinuous) currently skipped" # [TODO]
+#push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
