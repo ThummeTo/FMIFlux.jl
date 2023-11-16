@@ -126,7 +126,7 @@ function build_NFMU(f::FMU2)
     gates = ScaleSum([1.0, 1.0, 0.0, 0.0], [[1,3], [2,4]]) # gates with sum
 
     # setup the NeuralFMU topology
-    model = Chain(x -> f(; x=x),                  # take `x`, put it into the FMU, retrieve `dx`
+    model = Chain(x -> f(; x=x, dx_refs=:all),        # take `x`, put it into the FMU, retrieve all derivatives `dx`
                   dx -> cache(dx),                    # cache `dx`
                   dx -> dx[4:6],                      # forward only dx[4, 5, 6]
                   preProcess,                         # pre-process `dx`
@@ -140,7 +140,7 @@ function build_NFMU(f::FMU2)
     # new NeuralFMU 
     neuralFMU = ME_NeuralFMU(f,                 # the FMU used in the NeuralFMU 
                              model,             # the model we specified above 
-                             (tStart, tStop);   # a default start ad stop time for solving the NeuralFMU
+                             (tStart, tStop),   # a default start ad stop time for solving the NeuralFMU
                              saveat=tSave)      # the time points to save the solution at
     neuralFMU.modifiedState = false             # speed optimization (NeuralFMU state equals FMU state)
     
@@ -154,7 +154,8 @@ neuralFMU = build_NFMU(fmu);
 resultNFMU = neuralFMU(x0,                          # the start state to solve the ODE
                        (tStart, tStop);             # the simulation range
                        parameters=data.params,      # the parameters for the VLDM
-                       showProgress=showProgress)   # show progress (or not)
+                       showProgress=showProgress,   # show progress (or not)
+                       saveat=tSave)                # the time points to save the solution at
 
 display(resultNFMU)     
 
@@ -325,7 +326,7 @@ end
 #     ([  ETA, BETA1,  BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS], RESSOURCE, INDEX)
 train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0,     1) 
 
-# load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2022x)
+# load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2020x)
 fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME)
 
 # build NeuralFMU

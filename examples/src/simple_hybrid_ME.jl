@@ -68,7 +68,7 @@ end
 # NeuralFMU setup
 numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(x -> simpleFMU(x=x),
+net = Chain(x -> simpleFMU(x=x, dx_refs=:all),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numStates))
@@ -92,18 +92,15 @@ fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
-
 Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
 Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
-Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (300 epochs)", linewidth=2)
+Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (300 epochs)", linewidth=2)
 fig 
 
 FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1200), optim; cb=()->callb(paramsNet)) 
 # plot results mass.s
 solutionAfter = neuralFMU(x₀)
-posNeuralFMU = fmi2GetSolutionState(solutionAfter, 1; isIndex=true)
-Plots.plot!(fig, tSave, posNeuralFMU, label="NeuralFMU (1500 epochs)", linewidth=2)
+Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (1500 epochs)", linewidth=2)
 fig 
 
 fmiUnload(simpleFMU)

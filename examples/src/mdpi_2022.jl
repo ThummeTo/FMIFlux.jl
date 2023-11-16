@@ -33,9 +33,9 @@ fmiInfo(fmu)
 
 # load data from FMIZoo.jl, gather simulation parameters for FMU
 data = FMIZoo.VLDM(:train)
-tStart = data.consumption_t[1]
-tStop = data.consumption_t[end]
-tSave = data.consumption_t
+tStart = data.cumconsumption_t[1]
+tStop = data.cumconsumption_t[end]
+tSave = data.cumconsumption_t
 
 # have a look on the FMU parameters (these are the file paths to the characteristic maps)
 data.params
@@ -47,7 +47,7 @@ fig = fmiPlot(resultFMU; stateIndices=6:6)                                      
 fig = fmiPlot(resultFMU; stateIndices=6:6, ylabel="Cumulative consumption [Ws]", label="FMU")   # ... add some helpful labels!
 
 # further plot the (measurement) data values `consumption_val` and deviation between measurements `consumption_dev`
-Plots.plot!(fig, data.consumption_t, data.consumption_val; label="Data", ribbon=data.consumption_dev, fillalpha=0.3)
+Plots.plot!(fig, data.cumconsumption_t, data.cumconsumption_val; label="Data", ribbon=data.cumconsumption_dev, fillalpha=0.3)
 
 for i in [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     println("tanh($(i)) = $(tanh(i))")
@@ -99,7 +99,7 @@ cacheRetrieve = CacheRetrieveLayer(cache)
 gates = ScaleSum([1.0, 0.0]) # signal from FMU (#1 = 1.0), signal from ANN (#2 = 0.0)
 
 # setup the NeuralFMU topology
-net = Chain(x -> fmu(; x=x),                    # take `x`, put it into the FMU, retrieve `dx`
+net = Chain(x -> fmu(; x=x, dx_refs=:all),      # take `x`, put it into the FMU, retrieve all `dx`
             dx -> cache(dx),                    # cache `dx`
             dx -> dx[4:6],                      # forward only dx[4, 5, 6]
             preProcess,                         # pre-process `dx`
@@ -126,8 +126,8 @@ fmiPlot!(fig, resultFMU; stateIndices=5:5, values=false)
 Plots.plot!(fig, data.speed_t, data.speed_val, label="Data")
 
 # prepare training data (array of arrays required)
-train_data = collect([d] for d in data.consumption_val)
-train_t = data.consumption_t 
+train_data = collect([d] for d in data.cumconsumption_val)
+train_t = data.cumconsumption_t 
 
 # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
 # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
@@ -143,8 +143,14 @@ solverKwargsTrain = Dict{Symbol, Any}(:maxiters => 1e5, :max_execution_duration 
 
 # picks a modified MSE, which weights the last time point MSE with 25% and the remaining element MSE with 75%
 # this promotes training a continuous function, even when training on batch elements
-lossFct = (a, b) -> FMIFlux.Losses.mse_last_element_rel(a, b, 0.5)
-lossFct([1.0, 2.0], [0.0, 0.0]) # (1.0)^2 * 0.75 + (2.0)^2 * 0.25
+function lossFct(solution::FMU2Solution)
+    ts = dataIndexForTime(solution.states.t[1])
+    te = dataIndexForTime(solution.states.t[end])
+
+    a = fmiGetSolutionState(solution, 6; isIndex=true)
+    b = train_data[ts:te]
+    return FMIFlux.Losses.mse_last_element_rel(a, b, 0.5)
+end
 
 # initialize a "worst error growth scheduler" (updates all batch losses, pick the batch element with largest error increase)
 # apply the scheduler after every training step, plot the current status every 25 steps and update all batch element losses every 5 steps
@@ -200,13 +206,13 @@ resultNFMU_train = neuralFMU(x0, (tStart, tStop); parameters=data.params, showPr
 fmiLoadParameters(neuralFMU, paramsPath)
 
 # are we better?
-mse_NFMU = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultNFMU_train, 6; isIndex=true))
-mse_FMU  = FMIFlux.Losses.mse(data.consumption_val, fmiGetSolutionState(resultFMU, 6; isIndex=true))
+mse_NFMU = FMIFlux.Losses.mse(data.cumconsumption_val, fmiGetSolutionState(resultNFMU_train, 6; isIndex=true))
+mse_FMU  = FMIFlux.Losses.mse(data.cumconsumption_val, fmiGetSolutionState(resultFMU, 6; isIndex=true))
 
 # ... and plot it
 fig = fmiPlot(resultNFMU_train; stateIndices=6:6, values=false, stateEvents=false, label="NeuralFMU", title="Training Data");
 fmiPlot!(fig, resultFMU; stateIndices=6:6, stateEvents=false, values=false, label="FMU");
-Plots.plot!(fig, train_t, data.consumption_val, label="Data", ribbon=data.consumption_dev, fillalpha=0.3)
+Plots.plot!(fig, train_t, data.cumconsumption_val, label="Data", ribbon=data.cumconsumption_dev, fillalpha=0.3)
 
 # clean-up
 fmiUnload(fmu) 

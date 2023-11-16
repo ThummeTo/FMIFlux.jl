@@ -237,7 +237,7 @@ for i in 1:numStates
 end
 
 net = Chain(Dense(numStates, numStates,  identity),
-            x -> simpleFMU(x=x),
+            x -> simpleFMU(x=x, dx_refs=:all),
             Dense(numStates, 8, identity),
             Dense(8, 8, tanh),
             Dense(8, numStates))

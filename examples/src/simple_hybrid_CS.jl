@@ -47,7 +47,7 @@ end
 
 # loss function for training
 function lossSum(p)
-    solution = csNeuralFMU(extForce, tStep; p=p)
+    solution = csNeuralFMU(extForce, tStep, (tStart, tStop); p=p) # saveat=tSave
 
     accNet = fmi2GetSolutionValue(solution, 2; isIndex=true)
     
@@ -59,24 +59,31 @@ global counter = 0
 function callb(p)
     global counter += 1
 
-    if counter % 20 == 1
+    if counter % 25 == 1
         avgLoss = lossSum(p[1])
         @info "Loss [$counter]: $(round(avgLoss, digits=5))"
     end
 end
 
-# NeuralFMU setup
-numInputs = length(defaultFMU.modelDescription.inputValueReferences)
-numOutputs = length(defaultFMU.modelDescription.outputValueReferences)
+# check outputs
+outputs = defaultFMU.modelDescription.outputValueReferences 
+numOutputs = length(outputs)
+display(outputs)
 
-net = Chain(u -> defaultFMU(;u_refs=defaultFMU.modelDescription.inputValueReferences, u=u, y_refs=defaultFMU.modelDescription.outputValueReferences),
+# check inputs
+inputs = defaultFMU.modelDescription.inputValueReferences 
+numInputs = length(inputs)
+display(inputs)
+
+# NeuralFMU setup
+net = Chain(u -> defaultFMU(;u_refs=inputs, u=u, y_refs=outputs),
             Dense(numOutputs, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, numOutputs))
 
-csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop); saveat=tSave);
+csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop));
 
-solutionBefore = csNeuralFMU(extForce, tStep)
+solutionBefore = csNeuralFMU(extForce, tStep, (tStart, tStop)) # ; saveat=tSave
 accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
 Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 
@@ -84,17 +91,17 @@ Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet))
+FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
 
 # plot results mass.a
-solutionAfter = csNeuralFMU(extForce, tStep)
+solutionAfter = csNeuralFMU(extForce, tStep, (tStart, tStop)) # saveat=tSave, p=paramsNet[1]
 
 fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m/s^2]", linewidth=2,
                  xtickfontsize=12, ytickfontsize=12,
                  xguidefontsize=12, yguidefontsize=12,
                  legendfontsize=8, legend=:topright)
 
-accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 1; isIndex=true)
+accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 2; isIndex=true)
 
 Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
 Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
