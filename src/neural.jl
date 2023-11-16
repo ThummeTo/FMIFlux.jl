@@ -301,7 +301,7 @@ function f_optim(x, nfmu::ME_NeuralFMU, c::FMU2Component, right_x_fmu) # , idx, 
     # propagete the new state-guess `x` through the NeuralFMU
     evaluateModel(nfmu, c, x)
     #indicators = fmi2GetEventIndicators(c)
-    return Flux.Losses.mse(right_x_fmu, fmi2GetContinuousStates(c)) # - min(-direction*indicators[idx], 0.0)
+    return Flux.Losses.mae(right_x_fmu, fmi2GetContinuousStates(c)) # - min(-direction*indicators[idx], 0.0)
 end
 
 # Handles the upcoming event
