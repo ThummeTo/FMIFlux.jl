@@ -4,7 +4,6 @@
 #
 
 using Statistics: mean, std
-import FMIImport: fmi2Real, fmi2ValueReferenceFormat
 
 ### FMUParameterRegistrator ###
 
@@ -19,8 +18,14 @@ struct FMUParameterRegistrator{T}
     function FMUParameterRegistrator{T}(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{T}) where {T}
         @assert length(p_refs) == length(p) "`p_refs` and `p` need to be the same length!"
         p_refs = prepareValueReference(fmu, p_refs)
-        fmu.optim_p_refs = p_refs 
-        fmu.optim_p = p 
+
+        fmu.default_p_refs = p_refs 
+        fmu.default_p = p 
+        for c in fmu.components
+            c.default_p_refs = p_refs
+            c.default_p = p
+        end
+
         return new(fmu, p_refs, p)
     end
 
@@ -31,8 +36,14 @@ end
 export FMUParameterRegistrator
 
 function (l::FMUParameterRegistrator)(x)
-    l.fmu.optim_p = l.p 
-    l.fmu.optim_p_refs = l.p_refs
+    
+    l.fmu.default_p_refs = l.p_refs
+    l.fmu.default_p = l.p 
+    for c in l.fmu.components
+        c.default_p_refs = l.p_refs
+        c.default_p = l.p
+    end
+    
     return x
 end
 

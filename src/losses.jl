@@ -7,7 +7,6 @@ module Losses
 
 using Flux
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMU2Solution
-import FMIImport: unsense
 
 mse = Flux.Losses.mse
 mae = Flux.Losses.mae

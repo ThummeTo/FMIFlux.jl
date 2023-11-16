@@ -3,8 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Flux
-
 """
 Compares non-equidistant (or equidistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
 (Zygote-friendly: Zygote can differentiate through via AD.)
@@ -54,7 +52,7 @@ function transferFlatParams!(net, p_net, c=1; netRange=nothing)
         netRange = 1:length(net.layers)
     end
     for l in netRange
-        if !isa(net.layers[l], FMIFlux.Dense)
+        if !isa(net.layers[l], Flux.Dense)
             continue
         end
         ni = size(net.layers[l].weight,2)
@@ -88,7 +86,7 @@ function transferParams!(net, p_net, c=1; netRange=nothing)
         netRange = 1:length(net.layers)
     end
     for l in netRange
-        if !(net.layers[l] isa Dense)
+        if !(net.layers[l] isa Flux.Dense)
             continue
         end
 

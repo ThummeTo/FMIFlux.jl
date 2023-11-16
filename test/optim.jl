@@ -4,10 +4,11 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
+using DifferentialEquations: Tsit5
+using FMIFlux.Optim
 
 import Random 
-Random.seed!(5678);
+Random.seed!(1234);
 
 t_start = 0.0
 t_step = 0.01
@@ -17,29 +18,27 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData, velData, accData = syntTrainingData(tData)
 
-fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
+# load FMU for NeuralFMU
+fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 function losssum(p)
-    global problem, X0, posData
-    solution = problem(X0; p=p, saveat=tData)
+    global problem, X0
+    solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
-    # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
     
-    return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
+    return Flux.Losses.mse(velNet, velData)
 end
-
-vr = fmi2StringToValueReference(fmu, "g")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
-nets = []
+nets = [] 
 
 c1 = CacheLayer()
 c2 = CacheRetrieveLayer(c1)
@@ -47,10 +46,10 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "h")]
-y = zeros(fmi2Real, length(getVRs))
+getVRs = [fmi2StringToValueReference(fmu, "mass.s")]
 numGetVRs = length(getVRs)
-setVRs = [fmi2StringToValueReference(fmu, "v")]
+y = zeros(fmi2Real, numGetVRs)
+setVRs = [fmi2StringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
@@ -77,8 +76,7 @@ net = Chain(Dense(numStates, 16, tanh, init=init),
             Dense(16, 16, tanh, init=init),
             Dense(16, 2, identity, init=init),
             x -> fmu(;x=x, dx_refs=:all))
-@warn "Net #3 (discontinuous) currently skipped" # [TODO]
-#push!(nets, net)
+push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
@@ -134,22 +132,21 @@ net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
 for i in 1:length(nets)
-    @testset "Net setup $(i)/$(length(nets))" begin
+    @testset "Net setup #$i" begin
         global nets, problem, lastLoss, iterCB
 
-        optim = OPTIMISER(ETA)
+        optim = GradientDescent(;alphaguess=ETA) # BFGS()
         solver = Tsit5()
 
         net = nets[i]
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
+        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
+        @test problem != nothing
 
         # train it ...
         p_net = Flux.params(problem)
         @test length(p_net) == 1
-        
-        @test problem !== nothing
 
-        solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+        solutionBefore = problem(X0; p=p_net[1], showProgress=true, saveat=tData)
         if solutionBefore.success
             @test length(solutionBefore.states.t) == length(tData)
             @test solutionBefore.states.t[1] == t_start
@@ -160,15 +157,10 @@ for i in 1:length(nets)
         lastLoss = losssum(p_net[1])
         @info "Start-Loss for net #$i: $lastLoss"
 
-        if length(p_net[1]) == 0
-            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
-        end
-
         lossBefore = losssum(p_net[1])
-
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
-
         lossAfter = losssum(p_net[1])
+
         if length(p_net[1]) == 0
             @test lossAfter == lossBefore
         else
@@ -176,7 +168,7 @@ for i in 1:length(nets)
         end
 
         # check results
-        solutionAfter = problem(X0; p=p_net[1], saveat=tData)
+        solutionAfter = problem(X0; p=p_net[1], showProgress=true, saveat=tData)
         if solutionAfter.success
             @test length(solutionAfter.states.t) == length(tData)
             @test solutionAfter.states.t[1] == t_start

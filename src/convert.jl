@@ -3,8 +3,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import Flux
-
 function is64(model::Flux.Chain)
     params = Flux.params(model)
 
@@ -20,5 +18,5 @@ function is64(model::Flux.Chain)
 end
 
 function convert64(model::Flux.Chain)
-    fmap(f64, model)
+    Flux.fmap(Flux.f64, model)
 end

@@ -4,63 +4,27 @@
 #
 
 module FMIFlux
+import FMISensitivity
+
+import FMISensitivity.ForwardDiff
+import FMISensitivity.Zygote
+import FMISensitivity.ReverseDiff
+import FMISensitivity.FiniteDiff
 
 @debug "Debugging messages enabled for FMIFlux ..."
 
 if VERSION < v"1.7.0"
-    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer."
+    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer." maxlog=1
 end
 
-# Overwrite tag printing and limit partials length from ForwardDiff.jl 
-# import FMIImport.ForwardDiff
-# function Base.show(io::IO, d::ForwardDiff.Dual{T,V,N}) where {T,V,N}
-#     print(io, "Dual(", ForwardDiff.value(d))
-#     for i in 1:min(N, 5)
-#         print(io, ", ", ForwardDiff.partials(d, i))
-#     end
-#     if N > 5
-#         print(io, ", [$(N-5) more]...")
-#     end
-#     print(io, ")")
-# end
+import FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, unsense
+import FMIImport.FMICore.ChainRulesCore: ignore_derivatives
 
-# ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.29
-import FMIImport.SciMLSensitivity: FakeIntegrator, u_modified!, TrackedAffect
-import FMIImport.SciMLSensitivity.DiffEqBase: set_u!
-function u_modified!(::FakeIntegrator, ::Bool)
-    return nothing
-end
-function set_u!(::FakeIntegrator, u)
-    return nothing
-end
+import DifferentialEquations
+import FMIImport
 
-# ToDo: Quick-fixes until patch release SciMLSensitivity v0.7.28
-# function Base.hasproperty(f::TrackedAffect, s::Symbol)
-#     if hasfield(TrackedAffect, s)               
-#         return true
-#     else
-#         _affect = getfield(f, :affect!)
-#         return hasfield(typeof(_affect), s)
-#     end
-# end
-# function Base.getproperty(f::TrackedAffect, s::Symbol)
-#     if hasfield(TrackedAffect, s)               
-#         return getfield(f, s)
-#     else
-#         _affect = getfield(f, :affect!)
-#         return getfield(_affect, s)
-#     end
-# end
-# function Base.setproperty!(f::TrackedAffect, s::Symbol, value)
-#     if hasfield(TrackedAffect, s)               
-#         return setfield!(f, s, value)
-#     else
-#         _affect = getfield(f, :affect!)
-#         return setfield!(_affect, s, value)
-#     end
-# end
-
-using Requires, Flux 
+using Requires
+import Flux
 
 using FMIImport
 using FMIImport: fmi2ValueReference, FMU, FMU2, FMU2Component
@@ -71,6 +35,10 @@ using FMIImport: fmi2SetTime, fmi2CompletedIntegratorStep, fmi2GetEventIndicator
 using FMIImport: fmi2SampleJacobian, fmi2GetDirectionalDerivative, fmi2GetJacobian, fmi2GetJacobian!
 using FMIImport: fmi2True, fmi2False
 
+import FMIImport.FMICore: fmi2ValueReferenceFormat, fmi2Real
+
+include("optimiser.jl")
+include("hotfixes.jl")
 include("convert.jl")
 include("flux_overload.jl")
 include("neural.jl")
@@ -80,7 +48,7 @@ include("deprecated.jl")
 include("batch.jl")
 include("losses.jl")
 include("scheduler.jl")
-#include("optimiser.jl")
+include("compatibility_check.jl")
 
 # from Plots.jl 
 # No export here, Plots.plot is extended if available.

@@ -6,22 +6,38 @@
 using FMIFlux
 using Test
 using FMIZoo
+using FMIFlux.FMIImport
+using FMIFlux.FMIImport.FMICore
+using FMIFlux.Flux
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU
-using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET
+import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
+
+using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
+using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATIONS
 using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
 
-exportingToolsWindows = [("Dymola", "2022x")]
+exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0.25")]
 exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 10
+global ETA = 1e-6
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
+global X0 = [2.0, 0.0]
+global OPTIMISER = Descent
 
-# enable assertions for warnings/errors for all default execution configurations 
-for exec in [FMU2_EXECUTION_CONFIGURATION_NO_FREEING, FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET]
+# training data for pendulum experiment 
+function syntTrainingData(tData)
+    posData = cos.(tData*3.0)* 2.0
+    velData = sin.(tData*3.0)*-6.0
+    accData = cos.(tData*3.0)*-18.0
+    return posData, velData, accData
+end
+
+# enable assertions for warnings/errors for all default execution configurations - we want strict tests here
+for exec in FMU2_EXECUTION_CONFIGURATIONS
     exec.assertOnError = true
     exec.assertOnWarning = true
 end
@@ -33,7 +49,12 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
+        @info    "Solution Gradients (solution_gradients.jl)"
+        @testset "Solution Gradients" begin
+            include("solution_gradients.jl")
+        end
+
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
             global GRADIENT = _GRADIENT
             @info    "Gradient: $(GRADIENT)"
@@ -82,6 +103,11 @@ function runtests(exportingTool)
                 @info    "Batching (batching.jl)"
                 @testset "Batching" begin
                     include("batching.jl")
+                end
+
+                @info    "Optimizers from Optim.jl (optim.jl)"
+                @testset "Optim" begin
+                    include("optim.jl")
                 end
             end
         end

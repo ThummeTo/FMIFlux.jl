@@ -3,56 +3,49 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMI
 using Flux
+using FMIFlux.DifferentialEquations
 
 import Random 
 Random.seed!(5678);
 
+# boundaries
 t_start = 0.0
 t_step = 0.1
-t_stop = 3.0
+t_stop = 5.0 
 tData = t_start:t_step:t_stop
-velData = sin.(tData)
+tspan = (t_start, t_stop)
+posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
-fmu = fmiLoad("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+fmu.handleEventIndicators = [1]
 
-x0 = [1.0, 0.0]
-numStates = length(x0)
+x0_bb = [1.0, 0.0]
+numStates = length(x0_bb)
 
-c1 = CacheLayer()
-c2 = CacheRetrieveLayer(c1)
-c3 = CacheLayer()
-c4 = CacheRetrieveLayer(c3)
-
-# default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(x -> c1(x),
-            Dense(numStates, 32, identity; init=Flux.identity_init),
-            Dense(32, numStates, identity; init=Flux.identity_init),
-            x -> c2([1], x[2], []),
-            x -> fmu(;x=x), 
-            x -> c3(x),
-            Dense(numStates, 32, identity; init=Flux.identity_init),
-            Dense(32, numStates, identity; init=Flux.identity_init),
-            x -> c4([1], x[2], []))
+net = Chain(x -> fmu(;x=x, dx_refs=:all), 
+            Dense(2, 16, tanh),
+            Dense(16, 2, identity))
 
 # loss function for training
 function losssum(p)
-    global nfmu, x0, posData
-    solution = nfmu(x0; p=p)
+    global nfmu, x0_bb, posData
+    solution = nfmu(x0_bb; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
-    return FMIFlux.Losses.mse(velNet, velData)
+    return FMIFlux.Losses.mse(posNet, posData)
 end
 
-nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop); saveat=tData) 
+solver = Tsit5()
+nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
+nfmu.modifiedState = false
 
 FMIFlux.checkSensalgs!(losssum, nfmu)
 
-fmiUnload(fmu)
+fmi2Unload(fmu)
