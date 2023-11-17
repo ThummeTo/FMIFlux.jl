@@ -14,8 +14,7 @@ The examples show how to combine FMUs with machine learning ("NeuralFMU") and il
 
 ## Advanced examples: Demo applications
 - [__JuliaCon 2023: Using NeuralODEs in real life applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/juliacon_2023/): An example for a NeuralODE in a real world engineering scenario.
-- [__MDPI 2022: Physics-enhanced NeuralODEs in real-world applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/mdpi_2022/): An example for a NeuralODE in a real world modeling scenario (Contribution in *MDPI Electronics 2022*).
 - [__Modelica Conference 2021: NeuralFMUs__](https://thummeto.github.io/FMIFlux.jl/dev/examples/modelica_conference_2021/): Showing basics on how to train a NeuralFMU (Contribution for the *Modelica Conference 2021*).
 
 ## Archived
-- ...
+- [__MDPI 2022: Physics-enhanced NeuralODEs in real-world applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/mdpi_2022/): An example for a NeuralODE in a real world modeling scenario (Contribution in *MDPI Electronics 2022*).
