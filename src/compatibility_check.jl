@@ -168,7 +168,7 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
     catch e 
         msg = "$(e)"
         if length(msg) > max_msg_len
-            msg = msg[1:max_msg_len] * "..."
+            msg = join(collect(msg)[1,max_msg_len]) * "..."
         end
         
         message = spacing * "$(msg)\n"
@@ -184,7 +184,7 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
         msg = read(rd_stdout, String)
         if length(msg) > 0
             if length(msg) > max_msg_len
-                msg = msg[1:max_msg_len] * "..."
+                msg = join(collect(msg)[1,max_msg_len]) * "..."
             end
             printstyled(spacing * "STDOUT: $(msg)\n", color=:yellow)
         end
@@ -194,7 +194,7 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
         msg = read(rd_stderr, String)
         if length(msg) > 0
             if length(msg) > max_msg_len
-                msg = msg[1:max_msg_len] * "..."
+                msg = join(collect(msg)[1,max_msg_len]) * "..."
             end
             printstyled(spacing * "STDERR: $(msg)\n", color=:yellow)
         end

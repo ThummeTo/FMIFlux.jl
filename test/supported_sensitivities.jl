@@ -5,7 +5,8 @@
 
 using Flux
 using FMIFlux.DifferentialEquations
-
+using FMIZoo
+using FMIImport
 import Random 
 Random.seed!(5678);
 
