@@ -3,10 +3,10 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Flux
+using FMIFlux.Flux
 using FMIFlux.DifferentialEquations
 using FMIZoo
-using FMIImport
+using FMIFlux.FMIImport
 import Random 
 Random.seed!(5678);
 
