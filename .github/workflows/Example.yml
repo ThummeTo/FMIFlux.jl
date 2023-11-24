@@ -48,6 +48,15 @@ jobs:
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
 
+      - name: "Fix GIFs"
+        run: |
+          echo "starting gif fixing"
+          mv examples/src/gif_*.gif examples/src/${{ matrix.file-name }}_files
+          $env:Path += ";C:\Program Files\Git\usr\bin"
+          awk '{if($0~/<img src=\"data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*\" \/>/) {sub(/<img src=\"data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*\" \/>/,\"![gif](gif_\"++i\".gif)\")}}1' examples/src/${{ matrix.file-name }}.md > examples/src/tmp_${{ matrix.file-name }}.md
+          mv -Force examples/src/tmp_${{ matrix.file-name }}.md examples/src/${{ matrix.file-name }}.md
+          echo "gifs should be fixed"
+
       - name: Archive examples artifacts
         if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3

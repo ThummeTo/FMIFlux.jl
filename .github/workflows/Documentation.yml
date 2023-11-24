@@ -41,7 +41,7 @@ jobs:
         # copy the examples from the examples branch (.md, .svg) and copy the readme in the docs folder
         run: |
           git fetch
-          git --work-tree=$WORK_TREE/.. checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/*.md $SRC_FOLDER_PATH/*.svg
+          git --work-tree=$WORK_TREE/.. checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/*.md $SRC_FOLDER_PATH/*.svg $SRC_FOLDER_PATH/*.gif
           mv $WORK_TREE/src/* $WORK_TREE 
           rm -r $WORK_TREE/src
           cp ./README.md ./docs/src/index.md
