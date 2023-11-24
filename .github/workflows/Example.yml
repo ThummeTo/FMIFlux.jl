@@ -51,16 +51,10 @@ jobs:
       - name: "Fix GIFs"
         run: |
           echo "starting gif fixing"
-          echo $(ls)
-          echo $(ls examples/src)
-          echo $(ls examples/src/${{ matrix.file-name }}_files)
           mv examples/src/gif_*.gif examples/src/${{ matrix.file-name }}_files
           $env:Path += ";C:\Program Files\Git\usr\bin"
           awk '{if($0~/<img src=\"data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*\" \/>/) {sub(/<img src=\"data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*\" \/>/,\"![gif](gif_\"++i\".gif)\")}}1' examples/src/${{ matrix.file-name }}.md > examples/src/tmp_${{ matrix.file-name }}.md
           mv -Force examples/src/tmp_${{ matrix.file-name }}.md examples/src/${{ matrix.file-name }}.md
-          echo $(ls)
-          echo $(ls examples/src)
-          echo $(ls examples/src/${{ matrix.file-name }}_files)
           echo "gifs should be fixed"
 
       - name: Archive examples artifacts
