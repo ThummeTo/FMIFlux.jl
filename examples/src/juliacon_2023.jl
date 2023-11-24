@@ -361,7 +361,7 @@ plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; filename=joinp
 
 plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparision_validation_10.png"))
 
-plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "NFMU_consumption.gif"))
+plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "gif_1.gif"))
 
 # unload FMU / invalidate NeuralFMU
 fmiUnload(fmu)
