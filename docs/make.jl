@@ -36,7 +36,7 @@ makedocs(sitename="FMIFlux.jl",
 function deployConfig()
     github_repository = get(ENV, "GITHUB_REPOSITORY", "")
     github_event_name = get(ENV, "GITHUB_EVENT_NAME", "")
-    if github_event_name == "workflow_run"
+    if github_event_name == "workflow_run" || github_event_name == "repository_dispatch"
         github_event_name = "push"
     end
     github_ref = get(ENV, "GITHUB_REF", "")
