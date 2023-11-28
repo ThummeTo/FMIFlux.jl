@@ -982,7 +982,7 @@ end
     [36m[1m└ [22m[39m        Weight/Scale: 0.74133714929371   Bias/Offset: 0.18675822800406897
     
 
-    104.053056 seconds (1.31 G allocations: 58.359 GiB, 7.43% gc time, 0.09% compilation time)
+    113.596102 seconds (1.31 G allocations: 58.360 GiB, 7.40% gc time, 0.08% compilation time)
     
 
 
@@ -1181,7 +1181,7 @@ end
     [36m[1m└ [22m[39m        Weight/Scale: 0.7391550126483246   Bias/Offset: 0.20665146096024078
     
 
-     93.447930 seconds (1.19 G allocations: 52.768 GiB, 6.95% gc time)
+    100.303015 seconds (1.19 G allocations: 52.767 GiB, 7.38% gc time)
     
 
 

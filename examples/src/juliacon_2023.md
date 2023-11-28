@@ -952,7 +952,7 @@ train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0, 
 
 
 
-    Dual{ForwardDiff.Tag{var"#42#46"{var"#41#45"{Symbol, Float64}, Dict{Symbol, Any}, Vector{FMIFlux.FMU2SolutionBatchElement}, ME_NeuralFMU{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, Optimisers.Restructure{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, NamedTuple{(:layers,), Tuple{Tuple{Tuple{}, Tuple{}, Tuple{}, NamedTuple{(:shift, :scale), Tuple{Int64, Int64}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:scale, :shift), Tuple{Int64, Int64}}, Tuple{}, NamedTuple{(:scale,), Tuple{Int64}}, Tuple{}}}}}}}, Float64}}(9.109396764361662e9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.6504162026500133e13,6.073079323755605e11,4.126472602581315e13,2.646494051280803e11,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
+    Dual{ForwardDiff.Tag{var"#42#46"{var"#41#45"{Symbol, Float64}, Dict{Symbol, Any}, Vector{FMIFlux.FMU2SolutionBatchElement}, ME_NeuralFMU{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, Optimisers.Restructure{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, NamedTuple{(:layers,), Tuple{Tuple{Tuple{}, Tuple{}, Tuple{}, NamedTuple{(:shift, :scale), Tuple{Int64, Int64}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:scale, :shift), Tuple{Int64, Int64}}, Tuple{}, NamedTuple{(:scale,), Tuple{Int64}}, Tuple{}}}}}}}, Float64}}(9.109389942339108e9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-9.058959762810771e12,6.073077120471025e11,-2.0858327246862168e13,2.646493357450911e11,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
 
 
 
@@ -1077,7 +1077,7 @@ plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "gif_1.gif"))
 
 
 
-![gif](gif_1.gif)
+![gif](juliacon_2023_files/gif_1.gif)
 
 
 
