@@ -61,36 +61,58 @@ function condition(out, x, t, integrator)
     #out[2] = x[1]-RADIUS 
 end
 
+function condition_double(out, x, t, integrator)
+    out[1] = x[1]-RADIUS
+    out[2] = x[1]-RADIUS + 1e-12
+end
+
 function affect_right!(integrator, idx)
+
+    @info "affect_right! triggered by #$(idx)"
+
+    if idx == 1
+        # event #1 is handeled as "dummy" (e.g. discrete state change)
+        return 
+    end
+
     s_new = RADIUS + DBL_MIN
     v_new = -integrator.u[2]*ENERGY_LOSS
     u_new = [s_new, v_new]
 
     global events 
     events += 1
-    # @info "[$(events)] New state at $(integrator.t) is $(u_new)"
+    @info "[$(events)] New state at $(integrator.t) is $(u_new) triggered by #$(idx)"
 
     integrator.u .= u_new
 end
 function affect_left!(integrator, idx)
+
+    @info "affect_left! triggered by #$(idx)"
+
+    if idx == 1
+        # event #1 is handeled as "dummy" (e.g. discrete state change)
+        return 
+    end
+
     s_new = integrator.u[1]
     v_new = -integrator.u[2]*ENERGY_LOSS
     u_new = [s_new, v_new]
 
     global events 
     events += 1
-    # @info "[$(events)] New state at $(integrator.t) is $(u_new)"
+    @info "[$(events)] New state at $(integrator.t) is $(u_new)"
 
     integrator.u .= u_new
 end
 
-rightCb = VectorContinuousCallback(condition,
+NUMEVENTINDICATORS = 2
+rightCb = VectorContinuousCallback(condition_double,
                                    affect_right!,
-                                   1;
+                                   NUMEVENTINDICATORS;
                                    rootfind=RightRootFind, save_positions=(false, false))
-leftCb = VectorContinuousCallback(condition,
+leftCb = VectorContinuousCallback(condition_double,
                                    affect_left!,
-                                   1;
+                                   NUMEVENTINDICATORS;
                                    rootfind=LeftRootFind, save_positions=(false, false))
 
 # load FMU for NeuralFMU

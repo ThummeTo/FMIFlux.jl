@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5
+using DifferentialEquations: Tsit5, Rosenbrock23
 
 import Random 
 Random.seed!(1234);
@@ -136,50 +136,55 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
 
         optim = OPTIMISER(ETA)
-        solver = Tsit5()
 
-        net = nets[i]
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
-        @test problem != nothing
+        solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
 
-        # train it ...
-        p_net = Flux.params(problem)
-        @test length(p_net) == 1
+        for solver in solvers
+        
+            net = nets[i]
+            problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
+            @test problem != nothing
 
-        lossBefore = losssum(p_net[1])
+            # train it ...
+            p_net = Flux.params(problem)
+            @test length(p_net) == 1
 
-        solutionBefore = problem(X0; p=p_net[1], saveat=tData)
-        if solutionBefore.success
-            @test length(solutionBefore.states.t) == length(tData)
-            @test solutionBefore.states.t[1] == t_start
-            @test solutionBefore.states.t[end] == t_stop
+            lossBefore = losssum(p_net[1])
+
+            solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+            if solutionBefore.success
+                @test length(solutionBefore.states.t) == length(tData)
+                @test solutionBefore.states.t[1] == t_start
+                @test solutionBefore.states.t[end] == t_stop
+            end
+
+            iterCB = 0
+            lastLoss = losssum(p_net[1])
+            @info "Start-Loss for net #$i with solver $(solver): $(lastLoss)"
+
+            if length(p_net[1]) == 0
+                @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
+            end
+
+            FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+
+            lossAfter = losssum(p_net[1])
+
+            if length(p_net[1]) == 0
+                @test lossAfter == lossBefore
+            else
+                @test lossAfter < lossBefore
+            end
+
+            # check results
+            solutionAfter = problem(X0; p=p_net[1], saveat=tData)
+            if solutionAfter.success
+                @test length(solutionAfter.states.t) == length(tData)
+                @test solutionAfter.states.t[1] == t_start
+                @test solutionAfter.states.t[end] == t_stop
+            end
         end
 
-        iterCB = 0
-        lastLoss = losssum(p_net[1])
-        @info "Start-Loss for net #$i: $lastLoss"
-
-        if length(p_net[1]) == 0
-            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
-        end
-
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
-
-        lossAfter = losssum(p_net[1])
-
-        if length(p_net[1]) == 0
-            @test lossAfter == lossBefore
-        else
-            @test lossAfter < lossBefore
-        end
-
-        # check results
-        solutionAfter = problem(X0; p=p_net[1], saveat=tData)
-        if solutionAfter.success
-            @test length(solutionAfter.states.t) == length(tData)
-            @test solutionAfter.states.t[1] == t_start
-            @test solutionAfter.states.t[end] == t_stop
-        end
     end
 end
 

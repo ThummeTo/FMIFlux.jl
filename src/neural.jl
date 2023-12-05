@@ -246,18 +246,23 @@ function condition!(nfmu::ME_NeuralFMU, c::FMU2Component, out, x, t, integrator,
 
     # [ToDo] Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN.
     #        Basically only the layers from very top to FMU need to be evaluated here.
+
+    prev_t = c.default_t 
+    prev_ec = c.default_ec 
+    prev_ec_idcs = c.default_ec_idcs
+
     c.default_t = t
     c.default_ec = out
     c.default_ec_idcs = handleEventIndicators
+    
     evaluateModel(nfmu, c, x)
-
-    # [TODO] for generic applications, reset to previous values
-    c.default_t = -1.0
-    c.default_ec = EMPTY_fmi2Real
-    c.default_ec_idcs = EMPTY_fmi2ValueReference
-
     # write back to condition buffer
-    out[:] = c.eval_output.ec # [ToDo] This seems not to be necessary, because of `c.default_ec = out`
+    out[:] = c.output.ec # [ToDo] This seems not to be necessary, because of `c.default_ec = out`
+
+    # reset
+    c.default_t = prev_t
+    c.default_ec = prev_ec
+    c.default_ec_idcs = prev_ec_idcs
     
     c.solution.evals_condition += 1
 
@@ -297,11 +302,11 @@ function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, inte
 end
 
 # [ToDo] Check, that the new determined state is the right root of the event instant!
-function f_optim(x, nfmu::ME_NeuralFMU, c::FMU2Component, right_x_fmu) # , idx, direction::Real)
+function f_optim(x, nfmu::ME_NeuralFMU, c::FMU2Component, right_x_fmu, idx, sign::Real, buffer)
     # propagete the new state-guess `x` through the NeuralFMU
     evaluateModel(nfmu, c, x)
-    #indicators = fmi2GetEventIndicators(c)
-    return Flux.Losses.mae(right_x_fmu, fmi2GetContinuousStates(c)) # - min(-direction*indicators[idx], 0.0)
+    fmi2GetEventIndicators!(c, buffer)
+    return Flux.Losses.mae(right_x_fmu, fmi2GetContinuousStates(c)) + max(-sign*buffer[idx], 0.0)
 end
 
 # Handles the upcoming event
@@ -350,7 +355,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
         # [ToDo] use gradient-based optimization here?
         # if there is an ANN above the FMU, propaget FMU state through top ANN:
         if nfmu.modifiedState 
-            result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, c, right_x_fmu), left_x, Optim.NelderMead())
+            buffer = fmi2GetEventIndicators(c)
+            result = Optim.optimize(x_seek -> f_optim(x_seek, nfmu, c, right_x_fmu, idx, sign(buffer[idx]), buffer), left_x, Optim.NelderMead())
             right_x = Optim.minimizer(result)
         else # if there is no ANN above, then:
             right_x = right_x_fmu
@@ -893,16 +899,23 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         @assert !isnothing(c.solution.states) "Solving NeuralODE returned `nothing`!"
  
         # ReverseDiff returns an array instead of an ODESolution, this needs to be corrected
-        if isa(c.solution.states, TrackedArray)
+        # [TODO] doesn`t Array cover the TrackedArray case?
+        if isa(c.solution.states, TrackedArray) || isa(c.solution.states, Array) 
 
             @assert !isnothing(saveat) "Keyword `saveat` is nothing, please provide the keyword."
            
             t = collect(saveat)
+            while t[1] < tspan[1]
+                popfirst!(t)
+            end
+            while t[end] > tspan[end]
+                pop!(t)
+            end
             u = c.solution.states
             c.solution.success = (size(u) == (length(nfmu.x0), length(t))) 
 
-            if c.solution.success
-                c.solution.states = build_solution(prob, nfmu.solver, t, collect(u[:,i] for i in 1:size(u)[2]))
+            if size(u)[2] > 0 # at least some recorded points
+                c.solution.states = build_solution(prob, solver, t, collect(u[:,i] for i in 1:size(u)[2]))
             end
         else
             c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
