@@ -26,6 +26,29 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     best_gradient = nothing 
     best_sensealg = nothing
 
+    printstyled("Mode: Finite-Differences (Ground-Truth)\n")
+    grads, _ = runGrads(loss, params, :FiniteDiff, 0, multiObjective)
+    
+    # jac = zeros(length(params[1]))
+    # FiniteDiff.finite_difference_gradient!(jac, loss, params[1])
+    # step = 1e-6
+    # for i in 1:length(params[1])
+    #     params[1][i] -= step/2.0
+    #     neg = loss(params[1])
+    #     params[1][i] += step
+    #     pos = loss(params[1])
+    #     params[1][i] -= step/2.0
+
+    #     jac[i] = (pos-neg)/step
+    # end
+    # @info "Jac: $(jac)"
+    # grads = [jac]
+
+    grad_gt_val = collect(sum(abs.(grad)) for grad in grads)[1]
+
+    printstyled("\tGround Truth: $(grad_gt_val)\n", color=:green)
+    @assert grad_gt_val > 0.0 "Loss gradient is zero, grad_gt_val == 0.0"
+
     printstyled("Mode: Optimize-then-Discretize\n")
     for gradient ∈ gradients
         printstyled("\tGradient: $(gradient)\n")
@@ -49,11 +72,11 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                         neuralFMU.fmu.executionConfig.sensealg = sensealg(; autojacvec=autojacvec, chunk_size=chunk_size)
                     end
 
-                    call = () -> _tryrun(loss, params, gradient, chunk_size, 5, max_msg_len, multiObjective; timeout_seconds=timeout_seconds)
+                    call = () -> _tryrun(loss, params, gradient, chunk_size, 5, max_msg_len, multiObjective; timeout_seconds=timeout_seconds, grad_gt_val=grad_gt_val)
                     for i in 1:bestof
-                        timing = call()
+                        timing, valid = call()
 
-                        if timing < best_timing
+                        if valid && timing < best_timing
                             best_timing = timing
                             best_gradient = gradient 
                             best_sensealg = neuralFMU.fmu.executionConfig.sensealg
@@ -77,11 +100,11 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                 neuralFMU.fmu.executionConfig.sensealg = sensealg()
             end
 
-            call = () -> _tryrun(loss, params, gradient, chunk_size, 3, max_msg_len, multiObjective; timeout_seconds=timeout_seconds)
+            call = () -> _tryrun(loss, params, gradient, chunk_size, 3, max_msg_len, multiObjective; timeout_seconds=timeout_seconds, grad_gt_val=grad_gt_val)
             for i in 1:bestof
-                timing = call()
+                timing, valid = call()
 
-                if timing < best_timing
+                if valid && timing < best_timing
                     best_timing = timing
                     best_gradient = gradient 
                     best_sensealg = neuralFMU.fmu.executionConfig.sensealg
@@ -135,7 +158,8 @@ function runGrads(loss, params, gradient, chunk_size, multiObjective)
     return grads, timing
 end
 
-function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; print_stdout::Bool=true, print_stderr::Bool=true, timeout_seconds::Real=60.0)
+function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; 
+                 print_stdout::Bool=true, print_stderr::Bool=true, timeout_seconds::Real=60.0, grad_gt_val::Real=0.0, reltol=1e-1)
 
     spacing = ""
     for t in ts 
@@ -145,6 +169,7 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
     message = "" 
     color = :black 
     timing = Inf
+    valid = false
 
     original_stdout = stdout
     original_stderr = stderr
@@ -160,9 +185,19 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
             message = spacing * "TIMEOUT\n"
             color = :red
         else
-            val = collect(sum(abs.(grad)) for grad in grads)
-            message = spacing * "SUCCESS | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
-            color = :green
+            val = collect(sum(abs.(grad)) for grad in grads)[1]
+
+            tol = abs(1.0 - val / grad_gt_val)
+            
+            if tol > reltol
+                message = spacing * "Gradient rel tol = $(tol) > $(reltol) | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
+                color = :orange
+                valid = false
+            else
+                message = spacing * "SUCCESS | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
+                color = :green
+                valid = true
+            end
         end
 
     catch e 
@@ -202,5 +237,5 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
 
     printstyled(message, color=color)
 
-    return timing
+    return timing, valid
 end

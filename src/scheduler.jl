@@ -266,6 +266,13 @@ function roundToLength(number::Real, len::Integer)
         return "0.0"
     end
 
+    isneg = false
+    if number < 0.0
+        isneg = true
+        number = -number
+        len -= 1 # we need one digit for the "-"
+    end
+
     expLen = 0
 
     if abs(number) <= 1.0 
@@ -279,6 +286,10 @@ function roundToLength(number::Real, len::Integer)
         len -= 3 # 3 spaces needed for large exponent
     else
         len -= 2 # 2 spaces needed for regular exponent
+    end
+
+    if isneg 
+        number = -number 
     end
     
     return Printf.format(Printf.Format("%.$(len)e"), number)

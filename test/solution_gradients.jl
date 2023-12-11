@@ -117,7 +117,6 @@ leftCb = VectorContinuousCallback(condition_double,
 
 # load FMU for NeuralFMU
 fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-fmu.handleEventIndicators = nothing
 
 net = Chain(Dense(W1, b1, identity),
             x -> fmu(;x=x, dx_refs=:all), 

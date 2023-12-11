@@ -137,7 +137,7 @@ for i in 1:length(nets)
 
         optim = OPTIMISER(ETA)
 
-        solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
+        solvers = [Tsit5()] # , Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
 
         for solver in solvers
         
