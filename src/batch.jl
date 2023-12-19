@@ -431,7 +431,7 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
         FMIFlux.run!(neuralFMU, batch[i]; lastBatchElement=nextBatchElement, solverKwargs...)
     
         if plot
-            fig = FMIFlux.plot(batch[i-1]; solverKwargs...)
+            fig = FMIFlux.plot(batch[i]; solverKwargs...)
             display(fig)
         end
     end
