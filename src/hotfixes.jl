@@ -13,10 +13,10 @@ function set_u!(::FakeIntegrator, u)
     return nothing
 end
 
-import FMISensitivity.ReverseDiff: increment_deriv!
-function increment_deriv!(t::AbstractArray{<:ReverseDiff.TrackedReal}, x::ReverseDiff.ZeroTangent, args...)
-    return nothing
-end
+# import FMISensitivity.ReverseDiff: increment_deriv!
+# function increment_deriv!(t::AbstractArray{<:ReverseDiff.TrackedReal}, x::ReverseDiff.ZeroTangent, args...)
+#     return nothing
+# end
 
 #####
 

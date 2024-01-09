@@ -49,31 +49,36 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-        # @info    "Solution Gradients (solution_gradients.jl)"
-        # @testset "Solution Gradients" begin
-        #     include("solution_gradients.jl")
-        # end
+        @info    "Solution Gradients (solution_gradients.jl)"
+        @testset "Solution Gradients" begin
+            include("solution_gradients.jl")
+        end
 
-        # for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
+        @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
+        @testset "Time Event Solution Gradients" begin
+            include("time_solution_gradients.jl")
+        end
+
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
-        #     global GRADIENT = _GRADIENT
-        #     @info    "Gradient: $(GRADIENT)"
-        #     @testset "Gradient: $(GRADIENT)" begin
+            global GRADIENT = _GRADIENT
+            @info    "Gradient: $(GRADIENT)"
+            @testset "Gradient: $(GRADIENT)" begin
     
         #         @info    "Layers (layers.jl)"
         #         @testset "Layers" begin
         #             include("layers.jl")
         #         end
 
-        #         @info    "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
-        #         @testset "ME-NeuralFMU (Continuous)" begin
-        #             include("hybrid_ME.jl")
-        #         end
+                @info    "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+                @testset "ME-NeuralFMU (Continuous)" begin
+                    include("hybrid_ME.jl")
+                end
 
-        #         @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-        #         @testset "ME-NeuralFMU (Discontinuous)" begin
-        #             include("hybrid_ME_dis.jl")
-        #         end
+                @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+                @testset "ME-NeuralFMU (Discontinuous)" begin
+                    include("hybrid_ME_dis.jl")
+                end
 
         #         @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
         #         @testset "NeuralFMU with FMU parameter optimization" begin
@@ -109,13 +114,13 @@ function runtests(exportingTool)
         #         @testset "Optim" begin
         #             include("optim.jl")
         #         end
-        #     end
-        # end
-
-        @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
-        @testset "Benchmark: Supported sensitivities " begin
-            include("supported_sensitivities.jl")
+             end
         end
+
+        # @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
+        # @testset "Benchmark: Supported sensitivities " begin
+        #     include("supported_sensitivities.jl")
+        # end
    
     end
 end

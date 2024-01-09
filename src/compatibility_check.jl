@@ -9,7 +9,8 @@ using FMISensitivity.SciMLSensitivity
 
 function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}; 
                         gradients=(:ReverseDiff, :Zygote, :ForwardDiff), # :FiniteDiff is slow ...
-                        max_msg_len=192, chunk_size=DEFAULT_CHUNK_SIZE, 
+                        max_msg_len=192, 
+                        chunk_size=DEFAULT_CHUNK_SIZE, 
                         OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), ReverseDiffVJP(false), ReverseDiffVJP(true)), # EnzymeVJP() deadlocks in the current release xD
                         OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
                         OtD_checkpointings=(true, false),
@@ -17,6 +18,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                         multiObjective::Bool=false,
                         bestof::Int=2,
                         timeout_seconds::Real=60.0,
+                        gradient_gt::Symbol=:FiniteDiff,
                         kwargs...)
 
     params = Flux.params(neuralFMU)   
@@ -26,8 +28,8 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
     best_gradient = nothing 
     best_sensealg = nothing
 
-    printstyled("Mode: Finite-Differences (Ground-Truth)\n")
-    grads, _ = runGrads(loss, params, :FiniteDiff, 0, multiObjective)
+    printstyled("Mode: Ground-Truth ($(gradient_gt)))\n")
+    grads, _ = runGrads(loss, params, gradient_gt, chunk_size, multiObjective)
     
     # jac = zeros(length(params[1]))
     # FiniteDiff.finite_difference_gradient!(jac, loss, params[1])
@@ -118,7 +120,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
 
     printstyled("------------------------------\nBest time: $(best_timing)\nBest gradient: $(best_gradient)\nBest sensealg: $(best_sensealg)\n", color=:blue)
 
-    return nothing
+    return best_timing, best_gradient, best_sensealg
 end
 
 # Thanks to:
@@ -159,7 +161,7 @@ function runGrads(loss, params, gradient, chunk_size, multiObjective)
 end
 
 function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjective::Bool=false; 
-                 print_stdout::Bool=true, print_stderr::Bool=true, timeout_seconds::Real=60.0, grad_gt_val::Real=0.0, reltol=1e-1)
+                 print_stdout::Bool=true, print_stderr::Bool=true, timeout_seconds::Real=60.0, grad_gt_val::Real=0.0, reltol=1e-2)
 
     spacing = ""
     for t in ts 
@@ -190,8 +192,8 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
             tol = abs(1.0 - val / grad_gt_val)
             
             if tol > reltol
-                message = spacing * "Gradient rel tol = $(tol) > $(reltol) | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
-                color = :orange
+                message = spacing * "WRONG $(round(tol*100;digits=2))% > $(round(reltol*100;digits=2))% | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
+                color = :yellow
                 valid = false
             else
                 message = spacing * "SUCCESS | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"

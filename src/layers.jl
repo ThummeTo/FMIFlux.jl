@@ -26,7 +26,7 @@ struct FMUParameterRegistrator{T}
             c.default_p = p
         end
 
-        return new(fmu, p_refs, p)
+        return new{T}(fmu, p_refs, p)
     end
 
     function FMUParameterRegistrator(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{T}) where {T}
@@ -48,6 +48,30 @@ function (l::FMUParameterRegistrator)(x)
 end
 
 Flux.@functor FMUParameterRegistrator (p, )
+
+### ParameterRegistrator ###
+
+"""
+ToDo.
+"""
+struct ParameterRegistrator{T}
+    p::AbstractArray{T}
+   
+    function ParameterRegistrator{T}(p::AbstractArray{T}) where {T}
+        return new{T}(p)
+    end
+
+    function ParameterRegistrator(p::AbstractArray{T}) where {T}
+        return ParameterRegistrator{T}(p)
+    end
+end
+export ParameterRegistrator
+
+function (l::ParameterRegistrator)(x)
+    return x
+end
+
+Flux.@functor ParameterRegistrator (p, )
 
 ### SHIFTSCALE ###
 

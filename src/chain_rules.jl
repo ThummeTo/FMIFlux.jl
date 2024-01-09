@@ -18,7 +18,9 @@ function ChainRulesCore.frule(Δtuple,
 
     Ω = stateChangeByEvent!(xBuf, nfmu, c, left_x)
 
-    ∂Ω = Ω
+    ∂Ω = Ω/left_x
+
+    @warn "frule!"
 
     return Ω, ∂Ω 
 end
@@ -31,11 +33,15 @@ function ChainRulesCore.rrule(::typeof(stateChangeByEvent!),
 
     Ω = stateChangeByEvent!(xBuf, nfmu, c, left_x)
 
+    @warn "rrule"
+
     ##############
 
     function eval_pullback(r̄)
  
         x̄Buf = r̄
+
+        @warn "pullback $(r̄)"
 
         # write back
         f̄ = NoTangent()
@@ -51,12 +57,12 @@ function ChainRulesCore.rrule(::typeof(stateChangeByEvent!),
     return (Ω, eval_pullback)
 end
 
-@ForwardDiff_frule eval!(xBuf::AbstractVector{<:ForwardDiff.Dual},
-    nfmu, 
-    c, 
-    left_x)
+# @ForwardDiff_frule stateChangeByEvent!(xBuf::AbstractVector{<:ForwardDiff.Dual},
+#     nfmu, 
+#     c, 
+#     left_x::AbstractVector{<:ForwardDiff.Dual})
 
-@grad_from_chainrules eval!(xBuf::AbstractVector{<:ReverseDiff.TrackedReal},
-    nfmu, 
-    c, 
-    left_x)
+# @grad_from_chainrules stateChangeByEvent!(xBuf::AbstractVector{<:ReverseDiff.TrackedReal},
+#     nfmu, 
+#     c, 
+#     left_x::AbstractVector{<:ReverseDiff.TrackedReal})

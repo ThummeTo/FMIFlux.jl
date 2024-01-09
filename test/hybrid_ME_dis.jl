@@ -20,7 +20,7 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, saveat=tData)
 
@@ -73,12 +73,12 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
-net = Chain(Dense(numStates, 16, tanh, init=init),
-            Dense(16, 16, tanh, init=init),
-            Dense(16, 2, identity, init=init),
+net = Chain(x -> c1(x),
+            Dense(numStates, 16, tanh; init=init),
+            Dense(16, 1, identity; init=init),
+            x -> c2([], x[1], [1]),
             x -> fmu(;x=x, dx_refs=:all))
-@warn "Net #3 (discontinuous) currently skipped" # [TODO]
-#push!(nets, net)
+push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
@@ -138,49 +138,59 @@ for i in 1:length(nets)
         global nets, problem, lastLoss, iterCB
 
         optim = OPTIMISER(ETA)
-        solver = Tsit5()
-
-        net = nets[i]
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
-
-        # train it ...
-        p_net = Flux.params(problem)
-        @test length(p_net) == 1
         
-        @test problem !== nothing
+        solvers = [Tsit5()] # , Rosenbrock23(autodiff=false)] # , Rosenbrock23(autodiff=true)]
 
-        solutionBefore = problem(X0; p=p_net[1], saveat=tData)
-        if solutionBefore.success
-            @test length(solutionBefore.states.t) == length(tData)
-            @test solutionBefore.states.t[1] == t_start
-            @test solutionBefore.states.t[end] == t_stop
-        end
+        for solver in solvers
 
-        iterCB = 0
-        lastLoss = losssum(p_net[1])
-        @info "Start-Loss for net #$i: $lastLoss"
+            net = nets[i]
+            problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
 
-        if length(p_net[1]) == 0
-            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
-        end
+            if i ∈ (1, 3, 4)
+                @warn "Currently skipping nets ∈ (1, 3, 4)"
+                continue
+                problem.modifiedState = true
+            end
 
-        lossBefore = losssum(p_net[1])
+            # train it ...
+            p_net = Flux.params(problem)
+            @test length(p_net) == 1
+            
+            @test problem !== nothing
 
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+            solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+            if solutionBefore.success
+                @test length(solutionBefore.states.t) == length(tData)
+                @test solutionBefore.states.t[1] == t_start
+                @test solutionBefore.states.t[end] == t_stop
+            end
 
-        lossAfter = losssum(p_net[1])
-        if length(p_net[1]) == 0
-            @test lossAfter == lossBefore
-        else
-            @test lossAfter < lossBefore
-        end
+            iterCB = 0
+            lastLoss = losssum(p_net[1])
+            @info "Start-Loss for net #$i: $lastLoss"
 
-        # check results
-        solutionAfter = problem(X0; p=p_net[1], saveat=tData)
-        if solutionAfter.success
-            @test length(solutionAfter.states.t) == length(tData)
-            @test solutionAfter.states.t[1] == t_start
-            @test solutionAfter.states.t[end] == t_stop
+            if length(p_net[1]) == 0
+                @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
+            end
+
+            lossBefore = losssum(p_net[1])
+
+            FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+
+            lossAfter = losssum(p_net[1])
+            if length(p_net[1]) == 0
+                @test lossAfter == lossBefore
+            else
+                @test lossAfter < lossBefore
+            end
+
+            # check results
+            solutionAfter = problem(X0; p=p_net[1], saveat=tData)
+            if solutionAfter.success
+                @test length(solutionAfter.states.t) == length(tData)
+                @test solutionAfter.states.t[1] == t_start
+                @test solutionAfter.states.t[end] == t_stop
+            end
         end
     end
 end

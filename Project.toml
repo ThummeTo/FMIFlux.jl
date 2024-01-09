@@ -19,7 +19,7 @@ ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 [compat]
 Colors = "0.12.8"
 DifferentiableEigen = "0.2.0"
-DifferentialEquations = "7.7.0 - 7.11"
+DifferentialEquations = "7.7.0 - 7.12"
 FMIImport = "0.16.4"
 FMISensitivity = "0.1.2"
 Flux = "0.13.0 - 0.14"

@@ -42,10 +42,16 @@ function losssum(p)
     return FMIFlux.Losses.mse(posNet, posData)
 end
 
-solver = Tsit5()
-nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
-nfmu.modifiedState = false
+solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
+for solver in solvers
+    
+    global nfmu
+    @info "Solver: $(solver)"
+    nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
+    nfmu.modifiedState = false
 
-FMIFlux.checkSensalgs!(losssum, nfmu)
+    best_timing, best_gradient, best_sensealg = FMIFlux.checkSensalgs!(losssum, nfmu)
+    @test best_timing != Inf
+end
 
 fmi2Unload(fmu)
