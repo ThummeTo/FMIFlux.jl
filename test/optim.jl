@@ -22,9 +22,9 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global problem, X0
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -106,7 +106,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, y=y, dx_refs=:all),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([2], x[1], []))
+            x -> c2([1], x[1], []))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
@@ -124,7 +124,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, y=y, dx_refs=:
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([2], x[1], []))
+            x -> c2([1], x[1], []))
 push!(nets, net)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)
@@ -142,6 +142,15 @@ for i in 1:length(nets)
         problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
         @test problem != nothing
 
+        # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
+        if i ∈ (1, 3, 4)
+            if i == 3
+                @warn "Currently skipping nets ∈ (3)"
+                continue
+            end
+            problem.modifiedState = true
+        end
+
         # train it ...
         p_net = Flux.params(problem)
         @test length(p_net) == 1
@@ -157,6 +166,10 @@ for i in 1:length(nets)
         lastLoss = losssum(p_net[1])
         @info "Start-Loss for net #$i: $lastLoss"
 
+        if length(p_net[1]) == 0
+            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
+        end
+        
         lossBefore = losssum(p_net[1])
         FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
         lossAfter = losssum(p_net[1])

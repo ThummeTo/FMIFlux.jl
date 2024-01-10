@@ -18,12 +18,12 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # setup traing data
-function extForce(t)
+extForce = function(t)
     return [sin(t), cos(t)]
 end
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     solution = problem(extForce, t_step; p=p)
 
     if !solution.success
@@ -45,14 +45,14 @@ end
 # NeuralFMU setup
 total_fmu_outdim = sum(map(x->length(x.modelDescription.outputValueReferences), fmus))
 
-function eval(i, u)
+evalFMU = function(i, u)
     fmus[i](;u_refs=fmus[i].modelDescription.inputValueReferences, u=u, y_refs=fmus[i].modelDescription.outputValueReferences)
 end
 net = Chain(
     Parallel(
         vcat,
-        inputs -> eval(1, inputs[1:1]),
-        inputs -> eval(2, inputs[2:2])
+        inputs -> evalFMU(1, inputs[1:1]),
+        inputs -> evalFMU(2, inputs[2:2])
     ),
     Dense(total_fmu_outdim, 16, tanh; init=Flux.identity_init),
     Dense(16, 16, tanh; init=Flux.identity_init),

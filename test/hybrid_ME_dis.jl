@@ -108,7 +108,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, y=y, dx_refs=:all),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([2], x[1], []))
+            x -> c2([1], x[1], []))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
@@ -126,7 +126,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, y=y, dx_refs=:
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([2], x[1], []))
+            x -> c2([1], x[1], []))
 push!(nets, net)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)
@@ -134,7 +134,7 @@ net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
 for i in 1:length(nets)
-    @testset "Net setup $(i)/$(length(nets))" begin
+    @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
         global nets, problem, lastLoss, iterCB
 
         optim = OPTIMISER(ETA)
@@ -147,8 +147,10 @@ for i in 1:length(nets)
             problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
 
             if i ∈ (1, 3, 4)
-                @warn "Currently skipping nets ∈ (1, 3, 4)"
-                continue
+                if i == 3
+                    @warn "Currently skipping nets ∈ (3)"
+                    continue
+                end
                 problem.modifiedState = true
             end
 
@@ -181,7 +183,7 @@ for i in 1:length(nets)
             if length(p_net[1]) == 0
                 @test lossAfter == lossBefore
             else
-                @test lossAfter < lossBefore
+                @test lossAfter < lossBefore 
             end
 
             # check results

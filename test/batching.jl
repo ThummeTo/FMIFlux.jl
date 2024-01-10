@@ -23,7 +23,7 @@ using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
 
 # loss function for training
-function losssum_single(p)
+losssum_single = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
@@ -36,7 +36,7 @@ function losssum_single(p)
     return Flux.Losses.mse(posNet, posData)
 end
 
-function losssum_multi(p)
+losssum_multi = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 

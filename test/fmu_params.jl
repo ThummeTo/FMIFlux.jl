@@ -33,7 +33,7 @@ p_refs = fmu.modelDescription.parameterValueReferences
 p = fmi2GetReal(c, p_refs)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     #@info "$p"
     global problem, X0, posData, solution
     solution = problem(X0; p=p, showProgress=true, saveat=tData)

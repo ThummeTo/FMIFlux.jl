@@ -21,7 +21,7 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
@@ -38,7 +38,7 @@ end
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-function callb(p)
+callb = function(p)
     global iterCB += 1
     global lastLoss
 

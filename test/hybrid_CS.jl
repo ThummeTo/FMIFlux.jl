@@ -19,12 +19,12 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
 
 # sine(t) as external force
-function extForce(t)
+extForce = function(t)
     return [sin(t)]
 end
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     solution = problem(extForce, t_step; p=p)
 
     if !solution.success

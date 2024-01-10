@@ -29,7 +29,7 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             Dense(16, 2, identity))
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global nfmu, x0_bb, posData
     solution = nfmu(x0_bb; p=p, saveat=tData)
 
