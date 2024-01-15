@@ -4,7 +4,7 @@
 #
 
 import FMIImport.FMICore: assert_integrator_valid, isdual, istracked, undual, unsense, unsense_copy, untrack
-import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot!, snapshot_if_needed!, getSnapshot, apply!
+import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot!, snapshot_if_needed!, getSnapshot
 import Optim
 import ProgressMeter
 import FMISensitivity.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
@@ -409,19 +409,35 @@ end
 
 function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; step = 1e-8)
 
-   
+    c.solution.evals_∂xr_∂xl += 1
+    
     numStates = length(left_x)
     jac = zeros(numStates, numStates)
-    new_left_x = copy(left_x)
-
+    
     # first, jump to before the event instance
+    # if length(c.solution.snapshots) > 0 # c.t != t 
+    #     sn = getSnapshot(c.solution, t)
+    #     FMICore.apply!(c, sn; x_c=left_x, t=t)
+    #     #@info "[d] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+    # end
+    # indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
+
+    # ONLY A TEST
+    new_left_x = copy(left_x)
     if length(c.solution.snapshots) > 0 # c.t != t 
         sn = getSnapshot(c.solution, t)
-        FMICore.apply!(c, sn; x_c=left_x, t=t)
-        #@info "[d] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+        FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+        #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
     end
+    new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+    statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+    
+    #@info "Sample given : t:$(t)   $(left_x) -> $(right_x)"
+    #@info "Sample repro.: t:$(t)   $(new_left_x) -> $(new_right_x)"
 
-    indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
+    @assert statesChanged "Can't reproduce event (statesChanged)!"
+    @assert left_x == new_left_x "Can't reproduce event (left_x)!"
+    @assert right_x == new_right_x "Can't reproduce event (right_x)!"
 
     for i in 1:numStates
         
@@ -435,22 +451,47 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
             FMICore.apply!(c, sn; x_c=new_left_x, t=t)
             #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
         end
-
-        new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
-
+        # [ToDo] Don't check if event was handled via event-indicator, because there is no guarantee that it is reset (like for the bouncing ball)
+        #        to match the sign from before the event! Better check if FMU detects a new event!
+        # fmi2EnterEventMode(c)
+        # handleEvents(c)
+        new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+        statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+        #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
+        #@info "Sample P: t:$(t)   $(new_left_x) -> $(new_right_x)"
+        
         # choose other direction
-        if new_indicator_sign != indicator_sign
+        if !statesChanged 
             #@info "New_indicator sign is $(new_indicator_sign) (should be $(indicator_sign)), retry..."
             #new_left_x[:] .= left_x
             new_left_x = copy(left_x)
             new_left_x[i] -= step
-            fmi2SetContinuousStates(c, new_left_x)
-            new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
+            
+            if length(c.solution.snapshots) > 0 # c.t != t 
+                sn = getSnapshot(c.solution, t)
+                FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+                #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+            end
+            #fmi2EnterEventMode(c)
+            #handleEvents(c)
+            new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+            statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+            #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
 
-            @assert new_indicator_sign == indicator_sign "sampling state change jacobian failed, can't find another state with same event indicator for #$(idx)\nIndicator sign is: $(indicator_sign)\nSample: $(new_indicator_sign)"
+            #@info "Sample N: t:$(t)   $(new_left_x) -> $(new_right_x)"
+
+            @assert statesChanged "Sampling state change jacobian failed, can't find another state that triggers the event!"
         end
 
-        new_right_x = stateChange!(nfmu, c, new_left_x, t, idx)
+        # if length(c.solution.snapshots) > 0 # c.t != t 
+        #     sn = getSnapshot(c.solution, t)
+        #     FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+        #     #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+        # end
+
+        # new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+
+        # [ToDo] check if the SAME event indicator was triggered!
 
         #@info "t=$(t) idx=$(idx)\n    left_x: $(left_x)   ->       right_x: $(right_x)   [$(indicator_sign)]\nnew_left_x: $(new_left_x)   ->   new_right_x: $(new_right_x)   [$(new_indicator_sign)]"
 
@@ -469,7 +510,9 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     if length(c.solution.snapshots) > 0 
         #@info "Reset exact snapshot @t=$(t)"
         sn = getSnapshot(c.solution, t; exact=true)
-        FMICore.apply!(c, sn)
+        if !isnothing(sn)
+            FMICore.apply!(c, sn; x_c=left_x, t=t)
+        end
     end
     
     #@info "Jac:\n$(jac)"
@@ -478,7 +521,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     return jac
 end
 
-function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx)
+function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx; snapshots=true)
 
     # unpack references 
     # if typeof(cRef) != UInt64
@@ -500,7 +543,7 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
     fmi2EnterEventMode(c)
     handleEvents(c)
 
-    snapshots = true # nfmu.snapshots || snapshotsNeeded(nfmu, integrator)
+    #snapshots = true # nfmu.snapshots || snapshotsNeeded(nfmu, integrator)
 
     # ignore_derivatives() do
     #     if idx == 0
@@ -644,18 +687,23 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx, snaps
 
     right_x = stateChange!(nfmu, c, left_x, t, idx)
     
-    jac = I 
+    # sensitivities needed
+    if istracked(integrator.u) || istracked(integrator.t) || isdual(integrator.u) || isdual(integrator.t)
+        jac = I 
 
-    if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
-        jac = sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx)
+        if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
+            jac = sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx)
+        end
+
+        VJP = jac * integrator.u 
+        #tgrad = tvec .* integrator.t
+        staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
+
+        # [ToDo] add (sampled) time gradient
+        integrator.u[:] = staticOff + VJP # + tgrad
+    else
+        integrator.u[:] = right_x
     end
-
-    VJP = jac * integrator.u 
-    #tgrad = tvec .* integrator.t
-    staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
-
-    # [ToDo] add (sampled) time gradient
-    integrator.u[:] = staticOff + VJP # + tgrad
 
     #@info "affect right_x = $(right_x)"
     
@@ -1207,7 +1255,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     if isnothing(sensealg)
         if isimplicit(solver)
-            @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword."
+            @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword.\nExample: `Rosenbrock23(autodiff=false)` instead of `Rosenbrock23()`."
 
             logWarning(nfmu.fmu, "Implicit solver detected for NeuralFMU.\nContinuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
             sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
@@ -1505,8 +1553,11 @@ function computeGradient!(jac, loss, params, gradient::Symbol, chunk_size::Union
         grads = [jac]
     end
 
+    all_zero = any(collect(all(iszero.(grad)) for grad in grads))
     has_nan = any(collect(any(isnan.(grad)) for grad in grads))
     has_nothing = any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
+
+    @assert !all_zero "Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD."
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
         @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."

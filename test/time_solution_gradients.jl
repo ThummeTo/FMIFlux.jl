@@ -121,7 +121,7 @@ affect_right! = function(integrator, idx)
         t = integrator.t
         condition(out, unsense(x), unsense(t), integrator)
         if sign(out[idx]) > 0.0
-            @warn "Event for bouncing ball triggered, but not valid!"
+            @info "Event for bouncing ball (white-box) triggered, but not valid!"
             return nothing 
         end
     end
