@@ -382,7 +382,7 @@ end
 function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{<:AbstractArray{<:Real}}, targets::AbstractArray; kwargs...)
 
     len = length(train_t)
-    batches = []
+    batches = Array{FMIFlux.FMU2SolutionBatchElement,1}()
     for i in 1:len 
         batch = batchDataSolution(neuralFMU, x0_fun, train_t[i], targets[i]; kwargs...)
         batches = vcat(batches, batch)

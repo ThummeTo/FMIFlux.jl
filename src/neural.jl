@@ -521,6 +521,10 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     return jac
 end
 
+function is_integrator_sensitive(integrator)
+    return istracked(integrator.u) || istracked(integrator.t) || isdual(integrator.u) || isdual(integrator.t)
+end
+
 function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx; snapshots=true)
 
     # unpack references 
@@ -614,7 +618,7 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
         # u_modified!(integrator, false)
     end
 
-    if snapshots
+    if snapshots 
         s = snapshot_if_needed!(c.solution, t)
         # if !isnothing(s)
         #     @info "Add snapshot @t=$(s.t)"
@@ -683,12 +687,12 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx, snaps
     #end
     end
 
-   
+    integ_sens = is_integrator_sensitive(integrator)
 
-    right_x = stateChange!(nfmu, c, left_x, t, idx)
+    right_x = stateChange!(nfmu, c, left_x, t, idx; snapshots=integ_sens)
     
     # sensitivities needed
-    if istracked(integrator.u) || istracked(integrator.t) || isdual(integrator.u) || isdual(integrator.t)
+    if integ_sens
         jac = I 
 
         if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
