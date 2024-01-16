@@ -1612,7 +1612,11 @@ function trainStep(loss, params, gradient, chunk_size, optim::FMIFlux.AbstractOp
     catch e
 
         if proceed_on_assert
-            @error "Training asserted, but continuing: $e"
+            msg = "$e"
+            if length(msg) > 4096
+                msg = msg[1:4096] * "..."
+            end
+            @error "Training asserted, but continuing: $(msg)"
         else
             throw(e)
         end
