@@ -778,8 +778,13 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
         dt = unsense(integrator.tprev) - unsense(integrator.t)
         events = length(c.solution.events)
         steps = c.solution.evals_stepcompleted
+        simLen = tStop-tStart
         c.progressMeter.desc = "Δt=$(roundToLength(dt, 10))s | STPs=$(steps) | EVTs=$(events) |"
-        ProgressMeter.update!(c.progressMeter, floor(Integer, 1000.0*(t-tStart)/(tStop-tStart)) )
+        #@info "$(tStart)   $(tStop)   $(t)"
+
+        if simLen > 0.0
+            ProgressMeter.update!(c.progressMeter, floor(Integer, 1000.0*(t-tStart)/simLen) )
+        end
     end
 
     if c != nothing

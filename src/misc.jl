@@ -111,6 +111,7 @@ function transpose(vec::AbstractVector{<:AbstractVector{<:Real}})
 end
 
 function timeToIndex(ts::AbstractArray{<:Real}, target::Real)
+
     tStart = ts[1]
     tStop = ts[end]
     tLen = length(ts)
@@ -129,6 +130,12 @@ function timeToIndex(ts::AbstractArray{<:Real}, target::Real)
     elseif target == tStop
         return tLen
     end
+
+    # i = 1 
+    # while ts[i] < target
+    #     i += 1
+    # end 
+    # return i
 
     # estimate start value
     steps = 0
@@ -154,7 +161,7 @@ function timeToIndex(ts::AbstractArray{<:Real}, target::Real)
         end
         steps += 1
 
-        @assert steps < 200 "Steps reached max."
+        @assert steps < tLen "Steps reached max."
     end
 
     #@info "$steps"

@@ -379,8 +379,21 @@ function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool=
     return loss
 end
 
+function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{<:AbstractArray{<:Real}}, targets::AbstractArray; kwargs...)
+
+    len = length(train_t)
+    batches = []
+    for i in 1:len 
+        batch = batchDataSolution(neuralFMU, x0_fun, train_t[i], targets[i]; kwargs...)
+        batches = vcat(batches, batch)
+    end
+    return batches
+end
+
 function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{<:Real}, targets::AbstractArray; 
     batchDuration::Real=(train_t[end]-train_t[1]), indicesModel=1:length(targets[1]), plot::Bool=false, scalarLoss::Bool=true, solverKwargs...)
+
+    @assert length(train_t) == length(targets) "Timepoints in `train_t` ($(length(train_t))) must match number of `targets` ($(length(targets)))"
 
     canGetSetState = fmi2CanGetSetState(neuralFMU.fmu)
     if !canGetSetState
