@@ -49,6 +49,38 @@ end
 
 Flux.@functor FMUParameterRegistrator (p, )
 
+### TimeLayer ###
+
+"""
+A neutral layer that calls a function `fct` with current FMU time as input.
+"""
+struct FMUTimeLayer{F}
+    fmu::FMU2
+    fct::F
+    
+    function FMUTimeLayer{F}(fmu::FMU2, fct::F) where {F} 
+        return new{F}(fmu, fct)
+    end
+
+    function FMUTimeLayer(fmu::FMU2, fct::F) where {F} 
+        return FMUTimeLayer{F}(fmu, fct)
+    end
+
+end
+export FMUTimeLayer
+
+function (l::FMUTimeLayer)(x)
+    
+    if hasCurrentComponent(l.fmu) 
+        c = getCurrentComponent(l.fmu) 
+        l.fct(c.default_t)
+    end
+    
+    return x
+end
+
+Flux.@functor FMUTimeLayer ()
+
 ### ParameterRegistrator ###
 
 """

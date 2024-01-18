@@ -137,7 +137,7 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     end
 end
 
-function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p)
+function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p, t=c.default_t)
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     # [ToDo]: Skip array check, e.g. by using a flag
@@ -148,10 +148,11 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p)
     #return nfmu.re_model(x)
 
     #nfmu.p = p 
+    c.default_t = t
     return nfmu.re(p)(x)
 end
 
-function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x; p=nfmu.p)
+function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x; p=nfmu.p, t=c.default_t)
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     # [ToDo]: Skip array check, e.g. by using a flag
@@ -162,23 +163,17 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x; p=nfmu.p)
     #dx[:] = nfmu.re_model(x)
 
     #nfmu.p = p 
+    c.default_t = t
     dx[:] = nfmu.re(p)(x)
 
     return nothing
 end
 
-function snapshotsNeeded(nfmu, integrator)
-    return istracked(integrator.u) || istracked(integrator.t) || (nfmu.fmu.executionConfig.handleStateEvents && nfmu.fmu.hasStateEvents) || (nfmu.fmu.executionConfig.handleTimeEvents && nfmu.fmu.hasTimeEvents)
-end
-
-
 ##### EVENT HANDLING START
 
-function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, Nothing}, t, snapshots)
+function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, Nothing}, t)
 
     ignore_derivatives() do
-
-        snapshots = true # || snapshots || snapshotsNeeded(nfmu, integrator)
 
         nfmu.execution_start = time()
 
@@ -194,7 +189,7 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
             @debug "No initial time events ..."
         end
 
-        if snapshots
+        if nfmu.snapshots
             snapshot!(c.solution)
         end
 
@@ -525,7 +520,7 @@ function is_integrator_sensitive(integrator)
     return istracked(integrator.u) || istracked(integrator.t) || isdual(integrator.u) || isdual(integrator.t)
 end
 
-function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx; snapshots=true)
+function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx; snapshots=nfmu.snapshots)
 
     # unpack references 
     # if typeof(cRef) != UInt64
@@ -649,15 +644,13 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
 end
 
 # Handles the upcoming event
-function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx, snapshots)
+function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     @debug "affectFMU!"
     @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     # assert_integrator_valid(integrator)
 
     @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
-
-    
 
     # [NOTE] Here unsensing is OK, because we just want to reset the FMU to the correct state!
     #        The values come directly from the integrator and are NOT function arguments!
@@ -678,8 +671,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx, snaps
         c.force = true
 
         # there are fx-evaluations before the event is handled, reset the FMU state to the current integrator step
-        c.default_t = t
-        evaluateModel(nfmu, c, left_x) # evaluate NeuralFMU (set new states)
+        evaluateModel(nfmu, c, left_x; t=t) # evaluate NeuralFMU (set new states)
         # [NOTE] No need to reset time here, because we did pass a event instance! 
         #        c.default_t = -1.0
 
@@ -687,9 +679,9 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx, snaps
     #end
     end
 
-    integ_sens = is_integrator_sensitive(integrator)
+    integ_sens = nfmu.snapshots
 
-    right_x = stateChange!(nfmu, c, left_x, t, idx; snapshots=integ_sens)
+    right_x = stateChange!(nfmu, c, left_x, t, idx)
     
     # sensitivities needed
     if integ_sens
@@ -779,11 +771,12 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
     # end
 
     if !isnothing(c.progressMeter)
+        t = unsense(t)
         dt = unsense(integrator.tprev) - unsense(integrator.t)
         events = length(c.solution.events)
         steps = c.solution.evals_stepcompleted
         simLen = tStop-tStart
-        c.progressMeter.desc = "Δt=$(roundToLength(dt, 10))s | STPs=$(steps) | EVTs=$(events) |"
+        c.progressMeter.desc = "t=$(roundToLength(t, 10))s | Δt=$(roundToLength(dt, 10))s | STPs=$(steps) | EVTs=$(events) |"
         #@info "$(tStart)   $(tStop)   $(t)"
 
         if simLen > 0.0
@@ -799,7 +792,7 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
         end
 
         if enterEventMode == fmi2True
-            affectFMU!(nfmu, c, integrator, -1, snapshots)
+            affectFMU!(nfmu, c, integrator, -1)
         end
 
         @debug "Step completed at $(unsense(t)) with $(unsense(x))"
@@ -820,8 +813,7 @@ function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, _t, 
     c.solution.evals_savevalues += 1
 
     # ToDo: Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
-    c.default_t = t
-    evaluateModel(nfmu, c, x) # evaluate NeuralFMU (set new states)
+    evaluateModel(nfmu, c, x; t=t) # evaluate NeuralFMU (set new states)
    
     values = fmi2GetReal(c, recordValues)
 
@@ -837,17 +829,15 @@ function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrato
 
     c.solution.evals_saveeigenvalues += 1
 
-    c.default_t = t
-
     A = nothing
     if sensitivity == :ForwardDiff
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x) # TODO: chunk_size!
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x) # TODO: chunk_size!
     elseif sensitivity == :ReverseDiff 
-        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x), _x)
+        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x)
     elseif sensitivity == :Zygote 
-        A = Zygote.jacobian(x -> evaluateModel(nfmu, c, x), _x)[1]
+        A = Zygote.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x)[1]
     elseif sensitivity == :none
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x), unsense(_x))
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), unsense(_x))
     end
     eigs, _ = DifferentiableEigen.eigen(A)
 
@@ -867,11 +857,9 @@ function fx(nfmu::ME_NeuralFMU,
         return zeros(length(x))
     end
 
-    c.default_t = t
-
     ############
 
-    evaluateModel(nfmu, c, dx, x; p=p)
+    evaluateModel(nfmu, c, dx, x; p=p, t=t)
 
     ignore_derivatives() do
         c.solution.evals_fx_inplace += 1
@@ -894,9 +882,8 @@ function fx(nfmu::ME_NeuralFMU,
     ignore_derivatives() do
         c.solution.evals_fx_outofplace += 1
     end
-    c.default_t = t
-
-    return evaluateModel(nfmu, c, x; p=p)
+    
+    return evaluateModel(nfmu, c, x; p=p, t=t)
 end
 
 ##### EVENT HANDLING END
@@ -1044,7 +1031,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     recordEigenvalues::Bool=(recordEigenvaluesSensitivity != :none), 
     saveat=nfmu.saveat, # ToDo: Data type 
     sensealg=nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
-    snapshots::Bool=nfmu.snapshots,
     kwargs...)
 
     if !isnothing(saveat)
@@ -1095,7 +1081,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     callbacks = []
 
     c = getComponent(nfmu)
-    c = startCallback(nothing, nfmu, c, t_start, snapshots)
+    c = startCallback(nothing, nfmu, c, t_start)
     
     ignore_derivatives() do
         # custom callbacks
@@ -1110,7 +1096,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
         if nfmu.fmu.executionConfig.handleTimeEvents && nfmu.fmu.hasTimeEvents
             timeEventCb = IterativeCallback((integrator) -> time_choice(nfmu, c, integrator, t_start, t_stop),
-            (integrator) -> affectFMU!(nfmu, c, integrator, 0, snapshots), 
+            (integrator) -> affectFMU!(nfmu, c, integrator, 0), 
             Float64; 
             initial_affect=(c.eventInfo.nextEventTime == t_start), # already checked in the outer closure: c.eventInfo.nextEventTimeDefined == fmi2True
             save_positions=(saveEventPositions, saveEventPositions))
@@ -1136,7 +1122,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             if c.fmu.executionConfig.useVectorCallbacks
 
                 eventCb = VectorContinuousCallback((out, x, t, integrator) -> condition!(nfmu, c, out, x, t, integrator, handleIndicators),
-                                                (integrator, idx) -> affectFMU!(nfmu, c, integrator, idx, snapshots),
+                                                (integrator, idx) -> affectFMU!(nfmu, c, integrator, idx),
                                                 numEventInds;
                                                 rootfind=RightRootFind,
                                                 save_positions=(saveEventPositions, saveEventPositions),
@@ -1146,7 +1132,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
                 for idx in 1:c.fmu.modelDescription.numberOfEventIndicators
                     eventCb = ContinuousCallback((x, t, integrator) -> conditionSingle(nfmu, c, idx, x, t, integrator),
-                                                    (integrator) -> affectFMU!(nfmu, c, integrator, idx, snapshots);
+                                                    (integrator) -> affectFMU!(nfmu, c, integrator, idx);
                                                     rootfind=RightRootFind,
                                                     save_positions=(saveEventPositions, saveEventPositions),
                                                     interp_points=c.fmu.executionConfig.rootSearchInterpolationPoints)
@@ -1321,6 +1307,12 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     # stopCB 
     stopCallback(nfmu, c, t_stop)
+
+    # cleanup snapshots to release memory
+    for snapshot in c.solution.snapshots 
+        FMICore.freeSnapshot!(snapshot)
+    end
+    c.solution.snapshots = []
 
     return c.solution
 end
@@ -1693,13 +1685,14 @@ end
     ToDo.
 """
 function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, kwargs...)
-    params = Flux.params(neuralFMU)   
+    params = Flux.params(neuralFMU) 
+
     snapshots = neuralFMU.snapshots
 
-    if gradient ∈ (:ReverseDiff, :Zygote)
-        neuralFMU.snapshots = true
-    end
-
+    # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
+    #        :ForwardDiff needs it for state change sampling
+    neuralFMU.snapshots = true
+   
     train!(loss, params, data, optim; gradient=gradient, kwargs...)
 
     neuralFMU.snapshots = snapshots

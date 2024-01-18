@@ -170,7 +170,7 @@ net = Chain(#Dense(W1, b1, identity),
             Dense(W2, b2, identity))
 
 prob = ME_NeuralFMU(fmu, net, (t_start, t_stop)) 
-prob.modifiedState = false
+prob.snapshots = true # needed for correct snesitivities
 
 # ANNs 
 
@@ -290,7 +290,7 @@ affect_nfmu_check = function(x)
     c, _ = FMIFlux.prepareSolveFMU(prob.fmu, nothing, fmi2TypeModelExchange, nothing, nothing, nothing, nothing, nothing, fmu_params, prob.tspan[1], prob.tspan[end], nothing; x0=unsense(x), handleEvents=FMIFlux.handleEvents, cleanup=true)
 
     integrator = (t=t_start, u=x, opts=(internalnorm=(a,b)->1.0,) )
-    FMIFlux.affectFMU!(prob, c, integrator, 1, true)
+    FMIFlux.affectFMU!(prob, c, integrator, 1)
     
     return integrator.u
 end
