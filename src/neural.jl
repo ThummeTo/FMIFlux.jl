@@ -1696,6 +1696,9 @@ function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim:
     train!(loss, params, data, optim; gradient=gradient, kwargs...)
 
     neuralFMU.snapshots = snapshots
+    neuralFMU.p = unsense(neuralFMU.p)
+
+    return nothing
 end
 
 function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 

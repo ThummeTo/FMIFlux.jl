@@ -37,7 +37,7 @@ abstract type FMU2BatchElement end
 
 mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
 
-    snapshot::FMUSnapshot
+    snapshot::Union{FMUSnapshot, Nothing}
 
     xStart::Union{Vector{fmi2Real}, Nothing}
     xdStart::Union{Vector{D}, Nothing}
@@ -65,7 +65,7 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
     function FMU2SolutionBatchElement{D}(;scalarLoss::Bool=true) where {D}
         inst = new()
 
-        inst.snapshot = FMUSnapshot{fmi2EventInfo, Vector{fmi2Real}, Vector{fmi2Real}, FMU2}()
+        inst.snapshot = nothing
         inst.xStart = nothing
         inst.xdStart = nothing
         inst.tStart = -Inf
@@ -134,7 +134,11 @@ end
 
 function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
     c = getCurrentComponent(fmu)
-    FMICore.update!(c, batchElement.snapshot)
+    if isnothing(batchElement.snapshot)
+        batchElement.snapshot = FMICore.snapshot!(c)
+    else
+        FMICore.update!(c, batchElement.snapshot)
+    end
     return nothing
 end
 
@@ -150,9 +154,14 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; l
         push!(neuralFMU.customCallbacksAfter, stopcb)
     end
 
-    @assert !isnothing(batchElement.snapshot) "Found batch element without snapshot!"
-
-    pasteFMUState!(neuralFMU.fmu, batchElement)
+    # on first run of the element, there is no snapshot
+    if isnothing(batchElement.snapshot) 
+        startcb = FunctionCallingCallback((u, t, integrator) -> copyFMUState!(neuralFMU.fmu, batchElement);
+                                    funcat=[batchElement.tStart])
+        push!(neuralFMU.customCallbacksAfter, startcb)
+    else
+        pasteFMUState!(neuralFMU.fmu, batchElement)
+    end
    
     batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); saveat=batchElement.saveat, kwargs...)
 
