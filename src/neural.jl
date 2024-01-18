@@ -734,8 +734,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
         ratio = ne / pt
        
         if ne >= 100 && ratio > c.fmu.executionConfig.maxStateEventsPerSecond
-            logError(c.fmu, "Event chattering detected $(round(Integer, ratio)) events/s, aborting at t=$(t) (rel. t=$(pt)) at event $(ne):")
-            for i in 0:c.fmu.modelDescription.numberOfEventIndicators
+            logError(c.fmu, "Event chattering detected $(round(Integer, ratio)) state events/s (allowed are $(c.fmu.executionConfig.maxStateEventsPerSecond)), aborting at t=$(t) (rel. t=$(pt)) at state event $(ne):")
+            for i in 1:c.fmu.modelDescription.numberOfEventIndicators
                 num = 0
                 for e in c.solution.events
                     if e.indicator == i
@@ -743,7 +743,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
                     end 
                 end
                 if num > 0
-                    logError(c.fmu, "\tEvent indicator #$(i) triggered $(num) ($(round(num/1000.0*100.0; digits=1))%)")
+                    logError(c.fmu, "\tEvent indicator #$(i) triggered $(num) ($(round(num/ne*100.0; digits=1))%)")
                 end
             end
 
@@ -831,13 +831,13 @@ function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrato
 
     A = nothing
     if sensitivity == :ForwardDiff
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x) # TODO: chunk_size!
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=_t), _x) # TODO: chunk_size!
     elseif sensitivity == :ReverseDiff 
-        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x)
+        A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=_t), _x)
     elseif sensitivity == :Zygote 
-        A = Zygote.jacobian(x -> evaluateModel(nfmu, c, x; t=t), _x)[1]
+        A = Zygote.jacobian(x -> evaluateModel(nfmu, c, x; t=_t), _x)[1]
     elseif sensitivity == :none
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=t), unsense(_x))
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t=_t), unsense(_x))
     end
     eigs, _ = DifferentiableEigen.eigen(A)
 
@@ -1189,9 +1189,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             
             recordEigenvaluesType = nothing
             if recordEigenvaluesSensitivity == :ForwardDiff 
-                recordEigenvaluesType = FMIImport.ForwardDiff.Dual 
+                recordEigenvaluesType = FMISensitivity.ForwardDiff.Dual 
             elseif recordEigenvaluesSensitivity == :ReverseDiff 
-                recordEigenvaluesType = FMIImport.ReverseDiff.TrackedReal 
+                recordEigenvaluesType = FMISensitivity.ReverseDiff.TrackedReal 
             elseif recordEigenvaluesSensitivity ∈ (:none, :Zygote)
                 recordEigenvaluesType = fmi2Real
             end

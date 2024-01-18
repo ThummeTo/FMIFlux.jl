@@ -105,6 +105,31 @@ end
 
 Flux.@functor ParameterRegistrator (p, )
 
+### SimultaniousZeroCrossing ###
+
+"""
+Forces a simultaniuos zero crossing together with a given value by function.
+"""
+struct SimultaniousZeroCrossing{T, F}
+    m::T # scaling factor
+    fct::F
+   
+    function SimultaniousZeroCrossing{T, F}(m::T, fct::F) where {T, F}
+        return new{T, F}(m, fct)
+    end
+
+    function SimultaniousZeroCrossing(m::T, fct::F) where {T, F}
+        return SimultaniousZeroCrossing{T, F}(m, fct)
+    end
+end
+export SimultaniousZeroCrossing
+
+function (l::SimultaniousZeroCrossing)(x)
+    return x * l.m * l.fct()
+end
+
+Flux.@functor SimultaniousZeroCrossing (m, )
+
 ### SHIFTSCALE ###
 
 """
