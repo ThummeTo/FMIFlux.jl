@@ -158,9 +158,11 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; l
     if isnothing(batchElement.snapshot) 
         startcb = FunctionCallingCallback((u, t, integrator) -> copyFMUState!(neuralFMU.fmu, batchElement);
                                     funcat=[batchElement.tStart])
-        push!(neuralFMU.customCallbacksAfter, startcb)
+        push!(neuralFMU.customCallbacksBefore, startcb)
     else
-        pasteFMUState!(neuralFMU.fmu, batchElement)
+        startcb = FunctionCallingCallback((u, t, integrator) -> pasteFMUState!(neuralFMU.fmu, batchElement);
+                                    funcat=[batchElement.tStart])
+        push!(neuralFMU.customCallbacksBefore, startcb)
     end
    
     batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); saveat=batchElement.saveat, kwargs...)
@@ -371,7 +373,7 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
         logWarning(neuralFMU.fmu, "This FMU can't set/get a FMU state. This is suboptimal for batched training.")
     end
 
-    c, _ = prepareSolveFMU(neuralFMU.fmu, nothing, neuralFMU.fmu.type, nothing, nothing, nothing, nothing, nothing, nothing, neuralFMU.tspan[1], neuralFMU.tspan[end], nothing; handleEvents=FMIFlux.handleEvents)
+    # c, _ = prepareSolveFMU(neuralFMU.fmu, nothing, neuralFMU.fmu.type, nothing, nothing, nothing, nothing, nothing, nothing, neuralFMU.tspan[1], neuralFMU.tspan[end], nothing; handleEvents=FMIFlux.handleEvents)
         
     batch = Array{FMIFlux.FMU2SolutionBatchElement,1}()
     
@@ -422,8 +424,8 @@ function batchDataSolution(neuralFMU::NeuralFMU, x0_fun, train_t::AbstractArray{
     
         FMIFlux.run!(neuralFMU, batch[i]; lastBatchElement=nextBatchElement, solverKwargs...)
     
-        if plot && i > 1
-            fig = FMIFlux.plot(batch[i-1]; solverKwargs...)
+        if plot #&& i > 1
+            fig = FMIFlux.plot(batch[i]; solverKwargs...)
             display(fig)
         end
     end
