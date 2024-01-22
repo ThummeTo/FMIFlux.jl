@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import FMIImport.FMICore: assert_integrator_valid, isdual, istracked, undual, unsense, unsense_copy, untrack
+import FMIImport.FMICore: assert_integrator_valid, isdual, istracked, undual, unsense, unsense_copy, untrack, FMUSnapshot
 import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot!, snapshot_if_needed!, getSnapshot
 import Optim
 import ProgressMeter
@@ -47,7 +47,7 @@ mutable struct ME_NeuralFMU{M, R} <: NeuralFMU
     model::M
     p::AbstractArray{<:Real}
     re::R
-    kwargs
+    solvekwargs
 
     re_model 
     re_p
@@ -147,6 +147,8 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p, t=c.de
     #end
     #return nfmu.re_model(x)
 
+    @debug "evaluateModel(t=$(t)) [out-of-place dx]"
+
     #nfmu.p = p 
     c.default_t = t
     return nfmu.re(p)(x)
@@ -161,6 +163,8 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x; p=nfmu.p, t=
     #    nfmu.re_model = nfmu.re(p)
     #end
     #dx[:] = nfmu.re_model(x)
+
+    @debug "evaluateModel(t=$(t)) [in-place dx]"
 
     #nfmu.p = p 
     c.default_t = t
@@ -906,7 +910,7 @@ function ME_NeuralFMU(fmu::FMU2,
                       solver=nothing; 
                       recordValues = nothing, 
                       saveat=nothing,
-                      kwargs...)
+                      solvekwargs...)
 
     if !is64(model)
         model = convert64(model)
@@ -927,7 +931,7 @@ function ME_NeuralFMU(fmu::FMU2,
     nfmu.tspan = tspan
     nfmu.solver = solver
     nfmu.saveat = saveat
-    nfmu.kwargs = kwargs
+    nfmu.solvekwargs = solvekwargs
     nfmu.parameters = nothing
 
     ######
@@ -1031,7 +1035,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     recordEigenvalues::Bool=(recordEigenvaluesSensitivity != :none), 
     saveat=nfmu.saveat, # ToDo: Data type 
     sensealg=nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
-    kwargs...)
+    snapshot::Union{FMUSnapshot, Nothing}=nothing,
+    solvekwargs...)
 
     if !isnothing(saveat)
         if saveat[1] != tspan[1] || saveat[end] != tspan[end] 
@@ -1058,7 +1063,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     nfmu.p = p 
 
     ignore_derivatives() do
-        @debug "ME_NeuralFMU..."
+        @debug "ME_NeuralFMU(showProgress=$(showProgress), tspan=$(tspan), x0=$(nfmu.x0))"
 
         nfmu.firstRun = true
 
@@ -1081,9 +1086,29 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     callbacks = []
 
     c = getComponent(nfmu)
-    c = startCallback(nothing, nfmu, c, t_start)
+
+    if isnothing(snapshot)
+        @debug "ME_NeuralFMU: Starting callback..."
+        c = startCallback(nothing, nfmu, c, t_start)
+    else
+        @assert c == snapshot.instance "Snapshot instance mismatch, snapshot instance is $(snapshot.instance.compAddr), current component is $(c.compAddr)"
+        # c = snapshot.instance 
+
+        if t_start != snapshot.t
+            logWarning(c.fmu, "Snapshot time mismatch, snapshot time = $(snapshot.t), but start time is $(t_start)")
+        end
+
+        @debug "ME_NeuralFMU: Applying snapshot..."
+        FMICore.apply!(c, snapshot; t=t_start)
+        @debug "ME_NeuralFMU: Snapshot applied."
+    end
     
     ignore_derivatives() do
+
+        c.solution = FMU2Solution(c)
+
+        @debug "ME_NeuralFMU: Defining callbacks..."
+
         # custom callbacks
         for cb in nfmu.customCallbacksBefore
             push!(callbacks, cb)
@@ -1260,7 +1285,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     end
 
     args = Vector{Any}()
-    kwargs = Dict{Symbol, Any}(kwargs...)
+    kwargs = Dict{Symbol, Any}(nfmu.solvekwargs..., solvekwargs...)
 
     if !isnothing(saveat)
         kwargs[:saveat] = saveat
@@ -1271,10 +1296,16 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
             push!(args, solver)
         end 
     end
-        
-    c.solution.states = solve(prob, args...; 
-        u0=nfmu.x0, # this is because of `IntervalNonlinearProblem has no field u0`
-        sensealg=sensealg, callback=CallbackSet(callbacks...), nfmu.kwargs..., kwargs...) 
+
+    #kwargs[:callback]=CallbackSet(callbacks...)
+    #kwargs[:sensealg]=sensealg
+    #kwargs[:u0] = nfmu.x0 # this is because of `IntervalNonlinearProblem has no field u0`
+ 
+    @debug "ME_NeuralFMU: Start solving ..."
+     
+    c.solution.states = solve(prob, args...; callback=CallbackSet(callbacks...), sensealg=sensealg, u0=nfmu.x0, kwargs...) 
+
+    @debug "ME_NeuralFMU: ... finished solving!"
 
     ignore_derivatives() do
 
@@ -1304,6 +1335,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         end
         
     end # ignore_derivatives
+
+    @debug "ME_NeuralFMU: Stopping callback..."
 
     # stopCB 
     stopCallback(nfmu, c, t_stop)
@@ -1609,9 +1642,7 @@ function trainStep(loss, params, gradient, chunk_size, optim::FMIFlux.AbstractOp
 
         if proceed_on_assert
             msg = "$e"
-            if length(msg) > 4096
-                msg = msg[1:4096] * "..."
-            end
+            msg = length(msg) > 4096 : first(msg, 4096) * "..." : msg
             @error "Training asserted, but continuing: $(msg)"
         else
             throw(e)
@@ -1651,7 +1682,7 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 - `multiObjective`: set this if the loss function returns multiple values (multi objective optimization), currently gradients are fired to the optimizer one after another (default `false`)
 """
-function train!(loss, 
+function _train!(loss, 
                 params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, 
                 data, 
                 optim; 
@@ -1693,7 +1724,7 @@ function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim:
     #        :ForwardDiff needs it for state change sampling
     neuralFMU.snapshots = true
    
-    train!(loss, params, data, optim; gradient=gradient, kwargs...)
+    _train!(loss, params, data, optim; gradient=gradient, kwargs...)
 
     neuralFMU.snapshots = snapshots
     neuralFMU.p = unsense(neuralFMU.p)
@@ -1701,7 +1732,7 @@ function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim:
     return nothing
 end
 
-function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
+function _train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
     
     grad_buffer = nothing
 
@@ -1715,10 +1746,10 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<
 
     grad_fun! = (G, p) -> computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
     _optim = FluxOptimiserWrapper(optim, grad_fun!, grad_buffer)
-    train!(loss, params, data, _optim; gradient=gradient, chunk_size=chunk_size, multiObjective=multiObjective, kwargs...)
+    _train!(loss, params, data, _optim; gradient=gradient, chunk_size=chunk_size, multiObjective=multiObjective, kwargs...)
 end
 
-function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Optim.AbstractOptimizer; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
+function _train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Optim.AbstractOptimizer; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
     if length(params) <= 0 || length(params[1]) <= 0 
         @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
         return 
@@ -1726,5 +1757,5 @@ function train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<
     
     grad_fun! = (G, p) -> computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
     _optim = OptimOptimiserWrapper(optim, grad_fun!, loss, params[1])
-    train!(loss, params, data, _optim; gradient=gradient, chunk_size=chunk_size, multiObjective=multiObjective, kwargs...)
+    _train!(loss, params, data, _optim; gradient=gradient, chunk_size=chunk_size, multiObjective=multiObjective, kwargs...)
 end

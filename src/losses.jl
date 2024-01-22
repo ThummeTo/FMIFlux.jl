@@ -184,17 +184,17 @@ function loss(nfmu::NeuralFMU, batch::AbstractArray{<:FMU2BatchElement};
     batchIndex::Integer=rand(1:length(batch)), 
     lossFct=Flux.Losses.mse,
     logLoss::Bool=true,
-    kwargs...)
+    solvekwargs...)
 
     # cut out data batch from data
     targets_data = batch[batchIndex].targets
 
-    lastBatchElement = nothing 
-    if batchIndex < length(batch)
-        lastBatchElement = batch[batchIndex+1]
+    nextBatchElement = nothing 
+    if batchIndex < length(batch) && batch[batchIndex].tStop == batch[batchIndex+1].tStart
+        nextBatchElement = batch[batchIndex+1]
     end
 
-    solution = run!(nfmu, batch[batchIndex]; lastBatchElement=lastBatchElement, progressDescr="Sim. Batch $(batchIndex)/$(length(batch)) |", kwargs...)
+    solution = run!(nfmu, batch[batchIndex]; nextBatchElement=nextBatchElement, progressDescr="Sim. Batch $(batchIndex)/$(length(batch)) |", solvekwargs...)
     
     if !solution.success
         @warn "Solving the NeuralFMU as part of the loss function failed with return code `$(solution.states.retcode)`.\nThis is often because the ODE cannot be solved. Did you initialize the NeuralFMU model?\nOften additional solver errors/warnings are printed before this warning.\nHowever, it is tried to compute a loss on the partial retrieved solution from $(unsense(solution.states.t[1]))s to $(unsense(solution.states.t[end]))s."
@@ -224,12 +224,12 @@ function batch_loss(neuralFMU::ME_NeuralFMU, batch::AbstractArray{<:FMU2BatchEle
             b = batch[i]
 
             b_next = nothing 
-            if i < numBatch
+            if i < numBatch && batch[i].tStop == batch[i+1].tStart
                 b_next = batch[i+1]
             end
 
             if !isnothing(b.xStart)
-                run!(neuralFMU, b; lastBatchElement=b_next, progressDescr="Sim. Batch $(i)/$(numBatch) |", kwargs...)
+                run!(neuralFMU, b; nextBatchElement=b_next, progressDescr="Sim. Batch $(i)/$(numBatch) |", kwargs...)
             end
             
             if isnothing(accu)
