@@ -169,17 +169,22 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
         push!(neuralFMU.customCallbacksAfter, stopcb)
     end
 
-    # on first run of the element, there is no snapshot
     writeSnapshot = nothing
+    readSnapshot = nothing
+
+    # on first run of the element, there is no snapshot
     if isnothing(batchElement.snapshot) 
         c = getCurrentComponent(neuralFMU.fmu)
-        writeSnapshot = FMICore.snapshot!(c)
+        batchElement.snapshot = FMICore.snapshot!(c)
+        writeSnapshot = batchElement.snapshot # needs to be updated, therefore write
+    else
+        readSnapshot = batchElement.snapshot
     end
 
     @info "Running $(batchElement.tStart) with snapshot: $(!isnothing(batchElement.snapshot))..."
    
     batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); 
-        readSnapshot=batchElement.snapshot, 
+        readSnapshot=readSnapshot, 
         writeSnapshot=writeSnapshot,
         saveat=batchElement.saveat, kwargs...)
 

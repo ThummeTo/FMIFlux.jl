@@ -26,8 +26,9 @@ mutable struct WorstElementScheduler <: BatchScheduler
     lossFct
     runkwargs
     printMsg::String
+    updateStep::Integer
     
-    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1)
+    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1, updateStep::Integer=1)
         inst = new()
         inst.neuralFMU = neuralFMU
         inst.step = 0
@@ -38,6 +39,7 @@ mutable struct WorstElementScheduler <: BatchScheduler
         inst.plotStep = plotStep
 
         inst.printMsg = ""
+        inst.updateStep = updateStep
        
         return inst
     end
@@ -303,12 +305,22 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
     maxe = 0.0
     maxind = 0
 
+    updateAll = (scheduler.step % scheduler.updateStep == 0)
+
     num = length(scheduler.batch)
     for i in 1:num
-        #l = nominalLoss(scheduler.batch[i].losses[end])
 
-        FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+        l = 0.0
+
+        if length(scheduler.batch[i].losses) >= 1
+            l = nominalLoss(scheduler.batch[i].losses[end])
+        end
+        
+        if updateAll
+            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+            l = nominalLoss(scheduler.batch[i].losses[end])
+        end
         
         losssum += l
         avgsum += l / num
@@ -340,6 +352,8 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
         scheduler.lossAccu[scheduler.elementIndex] = 0.0
     end
 
+    updateAll = (scheduler.step % scheduler.updateStep == 0)
+
     num = length(scheduler.batch)
     for i in 1:num
 
@@ -349,7 +363,7 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
             l = nominalLoss(scheduler.batch[i].losses[end])
         end
         
-        if scheduler.step % scheduler.updateStep == 0
+        if updateAll
             FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
             FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
             l = nominalLoss(scheduler.batch[i].losses[end])
