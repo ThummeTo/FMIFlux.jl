@@ -72,12 +72,12 @@ lossBefore = losssum_single(p_net[1])
 
 # single objective
 optim = OPTIMISER(ETA)
-FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum_single, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
 # optim = OPTIMISER(ETA)
-# FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
+# FMIFlux.train!(losssum_multi,  problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
 
 # after
 lossAfter = losssum_single(p_net[1])

@@ -170,15 +170,17 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
     end
 
     # on first run of the element, there is no snapshot
+    writeSnapshot = nothing
     if isnothing(batchElement.snapshot) 
-        startcb = FunctionCallingCallback((u, t, integrator) -> copyFMUState!(neuralFMU.fmu, batchElement);
-                                    funcat=[batchElement.tStart])
-        push!(neuralFMU.customCallbacksBefore, startcb)
+        c = getCurrentComponent(neuralFMU.fmu)
+        writeSnapshot = FMICore.snapshot!(c)
     end
 
     @info "Running $(batchElement.tStart) with snapshot: $(!isnothing(batchElement.snapshot))..."
    
-    batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); snapshot=batchElement.snapshot,
+    batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); 
+        readSnapshot=batchElement.snapshot, 
+        writeSnapshot=writeSnapshot,
         saveat=batchElement.saveat, kwargs...)
 
     @assert batchElement.solution.states.t == batchElement.saveat "Batch element simulation failed, missmatch between `states.t` and `saveat`."

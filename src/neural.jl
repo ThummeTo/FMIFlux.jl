@@ -127,11 +127,15 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
     p::Union{AbstractArray{<:Real}, Nothing}
     re # restrucure function
 
+    snapshots::Bool
+
     function CS_NeuralFMU{F, C}() where {F, C}
         inst = new{F, C}()
 
         inst.re = nothing
         inst.p = nothing
+
+        inst.snapshots = false
 
         return inst
     end
@@ -175,7 +179,7 @@ end
 
 ##### EVENT HANDLING START
 
-function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, Nothing}, t)
+function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, Nothing}, t, writeSnapshot, readSnapshot)
 
     ignore_derivatives() do
 
@@ -195,6 +199,23 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
 
         if nfmu.snapshots
             snapshot!(c.solution)
+        end
+
+        if !isnothing(writeSnapshot)
+            FMICore.update!(c, writeSnapshot)
+        end
+
+        if !isnothing(readSnapshot)
+            @assert c == readSnapshot.instance "Snapshot instance mismatch, snapshot instance is $(readSnapshot.instance.compAddr), current component is $(c.compAddr)"
+            # c = readSnapshot.instance 
+
+            if t != readSnapshot.t
+                logWarning(c.fmu, "Snapshot time mismatch, snapshot time = $(readSnapshot.t), but start time is $(t)")
+            end
+
+            @debug "ME_NeuralFMU: Applying snapshot..."
+            FMICore.apply!(c, readSnapshot; t=t)
+            @debug "ME_NeuralFMU: Snapshot applied."
         end
 
     end
@@ -1035,7 +1056,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     recordEigenvalues::Bool=(recordEigenvaluesSensitivity != :none), 
     saveat=nfmu.saveat, # ToDo: Data type 
     sensealg=nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
-    snapshot::Union{FMUSnapshot, Nothing}=nothing,
+    writeSnapshot::Union{FMUSnapshot, Nothing}=nothing,
+    readSnapshot::Union{FMUSnapshot, Nothing}=nothing,
     solvekwargs...)
 
     if !isnothing(saveat)
@@ -1087,21 +1109,8 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     c = getComponent(nfmu)
 
-    if isnothing(snapshot)
-        @debug "ME_NeuralFMU: Starting callback..."
-        c = startCallback(nothing, nfmu, c, t_start)
-    else
-        @assert c == snapshot.instance "Snapshot instance mismatch, snapshot instance is $(snapshot.instance.compAddr), current component is $(c.compAddr)"
-        # c = snapshot.instance 
-
-        if t_start != snapshot.t
-            logWarning(c.fmu, "Snapshot time mismatch, snapshot time = $(snapshot.t), but start time is $(t_start)")
-        end
-
-        @debug "ME_NeuralFMU: Applying snapshot..."
-        FMICore.apply!(c, snapshot; t=t_start)
-        @debug "ME_NeuralFMU: Snapshot applied."
-    end
+    @debug "ME_NeuralFMU: Starting callback..."
+    c = startCallback(nothing, nfmu, c, t_start, writeSnapshot, readSnapshot)
     
     ignore_derivatives() do
 
@@ -1682,16 +1691,34 @@ A function analogous to Flux.train! but with additional features and explicit pa
 - `numThreads` [WIP]: an integer determining how many threads are used for training (how many gradients are generated in parallel)
 - `multiObjective`: set this if the loss function returns multiple values (multi objective optimization), currently gradients are fired to the optimizer one after another (default `false`)
 """
+function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim; gradient::Symbol=:ReverseDiff, kwargs...)
+    params = Flux.params(neuralFMU) 
+
+    snapshots = neuralFMU.snapshots
+
+    # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
+    #        :ForwardDiff needs it for state change sampling
+    neuralFMU.snapshots = true
+   
+    _train!(loss, params, data, optim; gradient=gradient, kwargs...)
+
+    neuralFMU.snapshots = snapshots
+    neuralFMU.p = unsense(neuralFMU.p)
+
+    return nothing
+end
+
+# Dispatch for FMIFlux.jl [FMIFlux.AbstractOptimiser]
 function _train!(loss, 
-                params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, 
-                data, 
-                optim; 
-                gradient::Symbol=:ReverseDiff, 
-                cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, 
-                printStep::Bool=false, 
-                proceed_on_assert::Bool=false, 
-                multiThreading::Bool=false, 
-                multiObjective::Bool=false)
+    params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, 
+    data, 
+    optim::FMIFlux.AbstractOptimiser; 
+    gradient::Symbol=:ReverseDiff, 
+    cb=nothing, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, 
+    printStep::Bool=false, 
+    proceed_on_assert::Bool=false, 
+    multiThreading::Bool=false, 
+    multiObjective::Bool=false)
 
     if length(params) <= 0 || length(params[1]) <= 0 
         @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
@@ -1712,26 +1739,7 @@ function _train!(loss,
 
 end
 
-"""
-    ToDo.
-"""
-function train!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, kwargs...)
-    params = Flux.params(neuralFMU) 
-
-    snapshots = neuralFMU.snapshots
-
-    # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
-    #        :ForwardDiff needs it for state change sampling
-    neuralFMU.snapshots = true
-   
-    _train!(loss, params, data, optim; gradient=gradient, kwargs...)
-
-    neuralFMU.snapshots = snapshots
-    neuralFMU.p = unsense(neuralFMU.p)
-
-    return nothing
-end
-
+# Dispatch for Flux.jl [Flux.Optimise.AbstractOptimiser]
 function _train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Flux.Optimise.AbstractOptimiser; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
     
     grad_buffer = nothing
@@ -1749,6 +1757,7 @@ function _train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{
     _train!(loss, params, data, _optim; gradient=gradient, chunk_size=chunk_size, multiObjective=multiObjective, kwargs...)
 end
 
+# Dispatch for Optim.jl [Optim.AbstractOptimizer]
 function _train!(loss, params::Union{Flux.Params, Zygote.Params, AbstractVector{<:AbstractVector{<:Real}}}, data, optim::Optim.AbstractOptimizer; gradient::Symbol=:ReverseDiff, chunk_size::Union{Integer, Symbol}=:auto_fmiflux, multiObjective::Bool=false, kwargs...) 
     if length(params) <= 0 || length(params[1]) <= 0 
         @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."

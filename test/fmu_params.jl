@@ -79,7 +79,7 @@ j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
 j_fwd = ForwardDiff.gradient(losssum, p_net[1])
 j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # check results
 solutionAfter = problem(X0; saveat=tData)

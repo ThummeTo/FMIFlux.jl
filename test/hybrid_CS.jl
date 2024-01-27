@@ -54,7 +54,7 @@ p_net = Flux.params(problem)
 lossBefore = losssum(p_net[1])
 optim = OPTIMISER(ETA)
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 lossAfter = losssum(p_net[1])
 @test lossAfter < lossBefore

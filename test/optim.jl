@@ -173,7 +173,7 @@ for i in 1:length(nets)
         end
         
         FAILED_GRADIENTS = 0
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, cb=()->callback(p_net))
+        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, cb=()->callback(p_net))
         @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
         @test FAILED_GRADIENTS <= FAILED_GRADIENTS_QUOTA * NUMSTEPS
 

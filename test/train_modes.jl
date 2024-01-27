@@ -99,7 +99,7 @@ for handleEvents in [true, false]
                 @info "Start-Loss for net: $lastLoss"
 
                 lossBefore = losssum(p_net[1])
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+                FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
                 lossAfter = losssum(p_net[1])
 
                 @test lossAfter < lossBefore

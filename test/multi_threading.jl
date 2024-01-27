@@ -105,7 +105,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
+        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
@@ -113,7 +113,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
+        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
@@ -123,7 +123,7 @@ for i in 1:length(nets)
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)
-        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (not pre-compiled): $(dt)s"
 
@@ -131,7 +131,7 @@ for i in 1:length(nets)
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)
-        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (pre-compiled): $(dt)s"
 
