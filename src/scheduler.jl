@@ -27,8 +27,9 @@ mutable struct WorstElementScheduler <: BatchScheduler
     runkwargs
     printMsg::String
     updateStep::Integer
+    excludeIndices
     
-    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1, updateStep::Integer=1)
+    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1, updateStep::Integer=1, excludeIndices=nothing)
         inst = new()
         inst.neuralFMU = neuralFMU
         inst.step = 0
@@ -40,6 +41,7 @@ mutable struct WorstElementScheduler <: BatchScheduler
 
         inst.printMsg = ""
         inst.updateStep = updateStep
+        inst.excludeIndices = excludeIndices
        
         return inst
     end
@@ -324,9 +326,12 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
         
         losssum += l
         avgsum += l / num
-        if l > maxe
-            maxe = l 
-            maxind = i
+
+        if isnothing(scheduler.excludeIndices) || i ∉ scheduler.excludeIndices
+            if l > maxe
+                maxe = l 
+                maxind = i
+            end
         end
     
     end

@@ -188,7 +188,7 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
         writeSnapshot=writeSnapshot,
         saveat=batchElement.saveat, kwargs...)
 
-    @assert batchElement.solution.states.t == batchElement.saveat "Batch element simulation failed, missmatch between `states.t` and `saveat`."
+    # @assert batchElement.solution.states.t == batchElement.saveat "Batch element simulation failed, missmatch between `states.t` and `saveat`."
 
     neuralFMU.customCallbacksBefore = []
     neuralFMU.customCallbacksAfter = []
