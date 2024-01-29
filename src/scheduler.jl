@@ -178,7 +178,7 @@ mutable struct SequentialScheduler <: BatchScheduler
     losses::Vector{Float64}
     
     ### type specific ###
-    # none
+    printMsg::String
 
     function SequentialScheduler(neuralFMU::NeuralFMU, batch; applyStep::Integer=1, plotStep::Integer=1)
         inst = new()
@@ -189,6 +189,7 @@ mutable struct SequentialScheduler <: BatchScheduler
         inst.applyStep = applyStep
         inst.plotStep = plotStep
         inst.losses = []
+        inst.printMsg = ""
 
         return inst
     end
