@@ -7,7 +7,9 @@ import FMIImport.FMICore: FMUSnapshot
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
 using DifferentialEquations.DiffEqCallbacks: FunctionCallingCallback
 
-struct FMULoss{T}
+abstract type FMU2BatchElement end
+
+mutable struct FMULoss{T}
     loss::T
     step::Integer 
     time::Real 
@@ -33,7 +35,13 @@ function nominalLoss(l::FMULoss{T}) where T <: Real
     return unsense(l.loss)
 end
 
-abstract type FMU2BatchElement end
+function nominalLoss(::Nothing) 
+    return Inf
+end
+
+function nominalLoss(b::FMU2BatchElement) 
+    return nominalLoss(b.loss)
+end
 
 mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
 
@@ -49,7 +57,8 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
     # initialComponentState::fmi2ComponentState
     # initialEventInfo::Union{fmi2EventInfo, Nothing}
     
-    losses::Array{<:FMULoss} 
+    loss::FMULoss   # the current loss
+    losses::Array{<:FMULoss}  # logged losses (if used)
     step::Integer
 
     saveat::Union{AbstractVector{<:Real}, Nothing}
@@ -73,6 +82,7 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
 
         # inst.initialState = nothing
         # inst.initialEventInfo = nothing 
+        inst.loss = FMULoss(Inf)
         inst.losses = Array{FMULoss,1}()
         inst.step = 0
 
@@ -92,6 +102,7 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
     tStart::fmi2Real 
     tStop::fmi2Real 
 
+    loss::FMULoss
     losses::Array{<:FMULoss} 
     step::Integer
 
@@ -111,6 +122,7 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
         inst.tStart = -Inf
         inst.tStop = Inf
 
+        inst.loss = FMULoss(Inf)
         inst.losses = Array{FMULoss,1}()
         inst.step = 0
 
@@ -250,7 +262,7 @@ function plot(batch::AbstractArray{<:FMU2BatchElement}; plot_mean::Bool=true, pl
     num = length(batch)
 
     xs = 1:num 
-    ys = collect((length(b.losses) > 0 ? nominalLoss(b.losses[end]) : 0.0) for b in batch)
+    ys = collect((nominalLoss(b) != Inf ? nominalLoss(b) : 0.0) for b in batch)
 
     fig = Plots.plot(; xlabel="Batch ID", ylabel="Loss", plotkwargs...)
 
@@ -293,9 +305,9 @@ function plotLoss(batchElement::FMU2BatchElement; xaxis::Symbol = :steps)
     return fig
 end
 
-function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=true)
+function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=false)
 
-    loss = nothing
+    loss = 0.0 # will be incremented
 
     if hasmethod(lossFct, Tuple{FMU2Solution})
         loss = lossFct(batchElement.solution)
@@ -311,21 +323,13 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=tr
                     dataTarget = collect(d[i] for d in batchElement.targets)
                     modelOutput = collect(u[batchElement.indicesModel[i]] for u in batchElement.solution.states.u)
 
-                    if isnothing(loss)
-                        loss = lossFct(modelOutput, dataTarget)
-                    else
-                        loss += lossFct(modelOutput, dataTarget)
-                    end
+                    loss += lossFct(modelOutput, dataTarget)
                 end
             else
                 dataTarget = batchElement.targets
                 modelOutput = collect(u[batchElement.indicesModel] for u in batchElement.solution.states.u)
 
-                if isnothing(loss)
-                    loss = lossFct(modelOutput, dataTarget)
-                else
-                    loss += lossFct(modelOutput, dataTarget)
-                end
+                loss = lossFct(modelOutput, dataTarget)
             end
         else
             @warn "Can't compute loss for batch element, because solution is invalid (`success=false`) for batch element\n$(batchElement)."
@@ -333,9 +337,13 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=tr
        
     end
 
+    batchElement.loss.step = batchElement.step
+    batchElement.loss.time = time()
+    batchElement.loss.loss = unsense(loss)
+
     ignore_derivatives() do 
         if logLoss
-            push!(batchElement.losses, FMULoss(loss, batchElement.step))
+            push!(batchElement.losses, deepcopy(batchElement.loss))
         end
     end
 
@@ -344,33 +352,29 @@ end
 
 function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool=true)
 
-    loss = nothing
-
+    loss = 0.0 #  will be incremented 
+    
     if batchElement.scalarLoss
         for i in 1:length(batchElement.indicesModel)
             dataTarget = collect(d[i] for d in batchElement.targets)
             modelOutput = collect(u[i] for u in batchElement.result)
 
-            if isnothing(loss)
-                loss = lossFct(modelOutput, dataTarget)
-            else
-                loss += lossFct(modelOutput, dataTarget)
-            end
+            loss += lossFct(modelOutput, dataTarget)
         end
     else
         dataTarget = batchElement.targets
         modelOutput = batchElement.result
 
-        if isnothing(loss)
-            loss = lossFct(modelOutput, dataTarget)
-        else
-            loss += lossFct(modelOutput, dataTarget)
-        end
+        loss = lossFct(modelOutput, dataTarget)
     end
+
+    batchElement.loss.step = batchElement.step
+    batchElement.loss.time = time()
+    batchElement.loss.loss = unsense(loss)
      
     ignore_derivatives() do 
         if logLoss
-            push!(batchElement.losses, FMULoss(loss, batchElement.step))
+            push!(batchElement.losses, deepcopy(batchElement.loss))
         end
     end
 

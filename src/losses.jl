@@ -280,9 +280,9 @@ function batch_loss(model, batch::AbstractArray{<:FMU2BatchElement}; update::Boo
 
         for b in batch
             if isnothing(accu)
-                accu = nominalLoss(b.losses[end])
+                accu = nominalLoss(b)
             else
-                accu += nominalLoss(b.losses[end])
+                accu += nominalLoss(b)
             end
         end
 
