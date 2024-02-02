@@ -797,7 +797,7 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
 
     if !isnothing(c.progressMeter)
         t = unsense(t)
-        dt = unsense(integrator.tprev) - unsense(integrator.t)
+        dt = unsense(integrator.t) - unsense(integrator.tprev)
         events = length(c.solution.events)
         steps = c.solution.evals_stepcompleted
         simLen = tStop-tStart
@@ -1639,8 +1639,7 @@ function trainStep(loss, params, gradient, chunk_size, optim::FMIFlux.AbstractOp
                 params[j] .-= step
 
                 if printStep
-                    @info "Grad: Min = $(min(abs.(grad)...))   Max = $(max(abs.(grad)...))"
-                    @info "Step: Min = $(min(abs.(step)...))   Max = $(max(abs.(step)...))"
+                    @info "Step: min(abs()) = $(min(abs.(step)...))   max(abs()) = $(max(abs.(step)...))"
                 end
                 
             end
