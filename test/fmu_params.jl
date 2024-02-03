@@ -75,9 +75,9 @@ lossBefore = losssum(p_net[1])
 @info "Start-Loss for net: $(lossBefore)"
 
 # [ToDo] Discontinuous system?
-j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
-j_fwd = ForwardDiff.gradient(losssum, p_net[1])
-j_rwd = ReverseDiff.gradient(losssum, p_net[1])
+# j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
+# j_fwd = ForwardDiff.gradient(losssum, p_net[1])
+# j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 
 FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 

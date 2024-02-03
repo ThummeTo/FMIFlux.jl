@@ -150,7 +150,7 @@ function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
     if isnothing(batchElement.snapshot)
         batchElement.snapshot = FMICore.snapshot!(c)
         #batchElement.snapshot.t = batchElement.tStart
-        @info "New snapshot @$(batchElement.snapshot.t)"
+        @debug "New snapshot @$(batchElement.snapshot.t)"
     else
         #tBefore = batchElement.snapshot.t
         FMICore.update!(c, batchElement.snapshot)
@@ -164,7 +164,7 @@ function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
         #     logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
         # end
 
-        @info "Updated snapshot @$(batchElement.snapshot.t)"
+        @debug "Updated snapshot @$(batchElement.snapshot.t)"
     end
     return nothing
 end
@@ -193,7 +193,7 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
         readSnapshot = batchElement.snapshot
     end
 
-    @info "Running $(batchElement.tStart) with snapshot: $(!isnothing(batchElement.snapshot))..."
+    @debug "Running $(batchElement.tStart) with snapshot: $(!isnothing(batchElement.snapshot))..."
    
     batchElement.solution = neuralFMU(batchElement.xStart, (batchElement.tStart, batchElement.tStop); 
         readSnapshot=readSnapshot, 

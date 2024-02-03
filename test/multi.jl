@@ -32,7 +32,7 @@ losssum = function(p)
 
     accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
 
-    Flux.Losses.mse(accNet, accData)
+    FMIFlux.Losses.mse(accNet, accData)
 end
 
 # Load FMUs

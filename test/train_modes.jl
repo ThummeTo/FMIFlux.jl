@@ -75,7 +75,7 @@ for handleEvents in [true, false]
                             dx -> c1(dx),
                             Dense(numStates, 16, tanh),
                             Dense(16, 1, identity),
-                            dx -> c2([1], dx[1], []) )
+                            dx -> c2(1, dx[1]) )
                 
                 optim = OPTIMISER(ETA)
                 solver = Tsit5()

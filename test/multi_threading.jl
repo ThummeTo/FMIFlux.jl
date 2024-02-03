@@ -66,13 +66,13 @@ c4 = CacheRetrieveLayer(c3)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh),
             Dense(16, 1, identity),
-            x -> c2([], x[1], [1]),
+            x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, 1, identity),
-            x -> c4([1], x[1], []))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 for i in 1:length(nets)

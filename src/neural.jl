@@ -986,6 +986,8 @@ function CS_NeuralFMU(fmu::FMU2,
     nfmu.fmu = fmu
     nfmu.model = model 
     nfmu.tspan = tspan
+
+    nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
     
     return nfmu
 end
@@ -1007,6 +1009,8 @@ function CS_NeuralFMU(fmus::Vector{<:FMU2},
     nfmu.fmu = fmus
     nfmu.model = model 
     nfmu.tspan = tspan
+
+    nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
    
     return nfmu
 end
@@ -1515,13 +1519,15 @@ function Flux.params(nfmu::ME_NeuralFMU; destructure::Bool=false)
     return Flux.params(nfmu.p)
 end
 
-function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=true)
+function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=false) # true)
     if destructure 
         nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
-        return Flux.params(nfmu.p)
-    else
-        return Flux.params(nfmu.model)
+        
+    # else
+    #     return Flux.params(nfmu.model)
     end
+
+    return Flux.params(nfmu.p)
 end
 
 function computeGradient!(jac, loss, params, gradient::Symbol, chunk_size::Union{Symbol, Int}, multiObjective::Bool)

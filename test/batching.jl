@@ -60,7 +60,7 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             dx -> c1(dx),
             Dense(numStates, 12, tanh),
             Dense(12, 1, identity),
-            dx -> c2([1], dx[1], []))
+            dx -> c2(1, dx[1]))
 
 solver = Tsit5()
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)

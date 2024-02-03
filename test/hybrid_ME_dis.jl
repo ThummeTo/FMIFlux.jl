@@ -56,11 +56,11 @@ numSetVRs = length(setVRs)
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
             Dense(numStates, 1, identity; init=init),
-            x -> c2([], x[1], [1]),
+            x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 1, identity; init=init),
-            x -> c4([1], x[1], []))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
@@ -69,14 +69,14 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([1], x[1], []))
+            x -> c2(1, x[1]))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([], x[1], [1]),
+            x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all))
 push!(nets, net)
 
@@ -84,12 +84,12 @@ push!(nets, net)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([], x[1], [1]),
+            x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, tanh, init=init),
             Dense(16, 1, identity, init=init),
-            x -> c4([1], x[1], []))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
@@ -98,7 +98,7 @@ net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([1], x[1], []))
+            x -> c2(1, x[1]))
 push!(nets, net)
 
 # 6. NeuralFMU with additional getter 
@@ -107,7 +107,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([1], x[1], []))
+            x -> c2(1, x[1]))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
@@ -116,7 +116,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([1], x[1], []))
+            x -> c2(1, x[1]))
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
@@ -125,7 +125,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, identity; init=init),
-            x -> c2([1], x[1], []))
+            x -> c2(1, x[1]))
 push!(nets, net)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)

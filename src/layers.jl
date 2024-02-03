@@ -281,11 +281,21 @@ export CacheRetrieveLayer
 function (l::CacheRetrieveLayer)(args...)
     tid = Threads.threadid()
 
-    values = []
+    values = zeros(Real, 0)
+    
     for arg in args 
         if isa(arg, Integer)
             val = l.cacheLayer.cache[tid][arg]
             push!(values, val)
+
+        elseif isa(arg, AbstractArray) && length(arg) == 0
+            @warn "Deploying empty arrays `[]` in CacheRetrieveLayer is not necessary anymore, just remove them.\nThis warning is only printed once." maxlog=1
+            # nothing to do here
+
+        elseif isa(arg, AbstractArray{<:Integer}) && length(arg) == 1
+            @warn "Deploying single element arrays `$(arg)` in CacheRetrieveLayer is not necessary anymore, just write `$(arg[1])`.\nThis warning is only printed once." maxlog=1
+            val = l.cacheLayer.cache[tid][arg]
+            push!(values, val...)
 
         elseif isa(arg, UnitRange{<:Integer}) || isa(arg, AbstractArray{<:Integer})
             val = l.cacheLayer.cache[tid][arg]
@@ -302,17 +312,9 @@ function (l::CacheRetrieveLayer)(args...)
         end
     end
 
+    # [Todo] this is only a quick fix!
+    values = [values...] # promote common data type
+
     return values
 
-
-    # # Zygote doesn't like empty arrays
-    # if idxAfter == nothing && x == nothing
-    #     return l.cacheLayer.cache[tid][idxBefore]
-    # elseif idxAfter == nothing
-    #     return [l.cacheLayer.cache[tid][idxBefore]..., x...]
-    # elseif x == nothing
-    #     return [l.cacheLayer.cache[tid][idxBefore]..., l.cacheLayer.cache[tid][idxAfter]...]
-    # else
-    #     return [l.cacheLayer.cache[tid][idxBefore]..., x..., l.cacheLayer.cache[tid][idxAfter]...]
-    # end
 end
