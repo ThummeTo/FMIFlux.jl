@@ -19,8 +19,10 @@ struct OptimOptimiserWrapper{G} <: AbstractOptimiser
     options
 
     function OptimOptimiserWrapper(optim::Optim.AbstractOptimizer, grad_fun!::G, loss, params) where {G}
-        options = Optim.Options(iterations=1)
-        autodiff = :finite
+        options = Optim.Options(outer_iterations=1, iterations=1, g_calls_limit=1, f_calls_limit=5)
+
+        # should be ignored anyway, because function `g!` is given
+        autodiff = :forward # = ::finite
         inplace = true
 
         d = Optim.promote_objtype(optim, params, autodiff, inplace, loss, grad_fun!)

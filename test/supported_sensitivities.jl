@@ -29,7 +29,7 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             Dense(16, 2, identity))
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global nfmu, x0_bb, posData
     solution = nfmu(x0_bb; p=p, saveat=tData)
 
@@ -42,10 +42,16 @@ function losssum(p)
     return FMIFlux.Losses.mse(posNet, posData)
 end
 
-solver = Tsit5()
-nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
-nfmu.modifiedState = false
+solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
+for solver in solvers
+    
+    global nfmu
+    @info "Solver: $(solver)"
+    nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
+    nfmu.modifiedState = false
 
-FMIFlux.checkSensalgs!(losssum, nfmu)
+    best_timing, best_gradient, best_sensealg = FMIFlux.checkSensalgs!(losssum, nfmu)
+    @test best_timing != Inf
+end
 
 fmi2Unload(fmu)

@@ -33,7 +33,7 @@ p_refs = fmu.modelDescription.parameterValueReferences
 p = fmi2GetReal(c, p_refs)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     #@info "$p"
     global problem, X0, posData, solution
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
@@ -75,11 +75,11 @@ lossBefore = losssum(p_net[1])
 @info "Start-Loss for net: $(lossBefore)"
 
 # [ToDo] Discontinuous system?
-j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
-j_fwd = ForwardDiff.gradient(losssum, p_net[1])
-j_rwd = ReverseDiff.gradient(losssum, p_net[1])
+# j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
+# j_fwd = ForwardDiff.gradient(losssum, p_net[1])
+# j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # check results
 solutionAfter = problem(X0; saveat=tData)

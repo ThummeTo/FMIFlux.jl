@@ -23,7 +23,7 @@ using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
 
 # loss function for training
-function losssum_single(p)
+losssum_single = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
@@ -36,7 +36,7 @@ function losssum_single(p)
     return Flux.Losses.mse(posNet, posData)
 end
 
-function losssum_multi(p)
+losssum_multi = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
@@ -60,7 +60,7 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             dx -> c1(dx),
             Dense(numStates, 12, tanh),
             Dense(12, 1, identity),
-            dx -> c2([1], dx[1], []))
+            dx -> c2(1, dx[1]))
 
 solver = Tsit5()
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
@@ -72,12 +72,12 @@ lossBefore = losssum_single(p_net[1])
 
 # single objective
 optim = OPTIMISER(ETA)
-FMIFlux.train!(losssum_single, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum_single, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
 # optim = OPTIMISER(ETA)
-# FMIFlux.train!(losssum_multi,  p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
+# FMIFlux.train!(losssum_multi,  problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
 
 # after
 lossAfter = losssum_single(p_net[1])

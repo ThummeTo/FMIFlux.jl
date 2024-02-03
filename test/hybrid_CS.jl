@@ -19,12 +19,12 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
 
 # sine(t) as external force
-function extForce(t)
+extForce = function(t)
     return [sin(t)]
 end
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     solution = problem(extForce, t_step; p=p)
 
     if !solution.success
@@ -54,7 +54,7 @@ p_net = Flux.params(problem)
 lossBefore = losssum(p_net[1])
 optim = OPTIMISER(ETA)
 
-FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
 
 lossAfter = losssum(p_net[1])
 @test lossAfter < lossBefore

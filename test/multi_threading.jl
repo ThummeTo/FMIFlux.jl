@@ -21,7 +21,7 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, showProgress=true, saveat=tData)
 
@@ -38,7 +38,7 @@ end
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-function callb(p)
+callb = function(p)
     global iterCB += 1
     global lastLoss
 
@@ -66,13 +66,13 @@ c4 = CacheRetrieveLayer(c3)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh),
             Dense(16, 1, identity),
-            x -> c2([], x[1], [1]),
+            x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, tanh),
             Dense(16, 16, tanh),
             Dense(16, 1, identity),
-            x -> c4([1], x[1], []))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 for i in 1:length(nets)
@@ -105,7 +105,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
+        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
@@ -113,7 +113,7 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
+        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
         dt = round(time()-st; digits=2)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
@@ -123,7 +123,7 @@ for i in 1:length(nets)
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)
-        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (not pre-compiled): $(dt)s"
 
@@ -131,7 +131,7 @@ for i in 1:length(nets)
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)
-        # FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
+        # FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=true, gradient=GRADIENT)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (pre-compiled): $(dt)s"
 

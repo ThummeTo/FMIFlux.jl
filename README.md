@@ -42,7 +42,27 @@ You can evaluate FMUs inside of your loss function.
 - building and training FMUINNs (PINNs)
 - different AD-frameworks: ForwardDiff.jl (CI-tested), ReverseDiff.jl (CI-tested, default setting), FiniteDiff.jl (not CI-tested) and Zygote.jl (not CI-tested)
 - use `Flux.jl` optimisers as well as the ones from `Optim.jl`
+- using the entire *DifferentialEquations.jl* solver suite (`autodiff=false` for implicit solvers)
 - ...
+
+## (Current) Limitations
+
+- Sensitivity information over state change by event $\partial x^{+} / \partial x^{-}$ can't be accessed in FMI. 
+These sensitivities are simplified on basis of one of the following assumptions (defined by user):
+(1) the state after event depends on nothing, so sensitivities are zero or 
+(2) the state after event instance only depends on the same state before the event instance
+The second is often correct for e.g. mechanical contacts, but may lead to wrong gradients for arbitrary discontinuous systems. 
+However even if the gradient might not be 100% correct in any case, gradients are often usable for optimization tasks. 
+This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
+
+- Discontinuous systems with implicite solvers use continuous adjoints instead of automatic differentiation through the ODE solver.
+This might lead to issues, because FMUs are by design not simulatable backward in time. 
+On the other hand, many FMUs are capabale of doing so.
+This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
+
+- Implicit solvers using `autodiff=true` is not supported (now), but you can use implicit solvers with `autodiff=false`.
+
+- For now, only FMI version 2.0 is supported, but FMI 3.0 support is coming with the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
 
 ## What is under development in FMIFlux.jl?
 - performance optimizations
@@ -54,7 +74,6 @@ You can evaluate FMUs inside of your loss function.
 
 ## What Platforms are supported?
 [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) is tested (and testing) under Julia versions *v1.6* (LTS) and *v1* (latest) on Windows (latest) and Ubuntu (latest). MacOS should work, but untested.
-[*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl) currently only works with FMI2-FMUs. 
 All shipped examples are automatically tested under Julia version *v1* (latest) on Windows (latest).
 
 ## What FMI.jl-Library should I use?

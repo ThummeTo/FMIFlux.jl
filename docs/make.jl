@@ -3,6 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+import Pkg; Pkg.develop(path=joinpath(@__DIR__,"../../FMIFlux.jl"))
 using Documenter, FMIFlux
 using Documenter: GitHubActions
 
@@ -11,7 +12,7 @@ makedocs(sitename="FMIFlux.jl",
             collapselevel = 1,
             sidebar_sitename = false,
             edit_link = nothing,
-            size_threshold_ignore = ["examples/juliacon_2023.md"]
+            size_threshold_ignore = [joinpath("examples","juliacon_2023.md")]
         ),
         warnonly=true,
         pages= Any[
@@ -35,7 +36,7 @@ makedocs(sitename="FMIFlux.jl",
 function deployConfig()
     github_repository = get(ENV, "GITHUB_REPOSITORY", "")
     github_event_name = get(ENV, "GITHUB_EVENT_NAME", "")
-    if github_event_name == "workflow_run"
+    if github_event_name == "workflow_run" || github_event_name == "repository_dispatch"
         github_event_name = "push"
     end
     github_ref = get(ENV, "GITHUB_REF", "")
