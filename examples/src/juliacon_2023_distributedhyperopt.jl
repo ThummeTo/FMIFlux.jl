@@ -7,7 +7,7 @@
 using Plots
 using Distributed
 using JLD2
-using DistributedHyperOpt
+using DistributedHyperOpt   # add via `add "https://github.com/ThummeTo/DistributedHyperOpt.jl"`
 
 # if you want to see more messages about Hyperband working ...
 # ENV["JULIA_DEBUG"] = "DistributedHyperOpt"

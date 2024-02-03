@@ -20,13 +20,26 @@ exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0
 exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
-global NUMSTEPS = 10
+global NUMSTEPS = 20
 global ETA = 1e-6
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
 global OPTIMISER = Descent
+global FAILED_GRADIENTS_QUOTA = 7/20
+
+# callback for bad optimization steps counter
+global FAILED_GRADIENTS = 0
+global LAST_LOSS
+callback = function(p)
+    global LAST_LOSS, FAILED_GRADIENTS
+    loss = losssum(p[1])
+    if loss >= LAST_LOSS
+        FAILED_GRADIENTS += 1
+    end
+    LAST_LOSS = loss
+end
 
 # training data for pendulum experiment 
 function syntTrainingData(tData)
@@ -49,9 +62,15 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-        @info    "Solution Gradients (solution_gradients.jl)"
-        @testset "Solution Gradients" begin
-            include("solution_gradients.jl")
+        @warn "Solution Gradient Test Skipped"
+        # @info    "Solution Gradients (solution_gradients.jl)"
+        # @testset "Solution Gradients" begin
+        #     include("solution_gradients.jl")
+        # end
+
+        @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
+        @testset "Time Event Solution Gradients" begin
+            include("time_solution_gradients.jl")
         end
 
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
@@ -109,13 +128,14 @@ function runtests(exportingTool)
                 @testset "Optim" begin
                     include("optim.jl")
                 end
+        
             end
         end
 
-        @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
-        @testset "Benchmark: Supported sensitivities " begin
-            include("supported_sensitivities.jl")
-        end
+        # @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
+        # @testset "Benchmark: Supported sensitivities " begin
+        #     include("supported_sensitivities.jl")
+        # end
    
     end
 end

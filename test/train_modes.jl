@@ -22,7 +22,7 @@ posData, velData, accData = syntTrainingData(tData)
 fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
-function losssum(p)
+losssum = function(p)
     global problem, X0, posData
     solution = problem(X0; p=p, saveat=tData)
 
@@ -75,7 +75,7 @@ for handleEvents in [true, false]
                             dx -> c1(dx),
                             Dense(numStates, 16, tanh),
                             Dense(16, 1, identity),
-                            dx -> c2([1], dx[1], []) )
+                            dx -> c2(1, dx[1]) )
                 
                 optim = OPTIMISER(ETA)
                 solver = Tsit5()
@@ -99,7 +99,7 @@ for handleEvents in [true, false]
                 @info "Start-Loss for net: $lastLoss"
 
                 lossBefore = losssum(p_net[1])
-                FMIFlux.train!(losssum, p_net, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+                FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
                 lossAfter = losssum(p_net[1])
 
                 @test lossAfter < lossBefore

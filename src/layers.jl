@@ -26,7 +26,7 @@ struct FMUParameterRegistrator{T}
             c.default_p = p
         end
 
-        return new(fmu, p_refs, p)
+        return new{T}(fmu, p_refs, p)
     end
 
     function FMUParameterRegistrator(fmu::FMU2, p_refs::fmi2ValueReferenceFormat, p::AbstractArray{T}) where {T}
@@ -48,6 +48,88 @@ function (l::FMUParameterRegistrator)(x)
 end
 
 Flux.@functor FMUParameterRegistrator (p, )
+
+### TimeLayer ###
+
+"""
+A neutral layer that calls a function `fct` with current FMU time as input.
+"""
+struct FMUTimeLayer{F, O}
+    fmu::FMU2
+    fct::F
+    offset::O
+
+    function FMUTimeLayer{F, O}(fmu::FMU2, fct::F, offset::O) where {F, O} 
+        return new{F, O}(fmu, fct, offset)
+    end
+
+    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O) where {F, O} 
+        return FMUTimeLayer{F, O}(fmu, fct, offset)
+    end
+
+end
+export FMUTimeLayer
+
+function (l::FMUTimeLayer)(x)
+    
+    if hasCurrentComponent(l.fmu) 
+        c = getCurrentComponent(l.fmu) 
+        l.fct(c.default_t + l.offset[1])
+    end
+    
+    return x
+end
+
+Flux.@functor FMUTimeLayer (offset, )
+
+### ParameterRegistrator ###
+
+"""
+ToDo.
+"""
+struct ParameterRegistrator{T}
+    p::AbstractArray{T}
+   
+    function ParameterRegistrator{T}(p::AbstractArray{T}) where {T}
+        return new{T}(p)
+    end
+
+    function ParameterRegistrator(p::AbstractArray{T}) where {T}
+        return ParameterRegistrator{T}(p)
+    end
+end
+export ParameterRegistrator
+
+function (l::ParameterRegistrator)(x)
+    return x
+end
+
+Flux.@functor ParameterRegistrator (p, )
+
+### SimultaniousZeroCrossing ###
+
+"""
+Forces a simultaniuos zero crossing together with a given value by function.
+"""
+struct SimultaniousZeroCrossing{T, F}
+    m::T # scaling factor
+    fct::F
+   
+    function SimultaniousZeroCrossing{T, F}(m::T, fct::F) where {T, F}
+        return new{T, F}(m, fct)
+    end
+
+    function SimultaniousZeroCrossing(m::T, fct::F) where {T, F}
+        return SimultaniousZeroCrossing{T, F}(m, fct)
+    end
+end
+export SimultaniousZeroCrossing
+
+function (l::SimultaniousZeroCrossing)(x)
+    return x * l.m * l.fct()
+end
+
+Flux.@functor SimultaniousZeroCrossing (m, )
 
 ### SHIFTSCALE ###
 
@@ -196,17 +278,43 @@ struct CacheRetrieveLayer
 end
 export CacheRetrieveLayer
 
-function (l::CacheRetrieveLayer)(idxBefore, x=nothing, idxAfter=nothing)
+function (l::CacheRetrieveLayer)(args...)
     tid = Threads.threadid()
 
-    # Zygote doesn't like empty arrays
-    if idxAfter == nothing && x == nothing
-        return l.cacheLayer.cache[tid][idxBefore]
-    elseif idxAfter == nothing
-        return [l.cacheLayer.cache[tid][idxBefore]..., x...]
-    elseif x == nothing
-        return [l.cacheLayer.cache[tid][idxBefore]..., l.cacheLayer.cache[tid][idxAfter]...]
-    else
-        return [l.cacheLayer.cache[tid][idxBefore]..., x..., l.cacheLayer.cache[tid][idxAfter]...]
+    values = zeros(Real, 0)
+    
+    for arg in args 
+        if isa(arg, Integer)
+            val = l.cacheLayer.cache[tid][arg]
+            push!(values, val)
+
+        elseif isa(arg, AbstractArray) && length(arg) == 0
+            @warn "Deploying empty arrays `[]` in CacheRetrieveLayer is not necessary anymore, just remove them.\nThis warning is only printed once." maxlog=1
+            # nothing to do here
+
+        elseif isa(arg, AbstractArray{<:Integer}) && length(arg) == 1
+            @warn "Deploying single element arrays `$(arg)` in CacheRetrieveLayer is not necessary anymore, just write `$(arg[1])`.\nThis warning is only printed once." maxlog=1
+            val = l.cacheLayer.cache[tid][arg]
+            push!(values, val...)
+
+        elseif isa(arg, UnitRange{<:Integer}) || isa(arg, AbstractArray{<:Integer})
+            val = l.cacheLayer.cache[tid][arg]
+            push!(values, val...)
+
+        elseif isa(arg, Real)
+            push!(values, arg)
+
+        elseif isa(arg, AbstractArray{<:Real})
+            push!(values, arg...)
+
+        else
+            @assert false "CacheRetrieveLayer: Unknown argument `$(arg)` with type `$(typeof(arg))`"
+        end
     end
+
+    # [Todo] this is only a quick fix!
+    values = [values...] # promote common data type
+
+    return values
+
 end

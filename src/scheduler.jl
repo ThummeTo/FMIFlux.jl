@@ -21,13 +21,17 @@ mutable struct WorstElementScheduler <: BatchScheduler
     plotStep::Integer
     batch
     neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
 
     ### type specific ###
     lossFct
     runkwargs
     printMsg::String
+    updateStep::Integer
+    excludeIndices
     
-    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1)
+    function WorstElementScheduler(neuralFMU::NeuralFMU, batch, lossFct=Flux.Losses.mse; applyStep::Integer=1, plotStep::Integer=1, updateStep::Integer=1, excludeIndices=nothing)
         inst = new()
         inst.neuralFMU = neuralFMU
         inst.step = 0
@@ -36,8 +40,12 @@ mutable struct WorstElementScheduler <: BatchScheduler
         inst.lossFct = lossFct
         inst.applyStep = applyStep
         inst.plotStep = plotStep
+        inst.losses = []
+        inst.logLoss = false
 
         inst.printMsg = ""
+        inst.updateStep = updateStep
+        inst.excludeIndices = excludeIndices
        
         return inst
     end
@@ -57,6 +65,8 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
     plotStep::Integer
     batch
     neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
 
     ### type specific ###
     lossFct
@@ -75,6 +85,8 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
         inst.applyStep = applyStep
         inst.plotStep = plotStep
         inst.updateStep = updateStep
+        inst.losses = []
+        inst.logLoss = false
         
         inst.printMsg = ""
         inst.lossAccu = zeros(length(batch))
@@ -96,6 +108,8 @@ mutable struct WorstGrowScheduler <: BatchScheduler
     plotStep::Integer
     batch
     neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
 
     ### type specific ###
     lossFct
@@ -111,6 +125,8 @@ mutable struct WorstGrowScheduler <: BatchScheduler
         inst.lossFct = lossFct
         inst.applyStep = applyStep
         inst.plotStep = plotStep
+        inst.losses = []
+        inst.logLoss = true # this is because this scheduler estimates derivatives
 
         inst.printMsg = ""
 
@@ -131,9 +147,11 @@ mutable struct RandomScheduler <: BatchScheduler
     plotStep::Integer
     batch
     neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
     
     ### type specific ###
-    # none
+    printMsg::String
 
     function RandomScheduler(neuralFMU::NeuralFMU, batch; applyStep::Integer=1, plotStep::Integer=1)
         inst = new()
@@ -143,6 +161,10 @@ mutable struct RandomScheduler <: BatchScheduler
         inst.batch = batch
         inst.applyStep = applyStep
         inst.plotStep = plotStep
+        inst.losses = []
+        inst.logLoss = false
+
+        inst.printMsg = ""
 
         return inst
     end
@@ -161,9 +183,11 @@ mutable struct SequentialScheduler <: BatchScheduler
     plotStep::Integer
     batch
     neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
     
     ### type specific ###
-    # none
+    printMsg::String
 
     function SequentialScheduler(neuralFMU::NeuralFMU, batch; applyStep::Integer=1, plotStep::Integer=1)
         inst = new()
@@ -173,6 +197,10 @@ mutable struct SequentialScheduler <: BatchScheduler
         inst.batch = batch
         inst.applyStep = applyStep
         inst.plotStep = plotStep
+        inst.losses = []
+        inst.logLoss = false
+
+        inst.printMsg = ""
 
         return inst
     end
@@ -195,7 +223,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
     end
 end
 
-function update!(scheduler::BatchScheduler)
+function update!(scheduler::BatchScheduler; print::Bool=true)
 
     lastIndex = scheduler.elementIndex
 
@@ -203,6 +231,29 @@ function update!(scheduler::BatchScheduler)
     
     if scheduler.applyStep > 0 && scheduler.step % scheduler.applyStep == 0
         scheduler.elementIndex = apply!(scheduler)
+    end
+
+    # max/avg error 
+    num = length(scheduler.batch)
+    losssum = 0.0
+    avgsum = 0.0
+    maxe = 0.0
+    for i in 1:num
+        l = nominalLoss(scheduler.batch[i])
+        l = l == Inf ? 0.0 : l
+        
+        losssum += l
+        avgsum += l / num
+
+        if l > maxe 
+            maxe = l 
+        end
+    end
+    push!(scheduler.losses, losssum)
+    
+    if print
+        scheduler.printMsg = "AVG: $(roundToLength(avgsum, 8)) | MAX: $(roundToLength(maxe, 8)) | SUM: $(roundToLength(losssum, 8))"
+        @info scheduler.printMsg
     end
 
     if scheduler.plotStep > 0 && scheduler.step % scheduler.plotStep == 0
@@ -214,7 +265,7 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
     num = length(scheduler.batch)
 
     xs = 1:num 
-    ys = collect((length(b.losses) > 0 ? nominalLoss(b.losses[end]) : 0.0) for b in scheduler.batch)
+    ys = collect((nominalLoss(b) != Inf ? nominalLoss(b) : 0.0) for b in scheduler.batch)
     ys_shadow = collect((length(b.losses) > 1 ? nominalLoss(b.losses[end-1]) : 1e-16) for b in scheduler.batch)
     
     title = "[$(scheduler.step)]" 
@@ -222,11 +273,11 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
         title = title * " " * scheduler.printMsg
     end
 
-    fig = Plots.plot(; xlabel="Batch ID", ylabel="Loss", background_color_legend=colorant"rgba(255,255,255,0.5)", title=title)
+    fig = Plots.plot(; layout=Plots.grid(2,1), size=(480,960), xlabel="Batch ID", ylabel="Loss", background_color_legend=colorant"rgba(255,255,255,0.5)", title=title)
 
     if hasfield(typeof(scheduler), :lossAccu)
         normScale = max(ys..., ys_shadow...) / max(scheduler.lossAccu...)
-        Plots.bar!(fig, xs, scheduler.lossAccu .* normScale, label="Accum. loss (norm.)", color=:blue, bar_width=1.0, alpha=0.2);
+        Plots.bar!(fig[1], xs, scheduler.lossAccu .* normScale, label="Accum. loss (norm.)", color=:blue, bar_width=1.0, alpha=0.2);
     end
 
     good = []
@@ -240,17 +291,20 @@ function plot(scheduler::BatchScheduler, lastIndex::Integer)
         end
     end
     
-    Plots.bar!(fig, xs[good], ys[good], label="Loss (better)", color=:green, bar_width=1.0);
-    Plots.bar!(fig, xs[bad], ys[bad], label="Loss (worse)", color=:orange, bar_width=1.0);
+    Plots.bar!(fig[1], xs[good], ys[good], label="Loss (better)", color=:green, bar_width=1.0);
+    Plots.bar!(fig[1], xs[bad], ys[bad], label="Loss (worse)", color=:orange, bar_width=1.0);
 
     for i in 1:length(ys_shadow)
-        Plots.plot!(fig, [xs[i]-0.5, xs[i]+0.5], [ys_shadow[i], ys_shadow[i]], label=(i == 1 ? "Last loss" : :none), linewidth=2, color=:black);
+        Plots.plot!(fig[1], [xs[i]-0.5, xs[i]+0.5], [ys_shadow[i], ys_shadow[i]], label=(i == 1 ? "Last loss" : :none), linewidth=2, color=:black);
     end
     
     if lastIndex > 0
-        Plots.plot!(fig, [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID [$(lastIndex)]", markersize = 5.0) # current batch element
+        Plots.plot!(fig[1], [lastIndex], [0.0], color=:pink, marker=:circle, label="Current ID [$(lastIndex)]", markersize = 5.0) # current batch element
     end
-    Plots.plot!(fig, [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID [$(scheduler.elementIndex)]", markersize = 3.0) # next batch element
+    Plots.plot!(fig[1], [scheduler.elementIndex], [0.0], color=:pink, marker=:circle, label="Next ID [$(scheduler.elementIndex)]", markersize = 3.0) # next batch element
+    
+    Plots.plot!(fig[2], 1:length(scheduler.losses), scheduler.losses; yaxis=:log)
+    
     display(fig)
 end
 
@@ -264,6 +318,13 @@ function roundToLength(number::Real, len::Integer)
 
     if number == 0.0
         return "0.0"
+    end
+
+    isneg = false
+    if number < 0.0
+        isneg = true
+        number = -number
+        len -= 1 # we need one digit for the "-"
     end
 
     expLen = 0
@@ -280,6 +341,10 @@ function roundToLength(number::Real, len::Integer)
     else
         len -= 2 # 2 spaces needed for regular exponent
     end
+
+    if isneg 
+        number = -number 
+    end
     
     return Printf.format(Printf.Format("%.$(len)e"), number)
 end
@@ -292,25 +357,29 @@ function apply!(scheduler::WorstElementScheduler; print::Bool=true)
     maxe = 0.0
     maxind = 0
 
+    updateAll = (scheduler.step % scheduler.updateStep == 0)
+
     num = length(scheduler.batch)
     for i in 1:num
-        #l = nominalLoss(scheduler.batch[i].losses[end])
 
-        FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+        l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
+        
+        if updateAll
+            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=scheduler.logLoss)
+            l = nominalLoss(scheduler.batch[i])
+        end
         
         losssum += l
         avgsum += l / num
-        if l > maxe
-            maxe = l 
-            maxind = i
+
+        if isnothing(scheduler.excludeIndices) || i ∉ scheduler.excludeIndices
+            if l > maxe
+                maxe = l 
+                maxind = i
+            end
         end
     
-    end
-
-    if print
-        scheduler.printMsg = "AVG: $(roundToLength(avgsum, 8)) | MAX: $(roundToLength(maxe, 8)) @ #$(scheduler.elementIndex)"
-        @info scheduler.printMsg
     end
 
     return maxind
@@ -329,19 +398,17 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
         scheduler.lossAccu[scheduler.elementIndex] = 0.0
     end
 
+    updateAll = (scheduler.step % scheduler.updateStep == 0)
+
     num = length(scheduler.batch)
     for i in 1:num
 
-        l = 0.0
-
-        if length(scheduler.batch[i].losses) >= 1
-            l = nominalLoss(scheduler.batch[i].losses[end])
-        end
+        l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
         
-        if scheduler.step % scheduler.updateStep == 0
+        if updateAll
             FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
-            l = nominalLoss(scheduler.batch[i].losses[end])
+            FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=scheduler.logLoss)
+            l = nominalLoss(scheduler.batch[i])
         end
 
         scheduler.lossAccu[i] += l
@@ -361,11 +428,6 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool=true)
         end
     end
 
-    if print
-        scheduler.printMsg = "AVG: $(roundToLength(avgsum, 8)) | MAX: $(roundToLength(maxe, 8)) @ #$(scheduler.elementIndex)"
-        @info scheduler.printMsg
-    end
-
     return nextind
 end
 
@@ -382,7 +444,7 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool=true)
     for i in 1:num
        
         FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
-        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=true)
+        l = FMIFlux.loss!(scheduler.batch[i], scheduler.lossFct; logLoss=scheduler.logLoss)
 
         l_der = l # fallback for first run (greatest error)
         if length(scheduler.batch[i].losses) >= 2
@@ -401,11 +463,6 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool=true)
             maxind = i
         end
     
-    end
-
-    if print
-        scheduler.printMsg = "AVG: $(roundToLength(avgsum, 8)) | MAX: $(roundToLength(maxe, 8)) @ #$(scheduler.elementIndex)"
-        @info scheduler.printMsg
     end
 
     return maxind
