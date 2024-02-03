@@ -73,7 +73,7 @@ function runtests(exportingTool)
             include("time_solution_gradients.jl")
         end
 
-        for _GRADIENT ∈ (:ReverseDiff,)# :ForwardDiff) # , :FiniteDiff)
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
             global GRADIENT = _GRADIENT
             @info    "Gradient: $(GRADIENT)"
