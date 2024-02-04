@@ -810,7 +810,7 @@ Different loss functions are thinkable here. Two quantities that should be consi
 """
 
 # ╔═╡ caa5e04a-2375-4c56-8072-52c140adcbbb
-function _loss(solution::FMU2Solution, data::FMIZoo.RobotRR_Data)
+function loss(solution::FMU2Solution, data::FMIZoo.RobotRR_Data)
 
     # determine the start/end indices `ts` and `te` (sampled with 100Hz)
 	dt = 0.01
@@ -837,17 +837,17 @@ For example, the loss function value of the plain FMU is $(round(_loss(sol_fmu_t
 
 # ╔═╡ 23ad65c8-5723-4858-9abe-750c3b65c28a
 md"""
-## Start
-[todo]
+## Summary
+To summarize, your ANN has a **depth of $(NUM_LAYERS) layers** with a **width of $(LAYERS_WIDTH)** each. The **ANN gates are initialized with $(GATES_INIT*100)%**, so all FMU gates are initialized with $(100-GATES_INIT*100)%. You decided to batch your data with a **batch element length of $(BATCHDUR)**. Besides the state derivatives, you **put $(length(y_refs)) additional variables** in the ANN. Adam optimizer will try to find a good minimum with **`eta` is $(ETA)**.
 
-Batching takes a few seconds and training a few minutes (depending on the number of training steps), this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Enable Live Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2000])) training steps.
+Batching takes a few seconds and training a few minutes (depending on the number of training steps), this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Enable Live Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 10000])) training steps.
 """
 
 # ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 md"""
-The roughly estimated training time is $(round(Integer, STEPS*2.5*BATCHDUR + 0.6/BATCHDUR)) seconds (Windows, i7 @ 3.6GHz).
+⚠️ The roughly estimated training time is $(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than excpected. Once you click on `Enable Live Training`, training can't be terminated easily.
 
-**Enable Live Training** $(@bind LIVE_TRAIN CheckBox()) 
+⚠️ **Enable Live Training** $(@bind LIVE_TRAIN CheckBox()) 
 """
 
 # ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
@@ -878,16 +878,19 @@ function train(eta, batchdur, steps)
 	# a random element scheduler
 	scheduler = RandomScheduler(neuralFMU, batch; applyStep=1, plotStep=0)
 
-	lossFct = (solution::FMU2Solution) -> _loss(solution, data_train)
+	lossFct = (solution::FMU2Solution) -> loss(solution, data_train)
 
-	loss = p -> FMIFlux.Losses.loss(neuralFMU, # the NeuralFMU to simulate
+	maxiters = round(Int, 1e5*batchdur)
+
+	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the NeuralFMU to simulate
                                     batch; # the batch to take an element from
                                     p=p, # the NeuralFMU training parameters (given as input)
                                     lossFct=lossFct, # our custom loss function
                                     batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the choosen scheduler
                                     logLoss=true, # log losses after every evaluation
                                     showProgress=false,
-									parameters=parameters) 
+									parameters=parameters,
+									maxiters=maxiters) 
 
 	params = FMIFlux.params(neuralFMU)
 
@@ -899,13 +902,13 @@ function train(eta, batchdur, steps)
 
 	@info "Started training ..."
 
-	 FMIFlux.train!(loss, # the loss function for training
+	 FMIFlux.train!(_loss, # the loss function for training
                    neuralFMU, # the parameters to train
                    Iterators.repeated((), steps), # an iterator repeating `steps` times
                    optim; # the optimizer to train
                    gradient=:ReverseDiff, # use ReverseDiff, because it's much faster!
                    cb=() -> FMIFlux.update!(scheduler), # update the scheduler after every step 
-                   proceed_on_assert=false) # go on if a training steps fails (e.g. because of instability)  
+                   proceed_on_assert=true) # go on if a training steps fails (e.g. because of instability)  
 
 	@info "... training finished!"
 end
@@ -913,11 +916,6 @@ end
 HIDDEN_CODE_MESSAGE
 
 end
-
-# ╔═╡ ac7f8003-1d8d-428f-a04d-3dcdf96099ca
-md""" 
-Training results:
-"""
 
 # ╔═╡ c3f5704b-8e98-4c46-be7a-18ab4f139458
 let
@@ -927,6 +925,21 @@ let
 		LIVE_TRAIN_MESSAGE
 	end
 end
+
+# ╔═╡ ff106912-d18c-487f-bcdd-7b7af2112cab
+md"""
+# Results 
+Now it's time to find out if it worked!
+
+
+
+⚠️ Live plotting results makes the notebbok slow, so it's deactivated by default. Activate it to plot results of your training and deactivate it, if you want to to further experiments.
+
+⚠️ **Enable Live Results** $(@bind LIVE_RESULTS CheckBox()) 
+
+## Training results
+Let's check out the *training* results of the freshly trained NeuralFMU.
+"""
 
 # ╔═╡ 27458e32-5891-4afc-af8e-7afdf7e81cc6
 begin
@@ -972,17 +985,6 @@ HIDDEN_CODE_MESSAGE
 
 end
 
-# ╔═╡ ff106912-d18c-487f-bcdd-7b7af2112cab
-md"""
-# Results 
-[todo]
-
-**Enable Live Results** $(@bind LIVE_RESULTS CheckBox()) 
-
-## Training results
-Let's check out the *training* results of the freshly trained NeuralFMU.
-"""
-
 # ╔═╡ 5dd491a4-a8cd-4baf-96f7-7a0b850bb26c
 begin
 	if LIVE_RESULTS
@@ -1015,7 +1017,7 @@ end
 begin
 	if LIVE_RESULTS
 		md"""
-The loss function value of the FMU on training data is $(round(_loss(fmu_train, data_train); digits=6)), of the NeuralFMU it is $(round(_loss(result_train, data_train); digits=6)).
+The loss function value of the FMU on training data is $(round(loss(fmu_train, data_train); digits=6)), of the NeuralFMU it is $(round(loss(result_train, data_train); digits=6)).
 """
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1096,7 +1098,7 @@ end
 begin
 	if LIVE_RESULTS
 		md"""
-The loss function value of the FMU on training data is $(round(_loss(fmu_validation, data_validation); digits=6)), of the NeuralFMU it is $(round(_loss(result_validation, data_validation); digits=6)).
+The loss function value of the FMU on training data is $(round(loss(fmu_validation, data_validation); digits=6)), of the NeuralFMU it is $(round(loss(result_validation, data_validation); digits=6)).
 """
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1143,6 +1145,18 @@ end
 md""" 
 # Conclusion
 [TODO]
+
+## Hint
+If your results are not *that* promising, here is a set of hyperparameters to check. It is *not* a optimal set of parameters, but a *good* set, so feel free to explore the *best*!
+
+| Parameter | Value |
+----------
+| eta | 1e-3 |
+| layer count | 3 |
+| layer width | 16 |
+| initial gate opening | 0.2 |
+| batch element length | 0.05s |
+| training steps | 10 000 |
 
 ## Citation
 If you find this workshop useful for your own work and/or research, please cite our related publication:
@@ -4007,11 +4021,10 @@ version = "1.4.1+1"
 # ╟─69657be6-6315-4655-81e2-8edef7f21e49
 # ╟─23ad65c8-5723-4858-9abe-750c3b65c28a
 # ╟─e8bae97d-9f90-47d2-9263-dc8fc065c3d0
-# ╟─2dce68a7-27ec-4ffc-afba-87af4f1cb630
-# ╟─ac7f8003-1d8d-428f-a04d-3dcdf96099ca
+# ╠═2dce68a7-27ec-4ffc-afba-87af4f1cb630
 # ╟─c3f5704b-8e98-4c46-be7a-18ab4f139458
+# ╠═ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─27458e32-5891-4afc-af8e-7afdf7e81cc6
-# ╟─ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─5dd491a4-a8cd-4baf-96f7-7a0b850bb26c
 # ╟─1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
 # ╟─b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
@@ -4025,6 +4038,6 @@ version = "1.4.1+1"
 # ╟─74ef5a39-1dd7-404a-8baf-caa1021d3054
 # ╟─05281c4f-dba8-4070-bce3-dc2f1319902e
 # ╟─67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
-# ╟─88884204-79e4-4412-b861-ebeb5f6f7396
+# ╠═88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
