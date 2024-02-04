@@ -23,14 +23,14 @@ using FMI # load and simulate FMUs
 # ╔═╡ 21104cd1-9fe8-45db-9c21-b733258ff155
 using FMIFlux # machine learning with FMUs
 
+# ╔═╡ 9d9e5139-d27e-48c8-a62e-33b2ae5b0086
+using FMIZoo # a collection of demo FMUs
+
 # ╔═╡ eaae989a-c9d2-48ca-9ef8-fd0dbff7bcca
 using FMIFlux.Flux # default Julia Machine Learning library
 
 # ╔═╡ 98c608d9-c60e-4eb6-b611-69d2ae7054c9
-using FMIFlux.DifferentialEquations # [TODO]
-
-# ╔═╡ 9d9e5139-d27e-48c8-a62e-33b2ae5b0086
-using FMIZoo # a collection of demo FMUs
+using FMIFlux.DifferentialEquations # mighty (O)DE solver suite
 
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
 using Plots, PlotlyBase, PlotlyKaleido
@@ -52,10 +52,10 @@ If there is something YOU know about a physical system, AI shouldn’t need to l
 This workshop focuses on the integration of Functional Mock-Up Units (FMUs) into a machine learning topology. FMUs are simulation models that can be generated within a variety of modeling tools, see the [FMI homepage](https://fmi-standard.org/). Together with deep neural networks that complement and improve the FMU prediction, so called *NeuralFMUs* can be created. 
 The workshop itself evolves around the hybrid modeling of a *Selective Compliance Assembly Robot Arm* (SCARA), that is able to write user defined words on a sheet of paper. A ready to use physical simulation model (FMU) for the SCARA is given and shortly highlighted in this workshop. However, this model – as any simulation model – shows some deviations if compared to measurements from the real system. These deviations results from unmodeled slip-stick-friction: The pen sticks to the paper until a force limit is reached, but then moves jerkily. A hard to model physical effect – but not for a NeuralFMU.
 
-More advanced code snippets are hidden my default and marked with `👻`. Computations, that are disabled for performance reasons, are marked with `ℹ️`. They can be activated by enabling the corresponding checkbox. 
+More advanced code snippets are hidden by default and marked with a ghost `👻`. Computations, that are disabled for performance reasons, are marked with `ℹ️`. They offer a hint how to enable the idled computation, usually by enabling the corresponding checkbox. 
 
 ## Example Video
-If you haven't seen such a system yet, you can watch the following video. There are many more similar videos out there.
+If you haven't seen such a SCARA system yet, you can watch the following video. There are many more similar videos out there.
 """
 
 # ╔═╡ 7d694be0-cd3f-46ae-96a3-49d07d7cf65a
@@ -69,7 +69,7 @@ This video is by *Alexandru Babaian* on YouTube.
 
 ## Requirements
 To follow this workshop, you should ...
-- ... have a rough idea what the *Functional Mock-Up Interface* is and how the standard-conform models - the *Functional Mock-Up Units* - work. If not, a good source is the homeapge of the standard, see the [FMI Homepage](https://fmi-standard.org/).
+- ... have a rough idea what the *Functional Mock-Up Interface* is and how the standard-conform models - the *Functional Mock-Up Units* - work. If not, a good source is the homepage of the standard, see the [FMI Homepage](https://fmi-standard.org/).
 - ... know the *Julia Programming Language* or at least have some programming skills in another high-level programming language like *Python* or *Matlab*. An introduction to Julia can be found on the [Julia Homepage](https://julialang.org/), but there are many more introductions in different formats available on the internet.
 - ... have an idea of how modeling (in terms of modeling ODE and DAE systems) and simulation (solving) of such models works.
 
@@ -80,14 +80,31 @@ The technical requirements are:
 | RAM | >= 16GB | 8GB |
 | OS | Windows | Windows / Linux |
 | Julia | 1.10 | 1.6 |
+
+This said, we can start "programming"! The entire notebook is pre-implemented, so you can use it without writing a single line of code. Users new to Julia can use interactive UI elements to interact, while more advance users can view and manipulate corresponding code. Let's go! 
 """
 
 # ╔═╡ 8a82d8c7-b781-4600-8780-0a0a003b676c
 md"""
 # Loading required Julia libraries
 Before starting with the actual coding, we load in the required Julia libraries. 
-This Pluto-Notebooks installs all required packages automatically.
-However, this will take some minutes when you start the notebook for the first time...
+This Pluto-Notebook installs all required packages automatically.
+However, this will take some minutes when you start the notebook for the first time... it is recommended to not interact with the UI elements as long as the first compilation runs (orange status light in the bottom right corner).
+"""
+
+# ╔═╡ a02f77d1-00d2-46a3-91ba-8a7f5b4bbdc9
+md"""
+First, we load the Pluto UI elements:
+"""
+
+# ╔═╡ 02f0add7-9c4e-4358-8b5e-6863bae3ee75
+md"""
+Then, the three FMI-libraries we need for FMU loading, machine learning and the FMU itself:
+"""
+
+# ╔═╡ 85308992-04c4-4d20-a840-6220cab54680
+md"""
+Some additional libraries for machine learning and ODE solvers:
 """
 
 # ╔═╡ 5cb505f7-01bd-4824-8876-3e0f5a922fb7
@@ -103,23 +120,18 @@ md"""
 # ╔═╡ bc077fdd-069b-41b0-b685-f9513d283346
 plotly()
 
-# ╔═╡ 7b82e333-e133-4b7b-8951-5a8b6a0155db
-md"""
-The following line just adds a table of contents to the notebook sidebar.
-"""
-
-# ╔═╡ 1bb3d6ae-af9c-4b5d-b2e7-19cee7750347
-TableOfContents()
-
 # ╔═╡ 44500f0a-1b89-44af-b135-39ce0fec5810
 md"""
 Next, we define some helper functions, that are not important to follow the workshop - they are hidden by default. However they are here, if you want to explore what it takes to write fully working code. If you do this workshop for the first time, it is recommended to skip the hidden part and directly go on.
 """
 
+# ╔═╡ c88b0627-2e04-40ab-baa2-b4c1edfda0c3
+TableOfContents()
+
 # ╔═╡ 915e4601-12cc-4b7e-b2fe-574e116f3a92
 md"""
 # Loading Model (FMU) and Data
-We want to do hybrid modeling, so we need a simulation model and some data to work with. Fortuneately, someone already prepared both for us. We start by loading some data from *FMIZoo.jl*, which is a collection of FMUs and corresponding data.
+We want to do hybrid modeling, so we need a simulation model and some data to work with. Fortunately, someone already prepared both for us. We start by loading some data from *FMIZoo.jl*, which is a collection of FMUs and corresponding data.
 """
 
 # ╔═╡ f8e40baa-c1c5-424a-9780-718a42fd2b67
@@ -134,7 +146,7 @@ data_train = FMIZoo.RobotRR(:train)
 
 # ╔═╡ 33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 begin
-
+	
 # define the prinintg messages used at different places in this notebook
 LIVE_RESULTS_MESSAGE = "ℹ️ Live Results are disabled to safe performance. Checkbox `Enable Live Results`."
 LIVE_TRAIN_MESSAGE = "ℹ️ Live Training is disabled to safe performance. Checkbox `Enable Live Training`."
@@ -264,8 +276,9 @@ end # begin
 # ╔═╡ f111e772-a340-4217-9b63-e7715f773b2c
 md"""
 Let's have a look on the data! It's the written word *train*.
-You can use the slider to pick a specific point in time. $br
-The current time is $(round(t_train_plot; digits=1))s.
+You can use the slider to pick a specific point in time to plot the "robot" as recorded as part of the data. 
+
+The current picked time is $(round(t_train_plot; digits=1))s.
 """
 
 # ╔═╡ 909de9f1-2aca-4bf0-ba60-d3418964ba4a
@@ -273,25 +286,32 @@ plotRobot(data_train.solution, t_train_plot)
 
 # ╔═╡ d8ca5f66-4f55-48ab-a6c9-a0be662811d9
 md"""
+👁️ Interesstingly, the first part of the word "trai" is not significantly affected by the slip-stick-effect, the actual TCP trajectory (green) lays quite good on the target position (black dashed). However, the "n" is very jerky. This can be explained by the increasing lever, the motor needs more torque to overcome the static friction the further away the TCP is from the robot base.
+
 Let's extract a start and stop time, as well as saving points for the later solving process:
 """
 
 # ╔═╡ 41b1c7cb-5e3f-4074-a681-36dd2ef94454
-tSave = data_train.t
+tSave = data_train.t # time points to save the solution at
 
 # ╔═╡ 8f45871f-f72a-423f-8101-9ce93e5a885b
-tStart = tSave[1]
+tStart = tSave[1]    # start time for simulation of FMU and NeuralFMU
 
 # ╔═╡ 57c039f7-5b24-4d63-b864-d5f808110b91
-tStop = tSave[end]
+tStop = tSave[end]   # stop time for simulation of FMU and NeuralFMU
 
 # ╔═╡ 4510022b-ad28-4fc2-836b-e4baf3c14d26
 md"""
-Finally, also the start state can be grabbed from *FMIZoo.jl*, as well as some default parameters for the simulation model we load in the next section.
+Finally, also the start state can be grabbed from *FMIZoo.jl*, as well as some default parameters for the simulation model we load in the next section. How to interpretate the six states is discussed in the next section where the model is loaded.
 """
 
 # ╔═╡ 9589416a-f9b3-4b17-a381-a4f660a5ee4c
 x0 = FMIZoo.getState(data_train, tStart)
+
+# ╔═╡ 326ae469-43ab-4bd7-8dc4-64575f4a4d3e
+md"""
+The parameter array only contains the path to the training data file, the trajectory writing "train".
+"""
 
 # ╔═╡ 8f8f91cc-9a92-4182-8f18-098ae3e2c553
 parameters = FMIZoo.getParameter(data_train, tStart; friction=false)
@@ -299,7 +319,7 @@ parameters = FMIZoo.getParameter(data_train, tStart; friction=false)
 # ╔═╡ 8d93a1ed-28a9-4a77-9ac2-5564be3729a5
 md"""
 ## Validation Data
-To check, if the hybrid model was not only able tom *imitate*, but *understand* the training data, we need some unknown data for validation. In this case, the written word *validate*.
+To check whether the hybrid model was not only able to *imitate*, but *understands* the training data, we need some unknown data for validation. In this case, the written word "validate".
 """
 
 # ╔═╡ 4a8de267-1bf4-42c2-8dfe-5bfa21d74b7e
@@ -311,13 +331,19 @@ data_validation = FMIZoo.RobotRR(:validate)
 
 # ╔═╡ 6a8b98c9-e51a-4f1c-a3ea-cc452b9616b7
 md"""
-Let's have a look on the data!
-You can use the slider to pick a specific point in time. $br
+Let's have a look on the validation data!
+Again, you can use the slider to pick a specific point in time. 
+
 The current time is $(round(t_validate_plot; digits=1))s.
 """
 
 # ╔═╡ d42d0beb-802b-4d30-b5b8-683d76af7c10
 plotRobot(data_validation.solution, t_validate_plot)
+
+# ╔═╡ e50d7cc2-7155-42cf-9fef-93afeee6ffa4
+md"""
+👁️ It looks similar to the effect we know from training data, the first part "valida" is not significantly affected by the slip-stick-effect, but the "te" is very jerky. Again, think of the increasing lever ...
+"""
 
 # ╔═╡ 3756dd37-03e0-41e9-913e-4b4f183d8b81
 md"""
@@ -333,6 +359,9 @@ fmu = fmiLoad("RobotRR", "Dymola", "2023x"; type=:ME)
 
 # ╔═╡ c228eb10-d694-46aa-b952-01d824879287
 begin
+
+# We activate the single instance mode, so only one FMU instance gets allocated and is reused again an again.
+fmiSingleInstanceMode!(fmu, true)
 
 using FMI.FMIImport: fmi2StringToValueReference
 
@@ -357,23 +386,34 @@ HIDDEN_CODE_MESSAGE
 	
 end
 
-# ╔═╡ 49385f36-c9fc-4d0a-8725-d80c767bdae1
-md"""
-We activate the *single instance mode*, so only one FMU instance gets allocated and is reused again an again.
-"""
-
-# ╔═╡ f168b997-355d-4d01-9f18-caf3d77194a5
-fmiSingleInstanceMode!(fmu, true)
-
 # ╔═╡ 16ffc610-3c21-40f7-afca-e9da806ea626
 md"""
-Let's check out some meta data of the FMU.
+Let's check out some meta data of the FMU with `fmiInfo`:
 """
 
 # ╔═╡ 052f2f19-767b-4ede-b268-fce0aee133ad
 fmiInfo(fmu)
 
 # ╔═╡ 746fbf6f-ed7c-43b8-8a6f-0377cd3cf85e
+md"""
+👁️ We can read the model name, tool information for the exporting tool, number of event indicators, states, inputs, outputs and whether the optionally implemented FMI features (like *directional derivatives*) are supported by this FMU.
+"""
+
+# ╔═╡ 08e1ff54-d115-4da9-8ea7-5e89289723b3
+md"""
+All six states are listed with all their alias identifiers, that might look a bit awkward the first time. The six states - human readable - are:
+
+| variable reference | description |
+| -------- | ------ |
+| 33554432 | motor #2 current |
+| 33554433 | motor #1 current |
+| 33554434 | joint #2 angle |
+| 33554435 | joint #2 angular velocity |
+| 33554436 | joint #1 angle |
+| 33554437 | joint #1 angular velocity |
+"""
+
+# ╔═╡ 70c6b605-54fa-40a3-8bce-a88daf6a2022
 md"""
 To simulate - or *solve* - the ME-FMU, we need an ODE solver. We use the *Tsit5* here.
 """
@@ -395,13 +435,14 @@ recordValues = [DER_ddA2, DER_ddA1, 	# mechanical accelerations
 
 # ╔═╡ 325c3032-4c78-4408-b86e-d9aa4cfc3187
 md"""
-Let's simulate the FMU using `fmiSimulate`. In the solution object, different information can be found, like the number of `f(x)`, jacobian or gradinet evaluations: 
+Let's simulate the FMU using `fmiSimulate`. In the solution object, different information can be found, like the number of ODE, jacobian or gradient evaluations: 
 """
 
 # ╔═╡ 25e55d1c-388f-469d-99e6-2683c0508693
-sol_fmu_train = fmiSimulate(fmu, (tStart, tStop);      # sim. from tStart to tStop
+sol_fmu_train = fmiSimulate(fmu, 					   # our FMU
+							(tStart, tStop);           # sim. from tStart to tStop
 							solver=solver, 			   # use the Tsit5 solver
-							parameters=parameters, 
+							parameters=parameters,     # the word "train"
 							saveat=tSave, 			   # saving points for the sol.
 							recordValues=recordValues) # values to record
 
@@ -415,7 +456,7 @@ Today is opposite day! Instead of deriving a topology step by step, the final Ne
 
 ![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/src/HybridModelingUsingFMI/src/plan_complete.png?raw=true)
 
-As promised, three little experiments will be performed. The first one is on choosing a good interface between FMU and ANN. The second is on online data pre- and post-processing. And the third one on gates, that allow to fade the influence of ANN and FMU on the resulting hybrid model. After you completed all three, you are equipped with the knowledge to cope the final challenge: Build your own NeuralFMU and train it!
+The first experiment is on choosing a good interface between FMU and ANN. The second is on online data pre- and post-processing. And the third one on gates, that allow to control the influence of ANN and FMU on the resulting hybrid model dynamics. After you completed all three, you are equipped with the knowledge to cope the final challenge: Build your own NeuralFMU and train it!
 """
 
 # ╔═╡ 786c4652-583d-43e9-a101-e28c0b6f64e4
@@ -423,23 +464,23 @@ md"""
 ## Choosing interface signals
 **between the physical and machine learning domain**
 
-When connecting an FMU with an ANN, technically different signals could be used: States, state derivatives, inputs, outputs, parameters, time itself or other observable variables. Depending on the use case, some signals are more clever to choose than others. In general, every additional signal costs a little bit of computational performance, as you will see. So picking the right subset is key!
+When connecting an FMU with an ANN, technically different signals could be used: States, state derivatives, inputs, outputs, parameters, time itself or other observable variables. Depending on the use case, some signals are more clever to choose than others. In general, every additional signal costs a little bit of computational performance, as you will see. So picking the right subset is the key!
 
 ![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/src/HybridModelingUsingFMI/src/plan_e1.png?raw=true)
 
-Choose additional FMU variables to put in together with the state derivatives.
+Choose additional FMU variables to put in together with the state derivatives:
 """
 
 # ╔═╡ b42bf3d8-e70c-485c-89b3-158eb25d8b25
-@bind choose_y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
+@bind CHOOSE_y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
 
 # ╔═╡ 5d688c3d-b5e3-4a3a-9d91-0896cc001000
 md"""
-We start building our deep model as a `Chain` of layers. For now, there is only a single layer in it: The FMU `fmu` itself. The layer input `x` is interpreted as system state and set in the fmu call vai `x=x`. Further, we want all state derivatives as layer outputs `dx_refs=:all` and some additional outputs specified via `y_refs=y_refs`. Which signals are use for `y_refs`, can be selected above.
+We start building our deep model as a `Chain` of layers. For now, there is only a single layer in it: The FMU `fmu` itself. The layer input `x` is interpreted as system state and set in the fmu call via `x=x`. Further, we want all state derivatives as layer outputs `dx_refs=:all` and some additional outputs specified via `y_refs=CHOOSE_y_refs`. Which signals are used for `y_refs`, can be selected above.
 """
 
 # ╔═╡ 2e08df84-a468-4e99-a277-e2813dfeae5c
-model = Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=choose_y_refs))
+model = Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=CHOOSE_y_refs))
 
 # ╔═╡ 33791947-342b-4bf4-9d0a-c3979c0ad88a
 begin 
@@ -467,7 +508,7 @@ model(x0)
 
 # ╔═╡ 6a1a5092-6832-4ac7-9850-346e3fa28252
 md"""
-Finally, keep in mind that the amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. The current timing and allocations for inference is:
+Finally, keep in mind that the amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. The current timing and allocations for inference are:
 """
 
 # ╔═╡ a1aca180-d561-42a3-8d12-88f5a3721aae
@@ -489,7 +530,7 @@ Further, forward-mode Automatic Differentiation is available too via `ForwardDif
 
 # ╔═╡ eaf37128-0377-42b6-aa81-58f0a815276b
 md"""
-So keep in mind that the choice of interface might have a significant impact on your inference and training performance!
+So keep in mind that the choice of interface might have a significant impact on your inference and training performance! However, some signals are simply required, because the effect we want to train for depends on them.
 """
 
 # ╔═╡ c030d85e-af69-49c9-a7c8-e490d4831324
@@ -497,11 +538,11 @@ md"""
 ## Online Data Pre- and Postprocessing
 **is required for hybrid models**
 
-Now that we have defined the signals that come *from* the FMU and go *into* the ANN, we need to think about data pre- and post-processing. In ML, this is often done before the actual training starts. In hybrid modeling, we need to do this *online*. This gets more clear if we have a look on the used activation functions, like e.g. the *tanh*.
+Now that we have defined the signals that come *from* the FMU and go *into* the ANN, we need to think about data pre- and post-processing. In ML, this is often done before the actual training starts. In hybrid modeling, we need to do this *online*, because the FMU constantly generates signals that might not be suitable for ANNs. On the other hand, the signals generated by ANNs might not suit the expected FMU input. This gets more clear if we have a look on the used activation functions, like e.g. the *tanh*.
 
 ![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/src/HybridModelingUsingFMI/src/plan_e2.png?raw=true)
 
-Let's see what's happening as soon as we put the derivative *angular velocity of joint 1* (dα1) from the FMU into a `tanh` function:
+We simplify the ANN to its nonlinear activation function. Let's see what's happening as soon as we put the derivative *angular velocity of joint 1* (dα1) from the FMU into a `tanh` function:
 """
 
 # ╔═╡ 51c200c9-0de3-4e50-8884-49fe06158560
@@ -519,9 +560,9 @@ end
 
 # ╔═╡ 0dadd112-3132-4491-9f02-f43cf00aa1f9
 md"""
-In general, it looks like the velocity isn't saturated too much. This is a good thing and not always the case! However, the very beginning of the trajectory is saturated too much (the peak value of $\approx -3$ is saturated to $\approx -1$). This is bad, because the hybrid model will move *slower* at this point in time and won't reach the same angle as the FMU.
+In general, it looks like the velocity isn't saturated too much by `tanh`. This is a good thing and not always the case! However, the very beginning of the trajectory is saturated too much (the peak value of $\approx -3$ is saturated to $\approx -1$). This is bad, because the hybrid model will move *slower* at this point in time and won't reach the same angle as the original FMU.
 
-We can add shift and scale operations before and after the ANN to bypass this issue. See how you can influence the output *after* the `tanh` (and the ANN repectively) to match the ranges. 
+We can add shift and scale operations before and after the ANN to bypass this issue. See how you can influence the output *after* the `tanh` (and the ANN repectively) to match the ranges. The goal is o choose pre- and post-processing parameters so that the signal ranges needed by the FMU are preserved by the hybrid model.
 """
 
 # ╔═╡ bf6bf640-54bc-44ef-bd4d-b98e934d416e
@@ -560,15 +601,13 @@ end
 
 # ╔═╡ 0b0c4650-2ce1-4879-9acd-81c16d06700e
 md"""
-The left plot shows the negative spike at the very beginning in more detail. In *FMIFlux.jl*, there are ready to use layers for scaling and shifting, that can automatically select appropraite parameters. These parameters are trained together with the ANN parameters by default.
+The left plot shows the negative spike at the very beginning in more detail. In *FMIFlux.jl*, there are ready to use layers for scaling and shifting, that can automatically select appropriate parameters. These parameters are trained together with the ANN parameters by default, so they can adapt to new signal ranges that might occur during training.
 """
 
 # ╔═╡ 0fb90681-5d04-471a-a7a8-4d0f3ded7bcf
 md"""
 ## Introducing Gates
-to control how physical and machine learning model interact
-
-[Todo text]
+**to control how physical and machine learning model interact**
 
 ![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/src/HybridModelingUsingFMI/src/plan_e3.png?raw=true)
 """
@@ -576,10 +615,10 @@ to control how physical and machine learning model interact
 # ╔═╡ 95e14ea5-d82d-4044-8c68-090d74d95a61
 md"""
 There are basically two ways of connecting two blocks (the ANN and the FMU):
-- In **series**, so one block is getting signals from the other block and is able to *manipulate* or *correct* this signals. This way, modeling errors can be corrected.
-- In **parallel**, so both are getting the same signals and calculate own outputs, these outputs must be merged afterwards. This way, additional system parts, like e.g. forces or momentum, can be learned and added.
+- In **series**, so one block is getting signals from the other block and is able to *manipulate* or *correct* these signals. This way, e.g. modeling or parameterization errors can be corrected.
+- In **parallel**, so both are getting the same signals and calculate own outputs, these outputs must be merged afterwards. This way, additional system parts, like e.g. forces or momentum, can be learned and added to or augment the existing dynamics.
 
-The good news is, you don't have to decide this beforehand. This is something that the optimizer can dacide, if we interoduce parameters, that allow for both topologies. This structure is named *gates*.
+The good news is, you don't have to decide this beforehand. This is something that the optimizer can decide, if we introduce a topology with parameters, that allow for both modes. This structure is referred to as *gates*.
 """
 
 # ╔═╡ cbae6aa4-1338-428c-86aa-61d3304e33ed
@@ -601,12 +640,6 @@ Change the opening of the **ANN gate** $(GATE_INIT_ANN) for dα1:
 # ╔═╡ 845a95c4-9a35-44ae-854c-57432200da1a
 md"""
 The FMU gate value for dα1 is $(GATE_INIT_FMU) and the ANN gate value is $(GATE_INIT_ANN). This means the hybrid model dα1 is composed of $(GATE_INIT_FMU*100)% of dα1 from the FMU and of $(GATE_INIT_ANN*100)% of dα1 from the ANN.
-"""
-
-# ╔═╡ fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
-md"""
-This equals the serial topology: $((GATE_INIT_FMU==0 && GATE_INIT_ANN==1)) $br
-This equals the parallel topology: $((GATE_INIT_FMU==1 && GATE_INIT_ANN==1))
 """
 
 # ╔═╡ 5a399a9b-32d9-4f93-a41f-8f16a4b102dc
@@ -646,6 +679,17 @@ begin
 	build_model_gates()
 end
 
+# ╔═╡ fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
+md"""
+Some observations from the current gate openings are:
+
+This equals the serial topology: $((GATE_INIT_FMU==0 && GATE_INIT_ANN==1)) $br
+This equals the parallel topology: $((GATE_INIT_FMU==1 && GATE_INIT_ANN==1)) $br
+The NeuralFMU dynamics equal the FMU dynamics: $((GATE_INIT_FMU==1 && GATE_INIT_ANN==0))
+
+Time to take care of the big picture next.
+"""
+
 # ╔═╡ 2a5157c5-f5a2-4330-b2a3-0c1ec0b7adff
 md"""
 # Building the NeuralFMU
@@ -657,21 +701,24 @@ md"""
 # ╔═╡ 4454c8d2-68ed-44b4-adfa-432297cdc957
 md"""
 ## FMU inputs
-In general, you can use arbitrary values as input for the FMU layer, like system inputs, states or parameters. In this example, we want to use only system states as inputs for the FMU layer.
-
-**FMU layer inputs**
-[Todo state names]
+In general, you can use arbitrary values as input for the FMU layer, like system inputs, states or parameters. In this example, we want to use only system states as inputs for the FMU layer - to keep it easy, named:
+- currents of both motors
+- angles of both joints
+- angular velocities of both joints
 
 To preserve the ODE topology (a mapping from state to state derivative), we use all system state derivatives as layer outputs. However, you can choose further outputs if you want to... and you definitely should.
 
 ## ANN inputs
-[Todo derivative 3, 5 names]
+As input to the ANN, we choose at least the angular accelerations of both joints - this is fixed:
+
+- angular acceleration Joint 1
+- angular acceleration Joint 2
 
 Pick additional ANN layer inputs:
 """
 
 # ╔═╡ d240c95c-5aba-4b47-ab8d-2f9c0eb854cd
-@bind y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
+@bind y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
 
 # ╔═╡ 06937575-9ab1-41cd-960c-7eef3e8cae7f
 md"""
@@ -778,19 +825,19 @@ neuralFMU = ME_NeuralFMU(fmu,             # the FMU used in the NeuralFMU
 md"""
 # Training
 
-After setting everything up, we can give it a try and train our created NeuralFMU. Deepending on the chosen optimization hyper parameters, this will be more or les successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself - I did this time-wasting mistake for too long.
+After setting everything up, we can give it a try and train our created NeuralFMU. Deepending on the chosen optimization hyper parameters, this will be more or less successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself.
 """
 
 # ╔═╡ d60d2561-51a4-4f8a-9819-898d70596e0c
 md"""
 ## Hyperparameters
-Besides the already introduces hyperparameters - the depth, width and initial gate opening off the hybrid model - further parameters might have significant impact on the training success.
+Besides the already introduced hyperparameters - the depth, width and initial gate opening off the hybrid model - further parameters might have significant impact on the training success.
 
 ### Optimizer
 For this example, we use the well-known `Adam`-Optimizer with a step size `eta` of $(@bind ETA Select([1e-4 => "1e-4", 1e-3 => "1e-3", 1e-2 => "1e-2"])). 
 
 ### Batching 
-Because data has a significant length, gradient computation over the entire simulation trajectory might not be effective. The most common approach is to *cut* data into slices and train on these instead of the entire trajctory at once. In this example, data is cut in pieces with length of $(@bind BATCHDUR Select([0.05, 0.1, 0.15, 0.2])) seconds.
+Because data has a significant length, gradient computation over the entire simulation trajectory might not be effective. The most common approach is to *cut* data into slices and train on these subsets instead of the entire trajctory at once. In this example, data is cut in pieces with length of $(@bind BATCHDUR Select([0.05, 0.1, 0.15, 0.2])) seconds.
 """
 
 # ╔═╡ c97f2dea-cb18-409d-9ae8-1d03647a6bb3
@@ -832,20 +879,20 @@ end
 
 # ╔═╡ 69657be6-6315-4655-81e2-8edef7f21e49
 md"""
-For example, the loss function value of the plain FMU is $(round(_loss(sol_fmu_train, data_train); digits=6)).
+For example, the loss function value of the plain FMU is $(round(loss(sol_fmu_train, data_train); digits=6)).
 """
 
 # ╔═╡ 23ad65c8-5723-4858-9abe-750c3b65c28a
 md"""
 ## Summary
-To summarize, your ANN has a **depth of $(NUM_LAYERS) layers** with a **width of $(LAYERS_WIDTH)** each. The **ANN gates are initialized with $(GATES_INIT*100)%**, so all FMU gates are initialized with $(100-GATES_INIT*100)%. You decided to batch your data with a **batch element length of $(BATCHDUR)**. Besides the state derivatives, you **put $(length(y_refs)) additional variables** in the ANN. Adam optimizer will try to find a good minimum with **`eta` is $(ETA)**.
+To summarize, your ANN has a **depth of $(NUM_LAYERS) layers** with a **width of $(LAYERS_WIDTH)** each. The **ANN gates are initialized with $(GATES_INIT*100)%**, so all FMU gates are initialized with $(100-GATES_INIT*100)%. You decided to batch your data with a **batch element length of $(BATCHDUR)** seconds. Besides the state derivatives, you **put $(length(y_refs)) additional variables** in the ANN. Adam optimizer will try to find a good minimum with **`eta` is $(ETA)**.
 
-Batching takes a few seconds and training a few minutes (depending on the number of training steps), this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Enable Live Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 10000])) training steps.
+Batching takes a few seconds and training a few minutes (depending on the number of training steps), so this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Enable Live Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 10000])) training steps.
 """
 
 # ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 md"""
-⚠️ The roughly estimated training time is $(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than excpected. Once you click on `Enable Live Training`, training can't be terminated easily.
+⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you clicked on `Enable Live Training`, training can't be terminated easily.
 
 ⚠️ **Enable Live Training** $(@bind LIVE_TRAIN CheckBox()) 
 """
@@ -1144,19 +1191,20 @@ end
 # ╔═╡ 88884204-79e4-4412-b861-ebeb5f6f7396
 md""" 
 # Conclusion
-[TODO]
+Hopefully you got a good first insight in the topic hybrid modeling using FMI and collected your first sense of achievement. Did you find a nice optimum? In case you don't, some rough hyper parameters are given below.
 
 ## Hint
 If your results are not *that* promising, here is a set of hyperparameters to check. It is *not* a optimal set of parameters, but a *good* set, so feel free to explore the *best*!
 
 | Parameter | Value |
-----------
+| ----- | ----- |
 | eta | 1e-3 |
 | layer count | 3 |
-| layer width | 16 |
+| layer width | 32 |
 | initial gate opening | 0.2 |
 | batch element length | 0.05s |
 | training steps | 10 000 |
+| additional variables | Joint 1 Angle $br Joint 2 Angle $br TCP velocity x $br TCP velocity y $br TCP nominal force |
 
 ## Citation
 If you find this workshop useful for your own work and/or research, please cite our related publication:
@@ -3921,20 +3969,22 @@ version = "1.4.1+1"
 # ╟─7d694be0-cd3f-46ae-96a3-49d07d7cf65a
 # ╟─6fc16c34-c0c8-48ce-87b3-011a9a0f4e7c
 # ╟─8a82d8c7-b781-4600-8780-0a0a003b676c
+# ╟─a02f77d1-00d2-46a3-91ba-8a7f5b4bbdc9
 # ╠═a1ee798d-c57b-4cc3-9e19-fb607f3e1e43
+# ╟─02f0add7-9c4e-4358-8b5e-6863bae3ee75
 # ╠═72604eef-5951-4934-844d-d2eb7eb0292c
 # ╠═21104cd1-9fe8-45db-9c21-b733258ff155
+# ╠═9d9e5139-d27e-48c8-a62e-33b2ae5b0086
+# ╟─85308992-04c4-4d20-a840-6220cab54680
 # ╠═eaae989a-c9d2-48ca-9ef8-fd0dbff7bcca
 # ╠═98c608d9-c60e-4eb6-b611-69d2ae7054c9
-# ╠═9d9e5139-d27e-48c8-a62e-33b2ae5b0086
 # ╟─5cb505f7-01bd-4824-8876-3e0f5a922fb7
 # ╠═45c4b9dd-0b04-43ae-a715-cd120c571424
 # ╟─1e9541b8-5394-418d-8c27-2831951c538d
 # ╠═bc077fdd-069b-41b0-b685-f9513d283346
-# ╟─7b82e333-e133-4b7b-8951-5a8b6a0155db
-# ╠═1bb3d6ae-af9c-4b5d-b2e7-19cee7750347
 # ╟─44500f0a-1b89-44af-b135-39ce0fec5810
 # ╟─33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
+# ╟─c88b0627-2e04-40ab-baa2-b4c1edfda0c3
 # ╟─915e4601-12cc-4b7e-b2fe-574e116f3a92
 # ╟─f8e40baa-c1c5-424a-9780-718a42fd2b67
 # ╠═74289e0b-1292-41eb-b13b-a4a5763c72b0
@@ -3947,20 +3997,22 @@ version = "1.4.1+1"
 # ╠═57c039f7-5b24-4d63-b864-d5f808110b91
 # ╟─4510022b-ad28-4fc2-836b-e4baf3c14d26
 # ╠═9589416a-f9b3-4b17-a381-a4f660a5ee4c
+# ╟─326ae469-43ab-4bd7-8dc4-64575f4a4d3e
 # ╠═8f8f91cc-9a92-4182-8f18-098ae3e2c553
 # ╟─8d93a1ed-28a9-4a77-9ac2-5564be3729a5
 # ╠═4a8de267-1bf4-42c2-8dfe-5bfa21d74b7e
 # ╟─6a8b98c9-e51a-4f1c-a3ea-cc452b9616b7
 # ╟─dbde2da3-e3dc-4b78-8f69-554018533d35
 # ╠═d42d0beb-802b-4d30-b5b8-683d76af7c10
+# ╟─e50d7cc2-7155-42cf-9fef-93afeee6ffa4
 # ╟─3756dd37-03e0-41e9-913e-4b4f183d8b81
 # ╠═2f83bc62-5a54-472a-87a2-4ddcefd902b6
-# ╟─49385f36-c9fc-4d0a-8725-d80c767bdae1
-# ╠═f168b997-355d-4d01-9f18-caf3d77194a5
 # ╟─c228eb10-d694-46aa-b952-01d824879287
 # ╟─16ffc610-3c21-40f7-afca-e9da806ea626
 # ╠═052f2f19-767b-4ede-b268-fce0aee133ad
 # ╟─746fbf6f-ed7c-43b8-8a6f-0377cd3cf85e
+# ╟─08e1ff54-d115-4da9-8ea7-5e89289723b3
+# ╟─70c6b605-54fa-40a3-8bce-a88daf6a2022
 # ╠═634f923a-5e09-42c8-bac0-bf165ab3d12a
 # ╟─f59b5c84-2eae-4e3f-aaec-116c090d454d
 # ╠═0c9493c4-322e-41a0-9ec7-2e2c54ae1373
@@ -3996,8 +4048,8 @@ version = "1.4.1+1"
 # ╟─9b52a65a-f20c-4387-aaca-5292a92fb639
 # ╟─8c56acd6-94d3-4cbc-bc29-d249740268a0
 # ╟─845a95c4-9a35-44ae-854c-57432200da1a
-# ╟─fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
 # ╟─5a399a9b-32d9-4f93-a41f-8f16a4b102dc
+# ╟─fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
 # ╟─2a5157c5-f5a2-4330-b2a3-0c1ec0b7adff
 # ╟─4454c8d2-68ed-44b4-adfa-432297cdc957
 # ╟─d240c95c-5aba-4b47-ab8d-2f9c0eb854cd
@@ -4021,9 +4073,9 @@ version = "1.4.1+1"
 # ╟─69657be6-6315-4655-81e2-8edef7f21e49
 # ╟─23ad65c8-5723-4858-9abe-750c3b65c28a
 # ╟─e8bae97d-9f90-47d2-9263-dc8fc065c3d0
-# ╠═2dce68a7-27ec-4ffc-afba-87af4f1cb630
+# ╟─2dce68a7-27ec-4ffc-afba-87af4f1cb630
 # ╟─c3f5704b-8e98-4c46-be7a-18ab4f139458
-# ╠═ff106912-d18c-487f-bcdd-7b7af2112cab
+# ╟─ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─27458e32-5891-4afc-af8e-7afdf7e81cc6
 # ╟─5dd491a4-a8cd-4baf-96f7-7a0b850bb26c
 # ╟─1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
@@ -4038,6 +4090,6 @@ version = "1.4.1+1"
 # ╟─74ef5a39-1dd7-404a-8baf-caa1021d3054
 # ╟─05281c4f-dba8-4070-bce3-dc2f1319902e
 # ╟─67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
-# ╠═88884204-79e4-4412-b861-ebeb5f6f7396
+# ╟─88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
