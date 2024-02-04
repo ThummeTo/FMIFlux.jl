@@ -754,16 +754,14 @@ Even if this looks a little confusing at first glance, our final NeuralFMU topol
 # ╔═╡ 84215a73-1ab0-416d-a9db-6b29cd4f5d2a
 begin 
 
-function build_topology()
+function build_topology(gates_init, add_y_refs)
 
-	ANN_input_Vars = [recordValues[1:2]..., y_refs...]
+	ANN_input_Vars = [recordValues[1:2]..., add_y_refs...]
 	ANN_input_Vals = fmiGetSolutionValue(sol_fmu_train, ANN_input_Vars)
 	ANN_input_Idcs = [4, 6]
-	for i in 1:length(y_refs)
+	for i in 1:length(add_y_refs)
 		push!(ANN_input_Idcs, i+6)
 	end
-
-	GATE_INIT = 1.0
 
 	# pre- and post-processing
     preProcess = ShiftScale(ANN_input_Vals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deivation of 1
@@ -774,16 +772,16 @@ function build_topology()
     cache = CacheLayer()                        # allocate a cache layer
     cacheRetrieve = CacheRetrieveLayer(cache)   # allocate a cache retrieve layer, link it to the cache layer
 
-	gates = ScaleSum([1.0-GATE_INIT, 1.0-GATE_INIT, GATE_INIT, GATE_INIT], [[1,3], [2,4]]) # gates with sum
+	gates = ScaleSum([1.0-gates_init, 1.0-gates_init, gates_init, gates_init], [[1,3], [2,4]]) # gates with sum
 	
 	ANN_layers = []
-	push!(ANN_layers, Dense(2+length(y_refs), LAYERS_WIDTH, tanh)) # first layer 
+	push!(ANN_layers, Dense(2+length(add_y_refs), LAYERS_WIDTH, tanh)) # first layer 
 	for i in 3:NUM_LAYERS
 		push!(ANN_layers, Dense(LAYERS_WIDTH, LAYERS_WIDTH, tanh))
 	end
 	push!(ANN_layers, Dense(LAYERS_WIDTH, 2, tanh)) # last layer 
 
-	model = Flux.f64(Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=y_refs), 
+	model = Flux.f64(Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=add_y_refs), 
 		dxy -> cache(dxy),                    # cache `dx`
         dxy -> dxy[ANN_input_Idcs], 
 		preProcess,
@@ -797,7 +795,7 @@ function build_topology()
 	
 end
 
-final_model = build_topology()
+final_model = build_topology(GATES_INIT, y_refs)
 
 end
 
@@ -1145,7 +1143,7 @@ end
 begin
 	if LIVE_RESULTS
 		md"""
-The loss function value of the FMU on training data is $(round(loss(fmu_validation, data_validation); digits=6)), of the NeuralFMU it is $(round(loss(result_validation, data_validation); digits=6)).
+The loss function value of the FMU on validation data is $(round(loss(fmu_validation, data_validation); digits=6)), of the NeuralFMU it is $(round(loss(result_validation, data_validation); digits=6)).
 """
 	else
 		LIVE_RESULTS_MESSAGE
