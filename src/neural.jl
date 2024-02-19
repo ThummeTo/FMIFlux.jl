@@ -1030,6 +1030,7 @@ function getComponent(nfmu::NeuralFMU)
     return hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing
 end
 
+# ToDo: Separate this: NeuralFMU creation and solving!
 """
     
     TODO: Signature, Arguments and Keyword-Arguments descriptions.
