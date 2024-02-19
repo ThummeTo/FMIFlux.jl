@@ -1287,7 +1287,10 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     prob = ODEProblem{true}(ff, nfmu.x0, nfmu.tspan, p)
 
     if isnothing(sensealg)
-        if isimplicit(solver)
+        if !isnothing(solver)
+            @assert false "currently no solver specified!"
+            
+        elseif isimplicit(solver)
             @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword.\nExample: `Rosenbrock23(autodiff=false)` instead of `Rosenbrock23()`."
 
             logWarning(nfmu.fmu, "Implicit solver detected for NeuralFMU.\nContinuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
