@@ -1288,8 +1288,9 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     if isnothing(sensealg)
         if !isnothing(solver)
-            @assert false "currently no solver specified!"
-            
+
+            logWarning(nfmu.fmu, "No solver keyword detected for NeuralFMU.\nContinuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
+            sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
         elseif isimplicit(solver)
             @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword.\nExample: `Rosenbrock23(autodiff=false)` instead of `Rosenbrock23()`."
 
