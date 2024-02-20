@@ -6,6 +6,7 @@ on:
   push:
     branches: 
       - main
+      - patch_example_action
     paths:
       - 'src/**'
       - 'examples/src/**'
@@ -58,7 +59,7 @@ jobs:
           echo "gifs should be fixed"
 
       - name: Archive examples artifacts
-        if: success() && matrix.os == 'windows-latest'
+        if: success() || failure() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3
         with:
           name: examples
