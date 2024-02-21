@@ -6,7 +6,6 @@ on:
   push:
     branches: 
       - main
-      - patch_example_action
     paths:
       - 'src/**'
       - 'examples/src/**'
@@ -58,15 +57,8 @@ jobs:
           mv -Force examples/src/tmp_${{ matrix.file-name }}.md examples/src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
 
-      - name: Archive examples artifacts (success)
+      - name: Archive examples artifacts
         if: success() && matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          name: examples
-          path: examples/src/${{ matrix.file-name }}*
-
-      - name: Archive examples artifacts (failure)
-        if: failure()
         uses: actions/upload-artifact@v3
         with:
           name: examples
