@@ -8,6 +8,7 @@ import FMIFlux: roundToLength
 import FMIZoo: movavg
 
 import FMI: FMU2Solution
+import FMI.DifferentialEquations: Tsit5
 import FMIZoo: VLDM, VLDM_Data
 
 function fmiSingleInstanceMode(fmu::FMU2, mode::Bool)
