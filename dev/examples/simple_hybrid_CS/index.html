@@ -132,7 +132,9 @@ fmiInfo(referenceFMU)</code></pre><pre><code class="nohighlight hljs">##########
 ##################### End information for FMU #####################</code></pre><p>In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with <span>$1.3𝑚$</span>. The second parameter is the initial velocity of the mass, which is initilized with <span>$0\frac{m}{s}$</span>. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the <em>referenceFMU</em> is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the <em>referenceFMU</em> can be plotted. This plot also serves as a reference for the later CS-NeuralFMU model.</p><pre><code class="language-julia hljs">param = Dict(&quot;mass_s0&quot; =&gt; 1.3, &quot;mass.v&quot; =&gt; 0.0)   # increase amplitude, invert phase
 vrs = [&quot;mass.s&quot;, &quot;mass.v&quot;, &quot;mass.a&quot;]
 referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
-fmiPlot(referenceSimData)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg" alt="svg"/></p><p>The data from the simulation of the <em>referenceFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. </p><pre><code class="language-julia hljs">posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
+fmiPlot(referenceSimData)</code></pre><pre><code class="nohighlight hljs">[34mSimulating CS-FMU ...   0%|█                             |  ETA: N/A[39m
+
+[34mSimulating CS-FMU ... 100%|██████████████████████████████| Time: 0:00:02[39m</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_11_2.svg" alt="svg"/></p><p>The data from the simulation of the <em>referenceFMU</em>, are divided into position, velocity and acceleration data. The data for the acceleration will be needed later. </p><pre><code class="language-julia hljs">posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
 velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
 accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])</code></pre><pre><code class="nohighlight hljs">501-element Vector{Float64}:
  -1.9999999999999996
@@ -248,15 +250,31 @@ Plots.plot(tSave, accNeuralFMU, label=&quot;acc CS-NeuralFMU&quot;, linewidth=2)
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 250), optim; cb=()-&gt;callb(paramsNet))</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 2.37052
+FMIFlux.train!(lossSum, csNeuralFMU, Iterators.repeated((), 250), optim; cb=()-&gt;callb(paramsNet))</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 2.37052
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [26]: 0.30045
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [51]: 0.04673
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [76]: 0.03035
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0182
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [126]: 0.01046
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [151]: 0.00573
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [176]: 0.00305
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00164
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [226]: 0.00092</code></pre><h4 id="Comparison-of-the-plots"><a class="docs-heading-anchor" href="#Comparison-of-the-plots">Comparison of the plots</a><a id="Comparison-of-the-plots-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-of-the-plots" title="Permalink"></a></h4><p>Here three plots are compared with each other and only the acceleration of the mass is considered. The first plot presents the <em>defaultFMU</em>, the second the <em>referenceFMU</em> and the third plot the result after training the CS-NeuralFMU. </p><pre><code class="language-julia hljs"># plot results mass.a
 solutionAfter = csNeuralFMU(extForce, tStep, (tStart, tStop)) # saveat=tSave, p=paramsNet[1]
 
@@ -270,4 +288,4 @@ accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 2; isIndex=true)
 Plots.plot!(fig, tSave, accDefault, label=&quot;defaultFMU&quot;, linewidth=2)
 Plots.plot!(fig, tSave, accReference, label=&quot;referenceFMU&quot;, linewidth=2)
 Plots.plot!(fig, tSave, accNeuralFMU, label=&quot;CS-NeuralFMU (1000 eps.)&quot;, linewidth=2)
-fig </code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(defaultFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 1000 training steps, the curves overlap very much, so no further training with more runs is needed.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Saturday 3 February 2024 21:33">Saturday 3 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig </code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_36_0.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(defaultFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be clearly seen that the CS-NeuralFMU model is able to learn the shift of the initial position. Even after only 1000 training steps, the curves overlap very much, so no further training with more runs is needed.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Wednesday 21 February 2024 16:26">Wednesday 21 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

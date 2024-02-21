@@ -160,7 +160,9 @@ vrs = [&quot;mass.s&quot;, &quot;mass.v&quot;, &quot;mass.a&quot;, &quot;mass.f&
 realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordValues=vrs, saveat=tSave)
 posReal = fmi2GetSolutionValue(realSimData, &quot;mass.s&quot;)
 velReal = fmi2GetSolutionValue(realSimData, &quot;mass.v&quot;)
-fmiPlot(realSimData)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_12_0.svg" alt="svg"/></p><h4 id="Define-functions"><a class="docs-heading-anchor" href="#Define-functions">Define functions</a><a id="Define-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Define-functions" title="Permalink"></a></h4><p>The structure of the previous code section is used more often in the further sections, so for clarity the previously explained code section for setting the paramters and simulating are combined into one function <code>simulate()</code>.</p><pre><code class="language-julia hljs">function simulate(FMU, initStates, x₀, variables, tStart, tStop, tSave)
+fmiPlot(realSimData)</code></pre><pre><code class="nohighlight hljs">[34mSimulating CS-FMU ...   0%|█                             |  ETA: N/A[39m
+
+[34mSimulating CS-FMU ... 100%|██████████████████████████████| Time: 0:00:02[39m</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_12_2.svg" alt="svg"/></p><h4 id="Define-functions"><a class="docs-heading-anchor" href="#Define-functions">Define functions</a><a id="Define-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Define-functions" title="Permalink"></a></h4><p>The structure of the previous code section is used more often in the further sections, so for clarity the previously explained code section for setting the paramters and simulating are combined into one function <code>simulate()</code>.</p><pre><code class="language-julia hljs">function simulate(FMU, initStates, x₀, variables, tStart, tStop, tSave)
     params = Dict(zip(initStates, x₀))
     return fmiSimulate(FMU, (tStart, tStop); parameters=params, recordValues=variables, saveat=tSave)
 end</code></pre><pre><code class="nohighlight hljs">simulate (generic function with 1 method)</code></pre><p>Also, a function to extract the position and velocity from the simulation data is created.</p><pre><code class="language-julia hljs">function extractPosVel(simData)
@@ -373,7 +375,11 @@ net = Chain(Dense(numStates, numStates,  identity),
   Dense(8 =&gt; 8, tanh),                  [90m# 72 parameters[39m
   Dense(8 =&gt; 2),                        [90m# 18 parameters[39m
 ) [90m                  # Total: 8 arrays, [39m120 parameters, 992 bytes.</code></pre><h4 id="Definition-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Definition-of-the-NeuralFMU">Definition of the NeuralFMU</a><a id="Definition-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-NeuralFMU" title="Permalink"></a></h4><p>The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (<em>simpleFMU</em>), the structure of the network <code>net</code>, start <code>tStart</code> and end time <code>tStop</code>, the numerical solver <code>Tsit5()</code> and the time steps <code>tSave</code> for saving are specified.</p><pre><code class="language-julia hljs">neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);</code></pre><h4 id="Plot-before-training"><a class="docs-heading-anchor" href="#Plot-before-training">Plot before training</a><a id="Plot-before-training-1"></a><a class="docs-heading-anchor-permalink" href="#Plot-before-training" title="Permalink"></a></h4><p>Here the state trajectory of the <em>simpleFMU</em> is recorded. Doesn&#39;t really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.</p><pre><code class="language-julia hljs">solutionBefore = neuralFMU(x₀)
-fmiPlot(solutionBefore)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_47_0.svg" alt="svg"/></p><h4 id="Training-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-NeuralFMU">Training of the NeuralFMU</a><a id="Training-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-NeuralFMU" title="Permalink"></a></h4><p>For the training of the NeuralFMU the parameters are extracted. All parameters of the first layer are set to the absolute value.</p><pre><code class="language-julia hljs"># train
+fmiPlot(solutionBefore)</code></pre><pre><code class="nohighlight hljs">[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mNo solver keyword detected for NeuralFMU.
+[33m[1m│ [22m[39mContinuous adjoint method is applied, which requires solving backward in time.
+[33m[1m│ [22m[39mThis might be not supported by every FMU.
+[33m[1m│ [22m[39m(This message is only printed once.)
+[33m[1m└ [22m[39m[90m@ FMICore C:\Users\runneradmin\.julia\packages\FMICore\adAsR\src\printing.jl:38[39m</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_47_1.svg" alt="svg"/></p><h4 id="Training-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-NeuralFMU">Training of the NeuralFMU</a><a id="Training-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-NeuralFMU" title="Permalink"></a></h4><p>For the training of the NeuralFMU the parameters are extracted. All parameters of the first layer are set to the absolute value.</p><pre><code class="language-julia hljs"># train
 paramsNet = FMIFlux.params(neuralFMU)
 
 for i in 1:length(paramsNet[1])
@@ -381,9 +387,9 @@ for i in 1:length(paramsNet[1])
         paramsNet[1][i] = -paramsNet[1][i]
     end
 end</code></pre><p>The well-known Adam optimizer for minimizing the gradient descent is used as further passing parameters. Additionally, the previously defined loss and callback function as well as a one for the number of epochs are passed. Only one epoch is trained so that the NeuralFMU is precompiled.</p><pre><code class="language-julia hljs">optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()-&gt;callb(paramsNet)) </code></pre><pre><code class="nohighlight hljs">[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1]: 0.64142
+FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1), optim; cb=()-&gt;callb(paramsNet)) </code></pre><pre><code class="nohighlight hljs">[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1]: 0.64142
 [36m[1m│ [22m[39m        Avg displacement in data: 0.80089
-[36m[1m└ [22m[39m        Weight/Scale: 0.5550727972914963   Bias/Offset: 0.0009999999900018055</code></pre><p>Some vectors for collecting data are initialized and the number of runs, epochs and iterations are set.</p><pre><code class="language-julia hljs">solutionAfter = []
+[36m[1m└ [22m[39m        Weight/Scale: 0.5550727972914904   Bias/Offset: 0.0009999999899994582</code></pre><p>Some vectors for collecting data are initialized and the number of runs, epochs and iterations are set.</p><pre><code class="language-julia hljs">solutionAfter = []
 solutionAfterMod = []
 forces = []
 displacements = []
@@ -393,7 +399,7 @@ numEpochs= 5
 numIterations = 500;</code></pre><h4 id="Training-loop"><a class="docs-heading-anchor" href="#Training-loop">Training loop</a><a id="Training-loop-1"></a><a class="docs-heading-anchor-permalink" href="#Training-loop" title="Permalink"></a></h4><p>The code section shown here represents the training loop. The loop is structured so that it has <code>numRuns</code> runs, where each run has <code>numEpochs</code> epochs, and the training is performed at each epoch with <code>numIterations</code> iterations. In lines 9 and 10, the data for the <em>neuralFMU</em> for the default and modified initial states are appended to the corresponding vectors. The plots for the opposition of position and velocity is done in line 13 by calling the function <code>plot_all_results</code>. In the following lines the last layers are extracted from the <em>neuralFMU</em> and formed into an independent network <code>netBottom</code>. The parameters for the <code>netBottom</code> network come from the original architecture and are shared. In line 20, the new network is used to represent the friction model in a graph. An analogous construction of the next part of the training loop, where here the first layer is taken from the <em>neuralFMU</em> and converted to its own network <code>netTop</code>. This network is used to record the displacement model. The different graphs are generated for each run and can thus be compared. </p><pre><code class="language-julia hljs">for run in 1:numRuns
     @time for epoch in 1:numEpochs
         @info &quot;Run: $(run)/$(numRuns)  Epoch: $(epoch)/$(numEpochs)&quot;
-        FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=()-&gt;callb(paramsNet))
+        FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), numIterations), optim; cb=()-&gt;callb(paramsNet))
     end
     flush(stderr)
     flush(stdout)
@@ -418,318 +424,518 @@ numIterations = 500;</code></pre><h4 id="Training-loop"><a class="docs-heading-a
 
     displacements = plot_displacement_model(realSimData, netTop, displacements, tSave, displacement)
 end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 1/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [51]: 0.45484
-[36m[1m│ [22m[39m        Avg displacement in data: 0.67441
-[36m[1m└ [22m[39m        Weight/Scale: 0.6028857336624326   Bias/Offset: 0.04828746179431685
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [101]: 0.39137
-[36m[1m│ [22m[39m        Avg displacement in data: 0.62559
-[36m[1m└ [22m[39m        Weight/Scale: 0.6409485347322638   Bias/Offset: 0.08735009057284757
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [151]: 0.35728
-[36m[1m│ [22m[39m        Avg displacement in data: 0.59773
-[36m[1m└ [22m[39m        Weight/Scale: 0.6705087668476569   Bias/Offset: 0.11918254003712032
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [201]: 0.33751
-[36m[1m│ [22m[39m        Avg displacement in data: 0.58095
-[36m[1m└ [22m[39m        Weight/Scale: 0.6940568319088312   Bias/Offset: 0.14523328103205085
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [251]: 0.32533
-[36m[1m│ [22m[39m        Avg displacement in data: 0.57037
-[36m[1m└ [22m[39m        Weight/Scale: 0.7129500860308634   Bias/Offset: 0.1663656199164172
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [301]: 0.31723
-[36m[1m│ [22m[39m        Avg displacement in data: 0.56323
-[36m[1m└ [22m[39m        Weight/Scale: 0.7280819021944014   Bias/Offset: 0.18316677007288804
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [351]: 0.3109
-[36m[1m│ [22m[39m        Avg displacement in data: 0.55758
-[36m[1m└ [22m[39m        Weight/Scale: 0.7400740464599734   Bias/Offset: 0.19603428885145335
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [401]: 0.30264
-[36m[1m│ [22m[39m        Avg displacement in data: 0.55013
-[36m[1m└ [22m[39m        Weight/Scale: 0.7494607797876239   Bias/Offset: 0.20518017797482924
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [451]: 0.28731
-[36m[1m│ [22m[39m        Avg displacement in data: 0.53601
-[36m[1m└ [22m[39m        Weight/Scale: 0.7570720348458783   Bias/Offset: 0.21049009274369615
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [501]: 0.23753
-[36m[1m│ [22m[39m        Avg displacement in data: 0.48737
-[36m[1m└ [22m[39m        Weight/Scale: 0.7632942091885936   Bias/Offset: 0.21040371558754664
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [51]: 0.4549
+[36m[1m│ [22m[39m        Avg displacement in data: 0.67446
+[36m[1m└ [22m[39m        Weight/Scale: 0.6028851231915796   Bias/Offset: 0.04828355559237744
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [101]: 0.39139
+[36m[1m│ [22m[39m        Avg displacement in data: 0.62561
+[36m[1m└ [22m[39m        Weight/Scale: 0.6409646484537395   Bias/Offset: 0.08735806986569811
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [151]: 0.3573
+[36m[1m│ [22m[39m        Avg displacement in data: 0.59775
+[36m[1m└ [22m[39m        Weight/Scale: 0.6705313129361227   Bias/Offset: 0.11919690090163508
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [201]: 0.33753
+[36m[1m│ [22m[39m        Avg displacement in data: 0.58097
+[36m[1m└ [22m[39m        Weight/Scale: 0.6940822733697701   Bias/Offset: 0.14525129042945722
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [251]: 0.32536
+[36m[1m│ [22m[39m        Avg displacement in data: 0.5704
+[36m[1m└ [22m[39m        Weight/Scale: 0.7129765067937959   Bias/Offset: 0.16638533597170294
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [301]: 0.31727
+[36m[1m│ [22m[39m        Avg displacement in data: 0.56327
+[36m[1m└ [22m[39m        Weight/Scale: 0.7281077846473388   Bias/Offset: 0.1831875951196361
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [351]: 0.31095
+[36m[1m│ [22m[39m        Avg displacement in data: 0.55763
+[36m[1m└ [22m[39m        Weight/Scale: 0.7401151851399491   Bias/Offset: 0.1960782926331951
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [401]: 0.30274
+[36m[1m│ [22m[39m        Avg displacement in data: 0.55022
+[36m[1m└ [22m[39m        Weight/Scale: 0.7494913134931117   Bias/Offset: 0.20521920138722397
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [451]: 0.28765
+[36m[1m│ [22m[39m        Avg displacement in data: 0.53633
+[36m[1m└ [22m[39m        Weight/Scale: 0.7570834667450372   Bias/Offset: 0.21052929458275974
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [501]: 0.23864
+[36m[1m│ [22m[39m        Avg displacement in data: 0.4885
+[36m[1m└ [22m[39m        Weight/Scale: 0.763265511863178   Bias/Offset: 0.2104525425573594
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 2/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [551]: 0.17401
-[36m[1m│ [22m[39m        Avg displacement in data: 0.41714
-[36m[1m└ [22m[39m        Weight/Scale: 0.7717226072550869   Bias/Offset: 0.21483531372655337
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [601]: 0.03173
-[36m[1m│ [22m[39m        Avg displacement in data: 0.17812
-[36m[1m└ [22m[39m        Weight/Scale: 0.7892210396430668   Bias/Offset: 0.24172722475135366
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [651]: 0.02428
-[36m[1m│ [22m[39m        Avg displacement in data: 0.15581
-[36m[1m└ [22m[39m        Weight/Scale: 0.7841274566027157   Bias/Offset: 0.23175471539355325
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [701]: 0.02002
-[36m[1m│ [22m[39m        Avg displacement in data: 0.14151
-[36m[1m└ [22m[39m        Weight/Scale: 0.7808187885111949   Bias/Offset: 0.2262116052089325
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [751]: 0.01804
-[36m[1m│ [22m[39m        Avg displacement in data: 0.13432
-[36m[1m└ [22m[39m        Weight/Scale: 0.7780946191349173   Bias/Offset: 0.22199320882733364
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [801]: 0.01692
-[36m[1m│ [22m[39m        Avg displacement in data: 0.1301
-[36m[1m└ [22m[39m        Weight/Scale: 0.7758646488985046   Bias/Offset: 0.21886404004132454
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [851]: 0.01661
-[36m[1m│ [22m[39m        Avg displacement in data: 0.12889
-[36m[1m└ [22m[39m        Weight/Scale: 0.7738031076199591   Bias/Offset: 0.21645569980722426
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [901]: 0.01582
-[36m[1m│ [22m[39m        Avg displacement in data: 0.12578
-[36m[1m└ [22m[39m        Weight/Scale: 0.7718233402225411   Bias/Offset: 0.21446341245685174
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [951]: 0.01517
-[36m[1m│ [22m[39m        Avg displacement in data: 0.12319
-[36m[1m└ [22m[39m        Weight/Scale: 0.7704339297020146   Bias/Offset: 0.21317071291946404
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1001]: 0.01482
-[36m[1m│ [22m[39m        Avg displacement in data: 0.12173
-[36m[1m└ [22m[39m        Weight/Scale: 0.7689019600333736   Bias/Offset: 0.21169496246101527
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [551]: 0.17532
+[36m[1m│ [22m[39m        Avg displacement in data: 0.41872
+[36m[1m└ [22m[39m        Weight/Scale: 0.7715631189840524   Bias/Offset: 0.21452810025321914
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [601]: 0.03243
+[36m[1m│ [22m[39m        Avg displacement in data: 0.18008
+[36m[1m└ [22m[39m        Weight/Scale: 0.7892922750259234   Bias/Offset: 0.2418465365214229
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [651]: 0.02444
+[36m[1m│ [22m[39m        Avg displacement in data: 0.15633
+[36m[1m└ [22m[39m        Weight/Scale: 0.7843537998480821   Bias/Offset: 0.23212888648470248
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [701]: 0.0202
+[36m[1m│ [22m[39m        Avg displacement in data: 0.14214
+[36m[1m└ [22m[39m        Weight/Scale: 0.7812826353302379   Bias/Offset: 0.2270946676016098
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [751]: 0.01797
+[36m[1m│ [22m[39m        Avg displacement in data: 0.13406
+[36m[1m└ [22m[39m        Weight/Scale: 0.7786916793245329   Bias/Offset: 0.22320060014706938
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [801]: 0.01701
+[36m[1m│ [22m[39m        Avg displacement in data: 0.13043
+[36m[1m└ [22m[39m        Weight/Scale: 0.7764426038754145   Bias/Offset: 0.22011561004842548
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [851]: 0.01604
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12665
+[36m[1m└ [22m[39m        Weight/Scale: 0.774628670336757   Bias/Offset: 0.21786511744422063
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [901]: 0.01576
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12554
+[36m[1m└ [22m[39m        Weight/Scale: 0.77318852938423   Bias/Offset: 0.21640112817927337
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [951]: 0.0153
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12369
+[36m[1m└ [22m[39m        Weight/Scale: 0.7714837713281952   Bias/Offset: 0.21463330423482357
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1001]: 0.01475
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12145
+[36m[1m└ [22m[39m        Weight/Scale: 0.7700020188293136   Bias/Offset: 0.21331499223231953
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 3/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1051]: 0.01423
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11927
-[36m[1m└ [22m[39m        Weight/Scale: 0.7675276737117233   Bias/Offset: 0.21053541633031225
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1101]: 0.01383
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11759
-[36m[1m└ [22m[39m        Weight/Scale: 0.7659610571794879   Bias/Offset: 0.20946744831399447
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1151]: 0.01396
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11817
-[36m[1m└ [22m[39m        Weight/Scale: 0.7643360941847944   Bias/Offset: 0.2082274729511263
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1201]: 0.01311
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11451
-[36m[1m└ [22m[39m        Weight/Scale: 0.7626631806941423   Bias/Offset: 0.20684599999395265
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1251]: 0.01306
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11429
-[36m[1m└ [22m[39m        Weight/Scale: 0.7609839109153334   Bias/Offset: 0.2053664980217474
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1301]: 0.01258
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11214
-[36m[1m└ [22m[39m        Weight/Scale: 0.759358786559206   Bias/Offset: 0.20400092647184365
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1351]: 0.01243
-[36m[1m│ [22m[39m        Avg displacement in data: 0.1115
-[36m[1m└ [22m[39m        Weight/Scale: 0.757581698203922   Bias/Offset: 0.2024243627591022
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1401]: 0.01219
-[36m[1m│ [22m[39m        Avg displacement in data: 0.11043
-[36m[1m└ [22m[39m        Weight/Scale: 0.7559541729377192   Bias/Offset: 0.20112392436071552
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1451]: 0.01178
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10853
-[36m[1m└ [22m[39m        Weight/Scale: 0.7544104459420903   Bias/Offset: 0.2002040854783147
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1501]: 0.01172
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10824
-[36m[1m└ [22m[39m        Weight/Scale: 0.7526646826677327   Bias/Offset: 0.19893116111687956
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1051]: 0.01455
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12061
+[36m[1m└ [22m[39m        Weight/Scale: 0.7685497254265342   Bias/Offset: 0.2122124806873035
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1101]: 0.01452
+[36m[1m│ [22m[39m        Avg displacement in data: 0.12051
+[36m[1m└ [22m[39m        Weight/Scale: 0.7669981729441928   Bias/Offset: 0.21100839625459603
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1151]: 0.01399
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11829
+[36m[1m└ [22m[39m        Weight/Scale: 0.7654316325868997   Bias/Offset: 0.2097952559688302
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1201]: 0.01369
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11699
+[36m[1m└ [22m[39m        Weight/Scale: 0.7640676142228295   Bias/Offset: 0.2089367225997708
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1251]: 0.01349
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11613
+[36m[1m└ [22m[39m        Weight/Scale: 0.7623892439002146   Bias/Offset: 0.207704889126865
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1301]: 0.01302
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11409
+[36m[1m└ [22m[39m        Weight/Scale: 0.7608489445844248   Bias/Offset: 0.20661321063512564
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1351]: 0.01299
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11398
+[36m[1m└ [22m[39m        Weight/Scale: 0.7593526296444657   Bias/Offset: 0.20558804494623992
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1401]: 0.01268
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11262
+[36m[1m└ [22m[39m        Weight/Scale: 0.7578600523946859   Bias/Offset: 0.20462035539880227
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1451]: 0.01244
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11151
+[36m[1m└ [22m[39m        Weight/Scale: 0.7562913409873459   Bias/Offset: 0.20354570527525187
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1501]: 0.01221
+[36m[1m│ [22m[39m        Avg displacement in data: 0.11048
+[36m[1m└ [22m[39m        Weight/Scale: 0.754751882201362   Bias/Offset: 0.20248144035294505
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 4/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1551]: 0.01166
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10796
-[36m[1m└ [22m[39m        Weight/Scale: 0.7511311866165185   Bias/Offset: 0.19800029507961733
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1601]: 0.01125
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10606
-[36m[1m└ [22m[39m        Weight/Scale: 0.7496411873063089   Bias/Offset: 0.19703507937479053
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1651]: 0.01115
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10559
-[36m[1m└ [22m[39m        Weight/Scale: 0.7482556883032603   Bias/Offset: 0.195965246601594
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1701]: 0.01075
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10369
-[36m[1m└ [22m[39m        Weight/Scale: 0.7470364545888539   Bias/Offset: 0.19493764593626747
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1751]: 0.01062
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10306
-[36m[1m└ [22m[39m        Weight/Scale: 0.7454808470120181   Bias/Offset: 0.1934405903220132
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1801]: 0.0103
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10151
-[36m[1m└ [22m[39m        Weight/Scale: 0.7436779590726516   Bias/Offset: 0.19129103770678157
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1851]: 0.01021
-[36m[1m│ [22m[39m        Avg displacement in data: 0.10105
-[36m[1m└ [22m[39m        Weight/Scale: 0.7422046211321883   Bias/Offset: 0.18976817451283667
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1901]: 0.00992
-[36m[1m│ [22m[39m        Avg displacement in data: 0.09961
-[36m[1m└ [22m[39m        Weight/Scale: 0.7407196016822949   Bias/Offset: 0.18857146666455846
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1951]: 0.00943
-[36m[1m│ [22m[39m        Avg displacement in data: 0.09712
-[36m[1m└ [22m[39m        Weight/Scale: 0.7391077293837327   Bias/Offset: 0.18688302456138053
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2001]: 0.00905
-[36m[1m│ [22m[39m        Avg displacement in data: 0.09516
-[36m[1m└ [22m[39m        Weight/Scale: 0.737598364369357   Bias/Offset: 0.18527223511814087
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1551]: 0.01186
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10893
+[36m[1m└ [22m[39m        Weight/Scale: 0.7531915935667031   Bias/Offset: 0.20135072372724824
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1601]: 0.01185
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10886
+[36m[1m└ [22m[39m        Weight/Scale: 0.7516590191436273   Bias/Offset: 0.20019512238496412
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1651]: 0.01135
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10654
+[36m[1m└ [22m[39m        Weight/Scale: 0.7502272138927651   Bias/Offset: 0.19913457639766907
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1701]: 0.01123
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10595
+[36m[1m└ [22m[39m        Weight/Scale: 0.7488408809165489   Bias/Offset: 0.19809602298355294
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1751]: 0.01107
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10521
+[36m[1m└ [22m[39m        Weight/Scale: 0.7474340330215761   Bias/Offset: 0.1970742693169464
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1801]: 0.01091
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10443
+[36m[1m└ [22m[39m        Weight/Scale: 0.7460834762628212   Bias/Offset: 0.19610386330970456
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1851]: 0.01113
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10549
+[36m[1m└ [22m[39m        Weight/Scale: 0.7447006975022545   Bias/Offset: 0.19513781935264726
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1901]: 0.01032
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10161
+[36m[1m└ [22m[39m        Weight/Scale: 0.7432568626833963   Bias/Offset: 0.19380331360344485
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1951]: 0.01002
+[36m[1m│ [22m[39m        Avg displacement in data: 0.10012
+[36m[1m└ [22m[39m        Weight/Scale: 0.7420835755049895   Bias/Offset: 0.19275807347247914
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2001]: 0.00985
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09922
+[36m[1m└ [22m[39m        Weight/Scale: 0.741076801876852   Bias/Offset: 0.19198834681974786
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 5/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2051]: 0.00855
-[36m[1m│ [22m[39m        Avg displacement in data: 0.09244
-[36m[1m└ [22m[39m        Weight/Scale: 0.7361430349732314   Bias/Offset: 0.18383640322648065
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2101]: 0.00806
-[36m[1m│ [22m[39m        Avg displacement in data: 0.08976
-[36m[1m└ [22m[39m        Weight/Scale: 0.7349775643588781   Bias/Offset: 0.18263449736944623
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2151]: 0.0073
-[36m[1m│ [22m[39m        Avg displacement in data: 0.08543
-[36m[1m└ [22m[39m        Weight/Scale: 0.7341551297986997   Bias/Offset: 0.1815191008440423
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2201]: 0.0064
-[36m[1m│ [22m[39m        Avg displacement in data: 0.07998
-[36m[1m└ [22m[39m        Weight/Scale: 0.7337887664380968   Bias/Offset: 0.18064344889541636
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2251]: 0.00551
-[36m[1m│ [22m[39m        Avg displacement in data: 0.07426
-[36m[1m└ [22m[39m        Weight/Scale: 0.7341726899147303   Bias/Offset: 0.18024567469639896
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2301]: 0.00463
-[36m[1m│ [22m[39m        Avg displacement in data: 0.06804
-[36m[1m└ [22m[39m        Weight/Scale: 0.7356820683834301   Bias/Offset: 0.18092793464633664
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2351]: 0.00402
-[36m[1m│ [22m[39m        Avg displacement in data: 0.06342
-[36m[1m└ [22m[39m        Weight/Scale: 0.7377002816611946   Bias/Offset: 0.18247592565499948
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2401]: 0.00365
-[36m[1m│ [22m[39m        Avg displacement in data: 0.06045
-[36m[1m└ [22m[39m        Weight/Scale: 0.7393744855487969   Bias/Offset: 0.18412764421644612
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2451]: 0.00339
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05824
-[36m[1m└ [22m[39m        Weight/Scale: 0.7405278366351454   Bias/Offset: 0.18553737379079066
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2501]: 0.00318
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05638
-[36m[1m└ [22m[39m        Weight/Scale: 0.74133714929371   Bias/Offset: 0.18675822800406897
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2051]: 0.00963
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09814
+[36m[1m└ [22m[39m        Weight/Scale: 0.7398698780928032   Bias/Offset: 0.19110322319974019
 
 
-113.596102 seconds (1.31 G allocations: 58.360 GiB, 7.40% gc time, 0.08% compilation time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_2.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_3.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_4.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_5.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.232580101547452</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_7.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_8.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 1/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2551]: 0.00299
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05471
-[36m[1m└ [22m[39m        Weight/Scale: 0.7419365662138708   Bias/Offset: 0.1878468287765319
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2601]: 0.00284
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05331
-[36m[1m└ [22m[39m        Weight/Scale: 0.7424744354177043   Bias/Offset: 0.18893082579537104
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2651]: 0.0027
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05194
-[36m[1m└ [22m[39m        Weight/Scale: 0.742949648496252   Bias/Offset: 0.18999692447321198
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2701]: 0.00252
-[36m[1m│ [22m[39m        Avg displacement in data: 0.05023
-[36m[1m└ [22m[39m        Weight/Scale: 0.7433592823157747   Bias/Offset: 0.19101019118947138
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2751]: 0.00234
-[36m[1m│ [22m[39m        Avg displacement in data: 0.0484
-[36m[1m└ [22m[39m        Weight/Scale: 0.7436864799846147   Bias/Offset: 0.1919218014162369
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2801]: 0.0023
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04795
-[36m[1m└ [22m[39m        Weight/Scale: 0.7439909330817485   Bias/Offset: 0.19280167535519802
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2851]: 0.00213
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04614
-[36m[1m└ [22m[39m        Weight/Scale: 0.7443055972486099   Bias/Offset: 0.19369888596061352
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2901]: 0.00205
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04529
-[36m[1m└ [22m[39m        Weight/Scale: 0.7446299508775963   Bias/Offset: 0.19462112964878003
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2951]: 0.00195
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04421
-[36m[1m└ [22m[39m        Weight/Scale: 0.7449311687977194   Bias/Offset: 0.19552385462521474
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3001]: 0.00185
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04302
-[36m[1m└ [22m[39m        Weight/Scale: 0.74520232794863   Bias/Offset: 0.1963851042561278
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2101]: 0.00944
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09714
+[36m[1m└ [22m[39m        Weight/Scale: 0.7387364050184646   Bias/Offset: 0.1902584230794854
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2151]: 0.0092
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09592
+[36m[1m└ [22m[39m        Weight/Scale: 0.7376537985094141   Bias/Offset: 0.18934912933881343
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2201]: 0.00889
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09428
+[36m[1m└ [22m[39m        Weight/Scale: 0.7366777510432025   Bias/Offset: 0.18835661433608997
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2251]: 0.00855
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09247
+[36m[1m└ [22m[39m        Weight/Scale: 0.7357906511840346   Bias/Offset: 0.18743648360208276
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2301]: 0.00841
+[36m[1m│ [22m[39m        Avg displacement in data: 0.0917
+[36m[1m└ [22m[39m        Weight/Scale: 0.7350464615465715   Bias/Offset: 0.18689924432984248
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2351]: 0.00812
+[36m[1m│ [22m[39m        Avg displacement in data: 0.09013
+[36m[1m└ [22m[39m        Weight/Scale: 0.7339969121110451   Bias/Offset: 0.18612124222507648
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2401]: 0.00793
+[36m[1m│ [22m[39m        Avg displacement in data: 0.08908
+[36m[1m└ [22m[39m        Weight/Scale: 0.7326717516638203   Bias/Offset: 0.1851036885505445
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2451]: 0.00753
+[36m[1m│ [22m[39m        Avg displacement in data: 0.08677
+[36m[1m└ [22m[39m        Weight/Scale: 0.7316912283399576   Bias/Offset: 0.18440136814990418
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2501]: 0.0073
+[36m[1m│ [22m[39m        Avg displacement in data: 0.08546
+[36m[1m└ [22m[39m        Weight/Scale: 0.7306344356827853   Bias/Offset: 0.1837703778691197
+
+
+681.803966 seconds (3.21 G allocations: 152.363 GiB, 3.12% gc time, 0.02% compilation time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_52.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_53.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_54.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_55.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 15.12669966211756</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_57.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_58.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 1/5
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2551]: 0.0066
+[36m[1m│ [22m[39m        Avg displacement in data: 0.08122
+[36m[1m└ [22m[39m        Weight/Scale: 0.7294722625067702   Bias/Offset: 0.18293225499668095
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2601]: 0.00603
+[36m[1m│ [22m[39m        Avg displacement in data: 0.07767
+[36m[1m└ [22m[39m        Weight/Scale: 0.7287466673253917   Bias/Offset: 0.18225209958887134
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2651]: 0.0052
+[36m[1m│ [22m[39m        Avg displacement in data: 0.07213
+[36m[1m└ [22m[39m        Weight/Scale: 0.7287485382586419   Bias/Offset: 0.18182518699673822
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2701]: 0.0055
+[36m[1m│ [22m[39m        Avg displacement in data: 0.07418
+[36m[1m└ [22m[39m        Weight/Scale: 0.7303833567220868   Bias/Offset: 0.1825839482615801
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2751]: 0.00366
+[36m[1m│ [22m[39m        Avg displacement in data: 0.06053
+[36m[1m└ [22m[39m        Weight/Scale: 0.7323123677078334   Bias/Offset: 0.18358269036117894
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2801]: 0.00338
+[36m[1m│ [22m[39m        Avg displacement in data: 0.05815
+[36m[1m└ [22m[39m        Weight/Scale: 0.7343381283573703   Bias/Offset: 0.185258715292315
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2851]: 0.00303
+[36m[1m│ [22m[39m        Avg displacement in data: 0.05508
+[36m[1m└ [22m[39m        Weight/Scale: 0.7357657911860008   Bias/Offset: 0.18671734475678212
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2901]: 0.00282
+[36m[1m│ [22m[39m        Avg displacement in data: 0.05313
+[36m[1m└ [22m[39m        Weight/Scale: 0.7366622322683765   Bias/Offset: 0.1879260940466228
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2951]: 0.00256
+[36m[1m│ [22m[39m        Avg displacement in data: 0.05059
+[36m[1m└ [22m[39m        Weight/Scale: 0.737421537531958   Bias/Offset: 0.18924429261110745
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3001]: 0.00253
+[36m[1m│ [22m[39m        Avg displacement in data: 0.05026
+[36m[1m└ [22m[39m        Weight/Scale: 0.7380334506224158   Bias/Offset: 0.19047329704402016
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 2/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3051]: 0.00177
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04207
-[36m[1m└ [22m[39m        Weight/Scale: 0.745448440230797   Bias/Offset: 0.19720191202649107
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3101]: 0.00165
-[36m[1m│ [22m[39m        Avg displacement in data: 0.04059
-[36m[1m└ [22m[39m        Weight/Scale: 0.7456688947008796   Bias/Offset: 0.1979708758881636
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3151]: 0.00155
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03943
-[36m[1m└ [22m[39m        Weight/Scale: 0.7458699345411773   Bias/Offset: 0.1986996956761452
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3201]: 0.00145
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03804
-[36m[1m└ [22m[39m        Weight/Scale: 0.7460507018013234   Bias/Offset: 0.1993856311648856
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3251]: 0.00137
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03701
-[36m[1m└ [22m[39m        Weight/Scale: 0.7462168450809621   Bias/Offset: 0.20003395983027222
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3301]: 0.00122
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03496
-[36m[1m└ [22m[39m        Weight/Scale: 0.7463737985498154   Bias/Offset: 0.20065377352758598
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3351]: 0.0012
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03469
-[36m[1m└ [22m[39m        Weight/Scale: 0.7464919697533906   Bias/Offset: 0.20120449344603938
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3401]: 0.00112
-[36m[1m│ [22m[39m        Avg displacement in data: 0.0334
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465629347198826   Bias/Offset: 0.20167520033160963
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3451]: 0.00104
-[36m[1m│ [22m[39m        Avg displacement in data: 0.0323
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465725091556634   Bias/Offset: 0.2020557832207194
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3501]: 0.00099
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03154
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465472861620893   Bias/Offset: 0.20241153374206378
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3051]: 0.00239
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04888
+[36m[1m└ [22m[39m        Weight/Scale: 0.7385903595946945   Bias/Offset: 0.1917115498635097
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3101]: 0.0023
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04795
+[36m[1m└ [22m[39m        Weight/Scale: 0.7390400912707692   Bias/Offset: 0.19291638530884084
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3151]: 0.00221
+[36m[1m│ [22m[39m        Avg displacement in data: 0.047
+[36m[1m└ [22m[39m        Weight/Scale: 0.7393522712352036   Bias/Offset: 0.19396778704456763
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3201]: 0.00208
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04556
+[36m[1m└ [22m[39m        Weight/Scale: 0.739587683661609   Bias/Offset: 0.19499576904301963
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3251]: 0.00192
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04385
+[36m[1m└ [22m[39m        Weight/Scale: 0.7397489875943187   Bias/Offset: 0.1958994492662145
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3301]: 0.00182
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04269
+[36m[1m└ [22m[39m        Weight/Scale: 0.7399296146171744   Bias/Offset: 0.19683965719681404
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3351]: 0.00166
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04075
+[36m[1m└ [22m[39m        Weight/Scale: 0.7400502417505842   Bias/Offset: 0.1976832990758858
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3401]: 0.00163
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04041
+[36m[1m└ [22m[39m        Weight/Scale: 0.740239652566954   Bias/Offset: 0.19866305352151065
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3451]: 0.0017
+[36m[1m│ [22m[39m        Avg displacement in data: 0.04122
+[36m[1m└ [22m[39m        Weight/Scale: 0.7401438188882128   Bias/Offset: 0.19926984912385387
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3501]: 0.0015
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03874
+[36m[1m└ [22m[39m        Weight/Scale: 0.740137231197973   Bias/Offset: 0.1999925148736434
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 3/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3551]: 0.00095
-[36m[1m│ [22m[39m        Avg displacement in data: 0.03087
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465245689503418   Bias/Offset: 0.20278115660826834
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3601]: 0.00086
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02936
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465291204318416   Bias/Offset: 0.20321637665028092
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3651]: 0.0008
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02836
-[36m[1m└ [22m[39m        Weight/Scale: 0.7465288732450426   Bias/Offset: 0.20369969703507285
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3701]: 0.00077
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02783
-[36m[1m└ [22m[39m        Weight/Scale: 0.7463219745903018   Bias/Offset: 0.2039177990861705
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3751]: 0.00077
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02766
-[36m[1m└ [22m[39m        Weight/Scale: 0.74608098691679   Bias/Offset: 0.2040596661062396
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3801]: 0.00072
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02691
-[36m[1m└ [22m[39m        Weight/Scale: 0.7458491872621077   Bias/Offset: 0.20417390580674993
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3851]: 0.0007
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02641
-[36m[1m└ [22m[39m        Weight/Scale: 0.7456183210027667   Bias/Offset: 0.20427121103796264
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3901]: 0.00067
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02592
-[36m[1m└ [22m[39m        Weight/Scale: 0.7453405806794543   Bias/Offset: 0.20431485975844926
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3951]: 0.00065
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02544
-[36m[1m└ [22m[39m        Weight/Scale: 0.7450862479151532   Bias/Offset: 0.20439118820381963
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4001]: 0.00062
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02492
-[36m[1m└ [22m[39m        Weight/Scale: 0.7448369796836511   Bias/Offset: 0.2044734048178807
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3551]: 0.00136
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03686
+[36m[1m└ [22m[39m        Weight/Scale: 0.7400907075538734   Bias/Offset: 0.20068189455069224
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3601]: 0.0013
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03601
+[36m[1m└ [22m[39m        Weight/Scale: 0.740058838515693   Bias/Offset: 0.20139228434198345
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3651]: 0.00122
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03493
+[36m[1m└ [22m[39m        Weight/Scale: 0.7398959381755673   Bias/Offset: 0.20195059329011372
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3701]: 0.00118
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03433
+[36m[1m└ [22m[39m        Weight/Scale: 0.7398924125748179   Bias/Offset: 0.20268393178184924
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3751]: 0.00116
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03402
+[36m[1m└ [22m[39m        Weight/Scale: 0.7397913844781383   Bias/Offset: 0.203332075636317
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3801]: 0.00106
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03255
+[36m[1m└ [22m[39m        Weight/Scale: 0.7396309459970485   Bias/Offset: 0.20382819668032928
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3851]: 0.00095
+[36m[1m│ [22m[39m        Avg displacement in data: 0.03088
+[36m[1m└ [22m[39m        Weight/Scale: 0.7396012149387735   Bias/Offset: 0.2044014248812001
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3901]: 0.00098
+[36m[1m│ [22m[39m        Avg displacement in data: 0.0313
+[36m[1m└ [22m[39m        Weight/Scale: 0.7395948430627212   Bias/Offset: 0.20518920029356646
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3951]: 0.00092
+[36m[1m│ [22m[39m        Avg displacement in data: 0.0303
+[36m[1m└ [22m[39m        Weight/Scale: 0.7393542186212828   Bias/Offset: 0.20567073983842699
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4001]: 0.00086
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02939
+[36m[1m└ [22m[39m        Weight/Scale: 0.7391909099704085   Bias/Offset: 0.20620592991292247
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 4/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4051]: 0.00056
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02368
-[36m[1m└ [22m[39m        Weight/Scale: 0.7445309004616978   Bias/Offset: 0.20449511753865166
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4101]: 0.00053
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02312
-[36m[1m└ [22m[39m        Weight/Scale: 0.7442248267151766   Bias/Offset: 0.2045344009891565
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4151]: 0.00052
-[36m[1m│ [22m[39m        Avg displacement in data: 0.0227
-[36m[1m└ [22m[39m        Weight/Scale: 0.7439291793931154   Bias/Offset: 0.2045821540614581
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4201]: 0.00056
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02363
-[36m[1m└ [22m[39m        Weight/Scale: 0.7435904407562999   Bias/Offset: 0.20459048824930828
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4251]: 0.00052
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4051]: 0.00081
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02854
+[36m[1m└ [22m[39m        Weight/Scale: 0.7390344904609177   Bias/Offset: 0.20674164449484883
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4101]: 0.00077
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02772
+[36m[1m└ [22m[39m        Weight/Scale: 0.7388752088174673   Bias/Offset: 0.2072692342280151
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4151]: 0.00072
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02692
+[36m[1m└ [22m[39m        Weight/Scale: 0.738712359127193   Bias/Offset: 0.20778760743744454
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4201]: 0.00069
+[36m[1m│ [22m[39m        Avg displacement in data: 0.0262
+[36m[1m└ [22m[39m        Weight/Scale: 0.7385363679767349   Bias/Offset: 0.20829650267069688
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4251]: 0.00066
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02563
+[36m[1m└ [22m[39m        Weight/Scale: 0.7383110581204325   Bias/Offset: 0.20876674662687583
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4301]: 0.00063
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02507
+[36m[1m└ [22m[39m        Weight/Scale: 0.7380051515299417   Bias/Offset: 0.20914647283901172
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4351]: 0.0006
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02446
+[36m[1m└ [22m[39m        Weight/Scale: 0.737664753581302   Bias/Offset: 0.20946736221048162
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4401]: 0.00057
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02386
+[36m[1m└ [22m[39m        Weight/Scale: 0.737376150570386   Bias/Offset: 0.20982938021780786
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4451]: 0.00054
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02334
+[36m[1m└ [22m[39m        Weight/Scale: 0.7370976076274813   Bias/Offset: 0.2101992388385606
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4501]: 0.00052
 [36m[1m│ [22m[39m        Avg displacement in data: 0.02288
-[36m[1m└ [22m[39m        Weight/Scale: 0.7432294296289985   Bias/Offset: 0.20457814101602645
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4301]: 0.00051
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02255
-[36m[1m└ [22m[39m        Weight/Scale: 0.742901495830774   Bias/Offset: 0.20460272097375498
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4351]: 0.00051
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02255
-[36m[1m└ [22m[39m        Weight/Scale: 0.742531102734291   Bias/Offset: 0.20458757802775068
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4401]: 0.00048
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02199
-[36m[1m└ [22m[39m        Weight/Scale: 0.7421432271698286   Bias/Offset: 0.20455743937621657
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4451]: 0.00047
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02172
-[36m[1m└ [22m[39m        Weight/Scale: 0.7418061983963785   Bias/Offset: 0.20458140315870818
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4501]: 0.00049
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02215
-[36m[1m└ [22m[39m        Weight/Scale: 0.7414569310399177   Bias/Offset: 0.2045870285661631
+[36m[1m└ [22m[39m        Weight/Scale: 0.7368127112735554   Bias/Offset: 0.21055998225998276
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 5/5
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4551]: 0.00045
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02124
-[36m[1m└ [22m[39m        Weight/Scale: 0.7410502940306638   Bias/Offset: 0.20455026395637046
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4601]: 0.00045
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02119
-[36m[1m└ [22m[39m        Weight/Scale: 0.7407264930528901   Bias/Offset: 0.20459806989867355
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4651]: 0.00048
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02197
-[36m[1m└ [22m[39m        Weight/Scale: 0.740432105903971   Bias/Offset: 0.20468049583115752
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4701]: 0.00044
-[36m[1m│ [22m[39m        Avg displacement in data: 0.021
-[36m[1m└ [22m[39m        Weight/Scale: 0.740133078439186   Bias/Offset: 0.2047794041359737
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4751]: 0.00044
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02097
-[36m[1m└ [22m[39m        Weight/Scale: 0.7399097064430682   Bias/Offset: 0.20497024877279083
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4551]: 0.0005
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02245
+[36m[1m└ [22m[39m        Weight/Scale: 0.736520335517526   Bias/Offset: 0.210909552638306
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4601]: 0.00049
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02207
+[36m[1m└ [22m[39m        Weight/Scale: 0.736220452975838   Bias/Offset: 0.21124808798443512
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4651]: 0.00047
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02171
+[36m[1m└ [22m[39m        Weight/Scale: 0.7359126614179736   Bias/Offset: 0.21157621322181722
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4701]: 0.00046
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02149
+[36m[1m└ [22m[39m        Weight/Scale: 0.7355541140435535   Bias/Offset: 0.2118660594115363
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4751]: 0.00045
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02118
+[36m[1m└ [22m[39m        Weight/Scale: 0.7352039117175605   Bias/Offset: 0.21214610810577803
+
+
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4801]: 0.00044
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02106
-[36m[1m└ [22m[39m        Weight/Scale: 0.7396632204590547   Bias/Offset: 0.2051573735120535
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4851]: 0.00044
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02097
-[36m[1m└ [22m[39m        Weight/Scale: 0.7394794467198463   Bias/Offset: 0.20542948817105694
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4901]: 0.00081
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02852
-[36m[1m└ [22m[39m        Weight/Scale: 0.739380863128945   Bias/Offset: 0.20582876217747154
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4951]: 0.00043
-[36m[1m│ [22m[39m        Avg displacement in data: 0.0208
-[36m[1m└ [22m[39m        Weight/Scale: 0.7391835308684642   Bias/Offset: 0.2061171423032654
-[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [5001]: 0.00046
-[36m[1m│ [22m[39m        Avg displacement in data: 0.02135
-[36m[1m└ [22m[39m        Weight/Scale: 0.7391550126483246   Bias/Offset: 0.20665146096024078
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02092
+[36m[1m└ [22m[39m        Weight/Scale: 0.7348672952023434   Bias/Offset: 0.21243023710944609
 
 
-100.303015 seconds (1.19 G allocations: 52.767 GiB, 7.38% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_11.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_12.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_13.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_14.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.232580101547452
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 2 mse: 18.506779003160688</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_16.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_17.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(simpleFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../mdpi_2022/">« MDPI 2022</a><a class="docs-footer-nextpage" href="../../faq/">FAQ »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Saturday 3 February 2024 21:33">Saturday 3 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4851]: 0.00043
+[36m[1m│ [22m[39m        Avg displacement in data: 0.0207
+[36m[1m└ [22m[39m        Weight/Scale: 0.7345252753127329   Bias/Offset: 0.21270565190806262
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4901]: 0.00042
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02053
+[36m[1m└ [22m[39m        Weight/Scale: 0.7341736844966333   Bias/Offset: 0.21296686384675304
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4951]: 0.00042
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02041
+[36m[1m└ [22m[39m        Weight/Scale: 0.733809832998747   Bias/Offset: 0.21320809663231943
+
+
+[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [5001]: 0.00042
+[36m[1m│ [22m[39m        Avg displacement in data: 0.02047
+[36m[1m└ [22m[39m        Weight/Scale: 0.7334373221851284   Bias/Offset: 0.2134380135556462
+
+
+684.071217 seconds (3.25 G allocations: 152.972 GiB, 3.09% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_111.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_112.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_113.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_114.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 15.12669966211756
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 2 mse: 18.507130141703147</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_116.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_55_117.svg" alt="svg"/></p><p>Finally, the FMU is cleaned-up.</p><pre><code class="language-julia hljs">fmiUnload(simpleFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../mdpi_2022/">« MDPI 2022</a><a class="docs-footer-nextpage" href="../../faq/">FAQ »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Wednesday 21 February 2024 16:26">Wednesday 21 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

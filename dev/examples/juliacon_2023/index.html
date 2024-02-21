@@ -156,9 +156,9 @@ x0 = FMIZoo.getStateVector(data,    # the data container
  0.0
  0.0</code></pre><p>In this special case, it&#39;s all zero, but this is not the default over different system!</p><p>Further, we can check for the loaded FMU parameters, that are paths to the used characterisitc maps used in the model.</p><pre><code class="language-julia hljs"># have a look on the FMU parameters (these are the file paths to the characteristic maps, remaining parameters are set to default by the FMU)
 display(data.params)</code></pre><pre><code class="nohighlight hljs">Dict{String, Any} with 3 entries:
-  &quot;peFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…
-  &quot;edFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…
-  &quot;dcFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…</code></pre><p>After that, we load the FMU and have a look on its model meta data.</p><pre><code class="language-julia hljs"># load our FMU of the VLDM (we take it from the FMIZoo.jl, exported with Dymola 2020x)
+  &quot;peFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
+  &quot;edFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
+  &quot;dcFileName&quot; =&gt; &quot;C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…</code></pre><p>After that, we load the FMU and have a look on its model meta data.</p><pre><code class="language-julia hljs"># load our FMU of the VLDM (we take it from the FMIZoo.jl, exported with Dymola 2020x)
 fmu = fmiLoad(&quot;VLDM&quot;, &quot;Dymola&quot;, &quot;2020x&quot;; type=:ME) 
 
 # let&#39;s have a look on the model meta data
@@ -207,12 +207,16 @@ f(x)-Evaluations:
 	In-place: 351569
 	Out-of-place: 0
 Jacobian-Evaluations:
+	∂ẋ_∂p: 0
 	∂ẋ_∂x: 0
 	∂ẋ_∂u: 0
+	∂y_∂p: 0
 	∂y_∂x: 0
 	∂y_∂u: 0
+	∂e_∂p: 0
 	∂e_∂x: 0
 	∂e_∂u: 0
+	∂xr_∂xl: 0
 Gradient-Evaluations:
 	∂ẋ_∂t: 0
 	∂y_∂t: 0
@@ -248,17 +252,17 @@ Values [5838]:
 	...
 	583.7	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
 Events [58409]:
-	Time-Event @ 0.01s
-	Time-Event @ 0.02s
-	Time-Event @ 0.03s
-	Time-Event @ 0.04s
-	Time-Event @ 0.05s
-	Time-Event @ 0.06s
-	Time-Event @ 0.07s
-	Time-Event @ 0.08s
-	Time-Event @ 0.09s
+	Time-Event @ 0.01s (state-change: false)
+	Time-Event @ 0.02s (state-change: false)
+	Time-Event @ 0.03s (state-change: false)
+	Time-Event @ 0.04s (state-change: false)
+	Time-Event @ 0.05s (state-change: false)
+	Time-Event @ 0.06s (state-change: false)
+	Time-Event @ 0.07s (state-change: false)
+	Time-Event @ 0.08s (state-change: false)
+	Time-Event @ 0.09s (state-change: false)
 	...
-	Time-Event @ 583.7s</code></pre><p>This way, you can see interessting metadata on the solution process, like the number of evaluations of the ODE-function, sensitivity or callback evaluations. </p><p>We can use the <code>plot</code> command to plot simulation results from FMUs, too!</p><pre><code class="language-julia hljs"># Plot the simulation results
+	Time-Event @ 583.7s (state-change: false)</code></pre><p>This way, you can see interessting metadata on the solution process, like the number of evaluations of the ODE-function, sensitivity or callback evaluations. </p><p>We can use the <code>plot</code> command to plot simulation results from FMUs, too!</p><pre><code class="language-julia hljs"># Plot the simulation results
 fig = plot(resultFMU;                               # the simulation result from above 
            values=false,                            # don&#39;t plot values (:derivatives)
            stateIndices=6:6,                        # only plot states 6 to 6 -&gt; so state 6 ;-)
@@ -313,10 +317,13 @@ function build_NFMU(f::FMU2)
                   gates,                              # compute resulting dx from ANN + FMU
                   dx -&gt; cacheRetrieve(1:4, dx))       # stack together: dx[1,2,3,4] from cache + dx[5,6] from gates
 
+    solver = Tsit5()
+    
     # new NeuralFMU 
     neuralFMU = ME_NeuralFMU(f,                 # the FMU used in the NeuralFMU 
                              model,             # the model we specified above 
                              (tStart, tStop),   # a default start ad stop time for solving the NeuralFMU
+                             solver;
                              saveat=tSave)      # the time points to save the solution at
     neuralFMU.modifiedState = false             # speed optimization (NeuralFMU state equals FMU state)
     
@@ -329,20 +336,32 @@ resultNFMU = neuralFMU(x0,                          # the start state to solve t
                        showProgress=showProgress,   # show progress (or not)
                        saveat=tSave)                # the time points to save the solution at
 
-display(resultNFMU)     </code></pre><pre><code class="nohighlight hljs">Model name:
+display(resultNFMU)     </code></pre><pre><code class="nohighlight hljs">[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mNo solver keyword detected for NeuralFMU.
+[33m[1m│ [22m[39mContinuous adjoint method is applied, which requires solving backward in time.
+[33m[1m│ [22m[39mThis might be not supported by every FMU.
+[33m[1m│ [22m[39m(This message is only printed once.)
+[33m[1m└ [22m[39m[90m@ FMICore C:\Users\runneradmin\.julia\packages\FMICore\adAsR\src\printing.jl:38[39m
+
+
+
+Model name:
 	Longitudinaldynamic.LongitudinaldynamicmodelContinuous
 Success:
 	true
 f(x)-Evaluations:
-	In-place: 351551
+	In-place: 409926
 	Out-of-place: 0
 Jacobian-Evaluations:
+	∂ẋ_∂p: 0
 	∂ẋ_∂x: 0
 	∂ẋ_∂u: 0
+	∂y_∂p: 0
 	∂y_∂x: 0
 	∂y_∂u: 0
+	∂e_∂p: 0
 	∂e_∂x: 0
 	∂e_∂u: 0
+	∂xr_∂xl: 0
 Gradient-Evaluations:
 	∂ẋ_∂t: 0
 	∂y_∂t: 0
@@ -366,17 +385,17 @@ States [5838]:
 	...
 	583.7	[-0.0019167094095929496, -0.05412068948173642, 3131.826061088355, 3131.346887534511, -4.3267310775903565e-5, 1.4259877656768537e6]
 Events [58409]:
-	Time-Event @ 0.01s
-	Time-Event @ 0.02s
-	Time-Event @ 0.03s
-	Time-Event @ 0.04s
-	Time-Event @ 0.05s
-	Time-Event @ 0.06s
-	Time-Event @ 0.07s
-	Time-Event @ 0.08s
-	Time-Event @ 0.09s
+	Time-Event @ 0.01s (state-change: false)
+	Time-Event @ 0.02s (state-change: false)
+	Time-Event @ 0.03s (state-change: false)
+	Time-Event @ 0.04s (state-change: false)
+	Time-Event @ 0.05s (state-change: false)
+	Time-Event @ 0.06s (state-change: false)
+	Time-Event @ 0.07s (state-change: false)
+	Time-Event @ 0.08s (state-change: false)
+	Time-Event @ 0.09s (state-change: false)
 	...
-	Time-Event @ 583.7s</code></pre><p>As for the FMU, we can display the NeuralFMU simulation result and check some statisitics.</p><p>Now, let&#39;s have a look on the cumulative consumption plot ...</p><pre><code class="language-julia hljs"># plot the NeuralFMU, original FMU and data (cumulative consumption)
+	Time-Event @ 583.7s (state-change: false)</code></pre><p>As for the FMU, we can display the NeuralFMU simulation result and check some statisitics.</p><p>Now, let&#39;s have a look on the cumulative consumption plot ...</p><pre><code class="language-julia hljs"># plot the NeuralFMU, original FMU and data (cumulative consumption)
 fig = plot(resultNFMU; stateIndices=6:6, stateEvents=false, timeEvents=false, label=&quot;NeuralFMU (untrained)&quot;, ylabel=&quot;cumulative consumption [Ws]&quot;)
 plot!(fig, resultFMU; stateIndices=6:6, values=false, stateEvents=false, timeEvents=false, label=&quot;FMU&quot;)
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val, label=&quot;Data&quot;)</code></pre><p><img src="../juliacon_2023_files/juliacon_2023_45_0.svg" alt="svg"/></p><p>As you can see, the FMU und NeuralFMU result looks identically - and this is what we expect for a fully open FMU gate and a fully closed ANN gate!</p><p>Finally, unload the FMU and invalidate the NeuralFMU.</p><pre><code class="language-julia hljs"># unload FMU / invalidate NeuralFMU
@@ -524,7 +543,7 @@ function train!(hyper_params, ressource, ind)
    
     # the actual training
     FMIFlux.train!(loss,                            # the loss function for training
-                   params,                          # the parameters to train
+                   neuralFMU,                          # the parameters to train
                    Iterators.repeated((), steps),   # an iterator repeating `steps` times
                    optim;                           # the optimizer to train
                    gradient=:ForwardDiff,           # currently, only ForwarDiff leads to good results for multi-event systems
@@ -560,15 +579,29 @@ end</code></pre><pre><code class="nohighlight hljs">train! (generic function wit
 train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0,     1) </code></pre><pre><code class="nohighlight hljs">[36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m--------------
 [36m[1m│ [22m[39mStarting run 1 with parameters: Any[0.0001, 0.9, 0.999, 4.0, 0.7, :Random, :MSE] and ressource 8.0 doing 2 step(s).
 [36m[1m└ [22m[39m--------------------
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 0 | Current element=0 | Next element=92
+
+
+[91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError(&quot;Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.&quot;)
+[91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 1 | Current element=92 | Next element=55
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
+
+
+[91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError(&quot;Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.&quot;)
+[91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 2 | Current element=55 | Next element=106
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
 
 
 
 
 
-Dual{ForwardDiff.Tag{var&quot;#42#46&quot;{var&quot;#41#45&quot;{Symbol, Float64}, Dict{Symbol, Any}, Vector{FMIFlux.FMU2SolutionBatchElement}, ME_NeuralFMU{Chain{Tuple{var&quot;#28#33&quot;{FMU2}, var&quot;#29#34&quot;{CacheLayer}, var&quot;#30#35&quot;, ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var&quot;#31#36&quot;{CacheRetrieveLayer}, ScaleSum{Float64}, var&quot;#32#37&quot;{CacheRetrieveLayer}}}, Optimisers.Restructure{Chain{Tuple{var&quot;#28#33&quot;{FMU2}, var&quot;#29#34&quot;{CacheLayer}, var&quot;#30#35&quot;, ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var&quot;#31#36&quot;{CacheRetrieveLayer}, ScaleSum{Float64}, var&quot;#32#37&quot;{CacheRetrieveLayer}}}, NamedTuple{(:layers,), Tuple{Tuple{Tuple{}, Tuple{}, Tuple{}, NamedTuple{(:shift, :scale), Tuple{Int64, Int64}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:scale, :shift), Tuple{Int64, Int64}}, Tuple{}, NamedTuple{(:scale,), Tuple{Int64}}, Tuple{}}}}}}}, Float64}}(9.109389942339108e9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-9.058959762810771e12,6.073077120471025e11,-2.0858327246862168e13,2.646493357450911e11,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)</code></pre><h1 id="5.-Results"><a class="docs-heading-anchor" href="#5.-Results">5. Results</a><a id="5.-Results-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Results" title="Permalink"></a></h1><p>After training with a set of good hyperparameters, results can be loaded (one set is already preparred if you skipped the optimization).</p><pre><code class="language-julia hljs"># load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2020x)
+9.108986582805376e9</code></pre><h1 id="5.-Results"><a class="docs-heading-anchor" href="#5.-Results">5. Results</a><a id="5.-Results-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Results" title="Permalink"></a></h1><p>After training with a set of good hyperparameters, results can be loaded (one set is already preparred if you skipped the optimization).</p><pre><code class="language-julia hljs"># load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2020x)
 fmu = fmiLoad(&quot;VLDM&quot;, &quot;Dymola&quot;, &quot;2020x&quot;; type=:ME)
 
 # build NeuralFMU
@@ -603,4 +636,4 @@ neuralFMU = nothing</code></pre><p><strong>But:</strong> We did look on some res
 #using DistributedHyperOpt.Distributed 
 
 # ... and uncomment the following line
-#end # NODE_Training </code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../growing_horizon_ME/">« Growing Horizon ME-NeuralFMU</a><a class="docs-footer-nextpage" href="../mdpi_2022/">MDPI 2022 »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Saturday 3 February 2024 21:33">Saturday 3 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#end # NODE_Training </code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../growing_horizon_ME/">« Growing Horizon ME-NeuralFMU</a><a class="docs-footer-nextpage" href="../mdpi_2022/">MDPI 2022 »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Wednesday 21 February 2024 16:26">Wednesday 21 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
