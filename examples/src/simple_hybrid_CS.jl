@@ -91,7 +91,7 @@ Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
+FMIFlux.train!(lossSum, csNeuralFMU, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
 
 # plot results mass.a
 solutionAfter = csNeuralFMU(extForce, tStep, (tStart, tStop)) # saveat=tSave, p=paramsNet[1]

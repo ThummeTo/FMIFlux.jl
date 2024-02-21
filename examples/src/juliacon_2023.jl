@@ -137,10 +137,13 @@ function build_NFMU(f::FMU2)
                   gates,                              # compute resulting dx from ANN + FMU
                   dx -> cacheRetrieve(1:4, dx))       # stack together: dx[1,2,3,4] from cache + dx[5,6] from gates
 
+    solver = Tsit5()
+    
     # new NeuralFMU 
     neuralFMU = ME_NeuralFMU(f,                 # the FMU used in the NeuralFMU 
                              model,             # the model we specified above 
                              (tStart, tStop),   # a default start ad stop time for solving the NeuralFMU
+                             solver;
                              saveat=tSave)      # the time points to save the solution at
     neuralFMU.modifiedState = false             # speed optimization (NeuralFMU state equals FMU state)
     
@@ -289,7 +292,7 @@ function train!(hyper_params, ressource, ind)
    
     # the actual training
     FMIFlux.train!(loss,                            # the loss function for training
-                   params,                          # the parameters to train
+                   neuralFMU,                          # the parameters to train
                    Iterators.repeated((), steps),   # an iterator repeating `steps` times
                    optim;                           # the optimizer to train
                    gradient=:ForwardDiff,           # currently, only ForwarDiff leads to good results for multi-event systems

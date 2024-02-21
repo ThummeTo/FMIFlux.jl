@@ -9,6 +9,7 @@ using FMIZoo        # a collection of demo models, including the VLDM
 using FMIFlux.Flux  # Machine Learning in Julia
 
 import FMI.DifferentialEquations: Tsit5     # import the Tsit5-solver
+import FMI: FMU2Solution
 using JLD2                                  # data format for saving/loading parameters
 
 # plotting
@@ -187,7 +188,7 @@ batchLen = length(batch)
 
 # we use ForwardDiff for gradinet determination, because the FMU throws multiple events per time instant (this is not supported by reverse mode AD)
 # the chunk_size controls the nuber of forward evaluations of the model (the bigger, the less evaluations)
-FMIFlux.train!(loss, params, Iterators.repeated((), batchLen), optim; gradient=:ForwardDiff, chunk_size=32, cb=updateScheduler) 
+FMIFlux.train!(loss, neuralFMU, Iterators.repeated((), batchLen), optim; gradient=:ForwardDiff, chunk_size=32, cb=updateScheduler) 
 loss_after = batch_loss(params[1])
 
 # save the parameters (so we can use them tomorrow again)

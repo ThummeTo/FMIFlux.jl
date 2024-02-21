@@ -256,11 +256,16 @@ solFric = fmiSimulate(fricFMU, (tStart, tStop); recordValues=vrs, saveat=tSave)
 plot(solFric)
 ```
 
+    [34mSimulating CS-FMU ...   0%|█                             |  ETA: N/A[39m
+
+    [34mSimulating CS-FMU ... 100%|██████████████████████████████| Time: 0:00:02[39m
+    
+
 
 
 
     
-![svg](growing_horizon_ME_files/growing_horizon_ME_11_0.svg)
+![svg](growing_horizon_ME_files/growing_horizon_ME_11_2.svg)
     
 
 
@@ -371,12 +376,12 @@ plot(solSimple)
     		Dir. Derivatives:	true
     ##################### End information for FMU #####################
 
-    [34mSimulating ME-FMU ...   0%|█                             |  ETA: N/A[39m
+    [34mSimulating ME-FMU ...   0%|█                             |  ETA: N/A[39m
 
     
     
 
-    [34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:09[39m
+    [34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:09[39m
     
 
 
@@ -634,11 +639,18 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 ```
 
+    [33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mNo solver keyword detected for NeuralFMU.
+    [33m[1m│ [22m[39mContinuous adjoint method is applied, which requires solving backward in time.
+    [33m[1m│ [22m[39mThis might be not supported by every FMU.
+    [33m[1m│ [22m[39m(This message is only printed once.)
+    [33m[1m└ [22m[39m[90m@ FMICore C:\Users\runneradmin\.julia\packages\FMICore\adAsR\src\printing.jl:38[39m
+    
+
 
 
 
     
-![svg](growing_horizon_ME_files/growing_horizon_ME_37_0.svg)
+![svg](growing_horizon_ME_files/growing_horizon_ME_37_1.svg)
     
 
 
@@ -650,52 +662,88 @@ For the training of the NeuralFMU the parameters are extracted. The known Adam o
 
 ```julia
 # train
-paramsNet = FMIFlux.params(neuralFMU)
+paramsNet = Flux.params(neuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
+FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
 ```
 
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1] for horizon 5 : 0.00559
-    [36m[1m└ [22m[39mAvg displacement in data: 0.0748
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [51] for horizon 7 : 0.00233
-    [36m[1m└ [22m[39mAvg displacement in data: 0.04831
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [101] for horizon 9 : 0.00056
-    [36m[1m└ [22m[39mAvg displacement in data: 0.02375
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [151] for horizon 11 : 0.00099
-    [36m[1m└ [22m[39mAvg displacement in data: 0.03152
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [201] for horizon 13 : 0.0014
-    [36m[1m└ [22m[39mAvg displacement in data: 0.03746
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [251] for horizon 15 : 0.00279
-    [36m[1m└ [22m[39mAvg displacement in data: 0.05286
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [301] for horizon 17 : 0.00223
-    [36m[1m└ [22m[39mAvg displacement in data: 0.04727
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [351] for horizon 19 : 3.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00511
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [401] for horizon 21 : 3.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00527
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [451] for horizon 23 : 7.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00834
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [501] for horizon 25 : 5.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00683
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [551] for horizon 27 : 3.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00542
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [601] for horizon 29 : 9.0e-5
-    [36m[1m└ [22m[39mAvg displacement in data: 0.00924
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [651] for horizon 31 : 0.00021
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01461
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [701] for horizon 33 : 0.00033
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01823
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [751] for horizon 35 : 0.00034
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01855
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [801] for horizon 37 : 0.0003
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01733
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [851] for horizon 39 : 0.00028
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01659
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [901] for horizon 41 : 0.00025
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01568
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [951] for horizon 43 : 0.00022
-    [36m[1m└ [22m[39mAvg displacement in data: 0.01485
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1] for horizon 5 : 0.04198
+    [36m[1m└ [22m[39mAvg displacement in data: 0.20488
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [51] for horizon 5 : 0.00035
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01877
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [101] for horizon 7 : 9.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00959
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [151] for horizon 9 : 3.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00537
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [201] for horizon 11 : 0.00016
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01256
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [251] for horizon 13 : 0.00057
+    [36m[1m└ [22m[39mAvg displacement in data: 0.02384
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [301] for horizon 15 : 0.00129
+    [36m[1m└ [22m[39mAvg displacement in data: 0.03588
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [351] for horizon 17 : 0.00114
+    [36m[1m└ [22m[39mAvg displacement in data: 0.03383
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [401] for horizon 19 : 5.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00711
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [451] for horizon 21 : 2.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.0044
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [501] for horizon 23 : 3.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00521
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [551] for horizon 25 : 2.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.0045
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [601] for horizon 27 : 4.0e-5
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00619
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [651] for horizon 29 : 0.0001
+    [36m[1m└ [22m[39mAvg displacement in data: 0.00993
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [701] for horizon 31 : 0.00024
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01555
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [751] for horizon 33 : 0.00042
+    [36m[1m└ [22m[39mAvg displacement in data: 0.02048
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [801] for horizon 35 : 0.00043
+    [36m[1m└ [22m[39mAvg displacement in data: 0.02064
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [851] for horizon 37 : 0.00038
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01948
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [901] for horizon 39 : 0.00034
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01843
+    
+
+    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [951] for horizon 41 : 0.00031
+    [36m[1m└ [22m[39mAvg displacement in data: 0.01752
     
 
 #### Comparison of the plots

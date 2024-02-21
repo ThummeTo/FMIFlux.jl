@@ -136,10 +136,10 @@ solutionBefore = neuralFMU(x₀)
 fmiPlot(solutionBefore)
 
 # train
-paramsNet = FMIFlux.params(neuralFMU)
+paramsNet = Flux.params(neuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
+FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1000), optim; cb=()->callb(paramsNet)) 
 
 # plot results mass.s
 plotResults()

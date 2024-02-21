@@ -257,7 +257,7 @@ for i in 1:length(paramsNet[1])
 end
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
+FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1), optim; cb=()->callb(paramsNet)) 
 
 solutionAfter = []
 solutionAfterMod = []
@@ -271,7 +271,7 @@ numIterations = 500;
 for run in 1:numRuns
     @time for epoch in 1:numEpochs
         @info "Run: $(run)/$(numRuns)  Epoch: $(epoch)/$(numEpochs)"
-        FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), numIterations), optim; cb=()->callb(paramsNet))
+        FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), numIterations), optim; cb=()->callb(paramsNet))
     end
     flush(stderr)
     flush(stdout)

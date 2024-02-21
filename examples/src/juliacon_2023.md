@@ -290,9 +290,9 @@ display(data.params)
 
 
     Dict{String, Any} with 3 entries:
-      "peFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…
-      "edFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…
-      "dcFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\sDgvs\\src…
+      "peFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
+      "edFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
+      "dcFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
 
 
 After that, we load the FMU and have a look on its model meta data.
@@ -365,12 +365,16 @@ display(resultFMU)
     	In-place: 351569
     	Out-of-place: 0
     Jacobian-Evaluations:
+    	∂ẋ_∂p: 0
     	∂ẋ_∂x: 0
     	∂ẋ_∂u: 0
+    	∂y_∂p: 0
     	∂y_∂x: 0
     	∂y_∂u: 0
+    	∂e_∂p: 0
     	∂e_∂x: 0
     	∂e_∂u: 0
+    	∂xr_∂xl: 0
     Gradient-Evaluations:
     	∂ẋ_∂t: 0
     	∂y_∂t: 0
@@ -406,17 +410,17 @@ display(resultFMU)
     	...
     	583.7	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
     Events [58409]:
-    	Time-Event @ 0.01s
-    	Time-Event @ 0.02s
-    	Time-Event @ 0.03s
-    	Time-Event @ 0.04s
-    	Time-Event @ 0.05s
-    	Time-Event @ 0.06s
-    	Time-Event @ 0.07s
-    	Time-Event @ 0.08s
-    	Time-Event @ 0.09s
+    	Time-Event @ 0.01s (state-change: false)
+    	Time-Event @ 0.02s (state-change: false)
+    	Time-Event @ 0.03s (state-change: false)
+    	Time-Event @ 0.04s (state-change: false)
+    	Time-Event @ 0.05s (state-change: false)
+    	Time-Event @ 0.06s (state-change: false)
+    	Time-Event @ 0.07s (state-change: false)
+    	Time-Event @ 0.08s (state-change: false)
+    	Time-Event @ 0.09s (state-change: false)
     	...
-    	Time-Event @ 583.7s
+    	Time-Event @ 583.7s (state-change: false)
     
 
 
@@ -576,10 +580,13 @@ function build_NFMU(f::FMU2)
                   gates,                              # compute resulting dx from ANN + FMU
                   dx -> cacheRetrieve(1:4, dx))       # stack together: dx[1,2,3,4] from cache + dx[5,6] from gates
 
+    solver = Tsit5()
+    
     # new NeuralFMU 
     neuralFMU = ME_NeuralFMU(f,                 # the FMU used in the NeuralFMU 
                              model,             # the model we specified above 
                              (tStart, tStop),   # a default start ad stop time for solving the NeuralFMU
+                             solver;
                              saveat=tSave)      # the time points to save the solution at
     neuralFMU.modifiedState = false             # speed optimization (NeuralFMU state equals FMU state)
     
@@ -616,21 +623,32 @@ resultNFMU = neuralFMU(x0,                          # the start state to solve t
 display(resultNFMU)     
 ```
 
+    [33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mNo solver keyword detected for NeuralFMU.
+    [33m[1m│ [22m[39mContinuous adjoint method is applied, which requires solving backward in time.
+    [33m[1m│ [22m[39mThis might be not supported by every FMU.
+    [33m[1m│ [22m[39m(This message is only printed once.)
+    [33m[1m└ [22m[39m[90m@ FMICore C:\Users\runneradmin\.julia\packages\FMICore\adAsR\src\printing.jl:38[39m
+    
+
 
     Model name:
     	Longitudinaldynamic.LongitudinaldynamicmodelContinuous
     Success:
     	true
     f(x)-Evaluations:
-    	In-place: 351551
+    	In-place: 409926
     	Out-of-place: 0
     Jacobian-Evaluations:
+    	∂ẋ_∂p: 0
     	∂ẋ_∂x: 0
     	∂ẋ_∂u: 0
+    	∂y_∂p: 0
     	∂y_∂x: 0
     	∂y_∂u: 0
+    	∂e_∂p: 0
     	∂e_∂x: 0
     	∂e_∂u: 0
+    	∂xr_∂xl: 0
     Gradient-Evaluations:
     	∂ẋ_∂t: 0
     	∂y_∂t: 0
@@ -654,17 +672,17 @@ display(resultNFMU)
     	...
     	583.7	[-0.0019167094095929496, -0.05412068948173642, 3131.826061088355, 3131.346887534511, -4.3267310775903565e-5, 1.4259877656768537e6]
     Events [58409]:
-    	Time-Event @ 0.01s
-    	Time-Event @ 0.02s
-    	Time-Event @ 0.03s
-    	Time-Event @ 0.04s
-    	Time-Event @ 0.05s
-    	Time-Event @ 0.06s
-    	Time-Event @ 0.07s
-    	Time-Event @ 0.08s
-    	Time-Event @ 0.09s
+    	Time-Event @ 0.01s (state-change: false)
+    	Time-Event @ 0.02s (state-change: false)
+    	Time-Event @ 0.03s (state-change: false)
+    	Time-Event @ 0.04s (state-change: false)
+    	Time-Event @ 0.05s (state-change: false)
+    	Time-Event @ 0.06s (state-change: false)
+    	Time-Event @ 0.07s (state-change: false)
+    	Time-Event @ 0.08s (state-change: false)
+    	Time-Event @ 0.09s (state-change: false)
     	...
-    	Time-Event @ 583.7s
+    	Time-Event @ 583.7s (state-change: false)
     
 
 
@@ -891,7 +909,7 @@ function train!(hyper_params, ressource, ind)
    
     # the actual training
     FMIFlux.train!(loss,                            # the loss function for training
-                   params,                          # the parameters to train
+                   neuralFMU,                          # the parameters to train
                    Iterators.repeated((), steps),   # an iterator repeating `steps` times
                    optim;                           # the optimizer to train
                    gradient=:ForwardDiff,           # currently, only ForwarDiff leads to good results for multi-event systems
@@ -944,15 +962,29 @@ train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0, 
     [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m--------------
     [36m[1m│ [22m[39mStarting run 1 with parameters: Any[0.0001, 0.9, 0.999, 4.0, 0.7, :Random, :MSE] and ressource 8.0 doing 2 step(s).
     [36m[1m└ [22m[39m--------------------
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 0 | Current element=0 | Next element=92
+    
+
+    [91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError("Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.")
+    [91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 1 | Current element=92 | Next element=55
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
+    
+
+    [91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError("Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.")
+    [91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 2 | Current element=55 | Next element=106
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
     
 
 
 
 
-    Dual{ForwardDiff.Tag{var"#42#46"{var"#41#45"{Symbol, Float64}, Dict{Symbol, Any}, Vector{FMIFlux.FMU2SolutionBatchElement}, ME_NeuralFMU{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, Optimisers.Restructure{Chain{Tuple{var"#28#33"{FMU2}, var"#29#34"{CacheLayer}, var"#30#35", ShiftScale{Float64}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, Dense{typeof(tanh), Matrix{Float64}, Vector{Float64}}, ScaleShift{Float64}, var"#31#36"{CacheRetrieveLayer}, ScaleSum{Float64}, var"#32#37"{CacheRetrieveLayer}}}, NamedTuple{(:layers,), Tuple{Tuple{Tuple{}, Tuple{}, Tuple{}, NamedTuple{(:shift, :scale), Tuple{Int64, Int64}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:weight, :bias, :σ), Tuple{Int64, Int64, Tuple{}}}, NamedTuple{(:scale, :shift), Tuple{Int64, Int64}}, Tuple{}, NamedTuple{(:scale,), Tuple{Int64}}, Tuple{}}}}}}}, Float64}}(9.109389942339108e9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-9.058959762810771e12,6.073077120471025e11,-2.0858327246862168e13,2.646493357450911e11,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
+    9.108986582805376e9
 
 
 

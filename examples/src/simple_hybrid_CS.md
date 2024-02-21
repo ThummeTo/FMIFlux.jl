@@ -228,11 +228,16 @@ referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, 
 fmiPlot(referenceSimData)
 ```
 
+    [34mSimulating CS-FMU ...   0%|█                             |  ETA: N/A[39m
+
+    [34mSimulating CS-FMU ... 100%|██████████████████████████████| Time: 0:00:02[39m
+    
+
 
 
 
     
-![svg](simple_hybrid_CS_files/simple_hybrid_CS_11_0.svg)
+![svg](simple_hybrid_CS_files/simple_hybrid_CS_11_2.svg)
     
 
 
@@ -515,18 +520,34 @@ For the training of the CS-NeuralFMU the parameters are extracted. The known Ada
 paramsNet = FMIFlux.params(csNeuralFMU)
 
 optim = Adam()
-FMIFlux.train!(lossSum, paramsNet, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
+FMIFlux.train!(lossSum, csNeuralFMU, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
 ```
 
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 2.37052
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [26]: 0.30045
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [51]: 0.04673
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [76]: 0.03035
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.0182
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [126]: 0.01046
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [151]: 0.00573
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [176]: 0.00305
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.00164
+    
+
     [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [226]: 0.00092
     
 
