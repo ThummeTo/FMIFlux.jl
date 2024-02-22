@@ -7,7 +7,7 @@ on:
       - pluto-test
     paths:
       - 'src/**'
-      - 'examples/src/**'
+      - 'examples/src/pluto/**'
       - '.github/workflows/PlutoExampleBuilder.yml'
       - 'Project.toml'
 
@@ -31,12 +31,49 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: pluto-dbg
-          path: examples/src/*
+          name: pluto-examples
+          path: examples/src/pluto/*
           
       - name: Archive examples artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: pluto-dbg
-          path: examples/src/*
+          name: pluto-examples
+          path: examples/src/pluto/*
+  auto-commit:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Download examples
+        uses: actions/download-artifact@v3
+        with:
+          name: pluto-examples
+          path: examples/src/pluto/
+
+      - name: auto-commit
+        env: 
+          CI_COMMIT_MESSAGE: Pluto static html exported files
+          CI_COMMIT_AUTHOR: github-actions[bot]
+          EXAMPLES_PATH: examples/src/pluto
+        # Fetch all and clear the stash list. Include all files from the examples/src folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples/src folder. 
+        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        run: |
+          git fetch --all
+          git stash clear
+          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+          git switch examples
+          git reset --hard origin/examples
+          rm -rf ${{ env.EXAMPLES_PATH }}
+          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+          git stash apply --index
+          git stash drop
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+          git config --global core.autocrlf false
+          git add ${{ env.EXAMPLES_PATH }}
+          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+          git push origin examples 
