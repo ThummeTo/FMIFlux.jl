@@ -22,5 +22,5 @@ The examples show how to combine FMUs with machine learning ("NeuralFMU") and il
 ## Workshops
 [Pluto](https://plutojl.org/) based notebooks, that can easyly be executed on your own Pluto-Setup.
 ```@raw html
-<iframe src="pluto/index.html" style="height:500px;width:100%;"></iframe>
+<iframe src="pluto-src/index.html" style="height:500px;width:100%;"></iframe>
 ```

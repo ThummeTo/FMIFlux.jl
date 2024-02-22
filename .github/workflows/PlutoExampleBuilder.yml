@@ -7,7 +7,7 @@ on:
       - pluto-test
     paths:
       - 'src/**'
-      - 'examples/src/pluto/**'
+      - 'examples/pluto-src/**'
       - '.github/workflows/PlutoExampleBuilder.yml'
       - 'Project.toml'
 
@@ -25,21 +25,21 @@ jobs:
             version: '1.10'
 
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
-      - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/src/pluto")'
+      - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
 
       - name: Archive examples artifacts (success)
         if: success()
         uses: actions/upload-artifact@v3
         with:
           name: pluto-examples
-          path: examples/src/pluto/*
+          path: examples/pluto-src/*
           
       - name: Archive examples artifacts (failure)
         if: failure()
         uses: actions/upload-artifact@v3
         with:
           name: pluto-examples
-          path: examples/src/pluto/*
+          path: examples/pluto-src/*
   auto-commit:
     needs: build
     runs-on: ubuntu-latest
@@ -51,13 +51,13 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: pluto-examples
-          path: examples/src/pluto/
+          path: examples/pluto-src/
 
       - name: auto-commit
         env: 
           CI_COMMIT_MESSAGE: Pluto static html exported files
           CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples/src/pluto
+          EXAMPLES_PATH: examples/pluto-src
         # Fetch all and clear the stash list. Include all files from the examples/src folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples/src folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.

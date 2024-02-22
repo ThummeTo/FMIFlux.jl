@@ -8,7 +8,7 @@ on:
       - main
     paths:
       - 'src/**'
-      - 'examples/src/**'
+      - 'examples/jupyter-src/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
   
@@ -42,7 +42,7 @@ jobs:
                         
       - name: "Execute and synchronize all files"
         env:
-          FILE: examples/src/${{ matrix.file-name }}.ipynb
+          FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
         run: |
           jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.8" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
@@ -51,10 +51,10 @@ jobs:
       - name: "Fix GIFs"
         run: |
           echo "starting gif fixing"
-          mv examples/src/gif_*.gif examples/src/${{ matrix.file-name }}_files
+          mv examples/jupyter-src/gif_*.gif examples/jupyter-src/${{ matrix.file-name }}_files
           $env:Path += ";C:\Program Files\Git\usr\bin"
-          awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/src/${{ matrix.file-name }}.md > examples/src/tmp_${{ matrix.file-name }}.md
-          mv -Force examples/src/tmp_${{ matrix.file-name }}.md examples/src/${{ matrix.file-name }}.md
+          awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ matrix.file-name }}.md > examples/jupyter-src/tmp_${{ matrix.file-name }}.md
+          mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
 
       - name: Archive examples artifacts
@@ -62,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: examples
-          path: examples/src/${{ matrix.file-name }}*
+          path: examples/jupyter-src/${{ matrix.file-name }}*
 
   auto-commit:
     needs: sync-files
@@ -76,15 +76,15 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: examples
-          path: examples/src/
+          path: examples/jupyter-src/
       
       - name: auto-commit
         env: 
           CI_COMMIT_MESSAGE: Jupyter nbconvert synch - modified, paired .ipynb files
           CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples/src
-        # Fetch all and clear the stash list. Include all files from the examples/src folder to the stash and switch the branch.
-        # Reset the branch and remove all current files in the examples/src folder. 
+          EXAMPLES_PATH: examples/jupyter-src
+        # Fetch all and clear the stash list. Include all files from the examples/jupyter-src folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples/jupyter-src folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
         run: |
           git fetch --all

@@ -25,7 +25,7 @@ makedocs(sitename="FMIFlux.jl",
                     "JuliaCon 2023" => "examples/juliacon_2023.md"
                     "MDPI 2022" => "examples/mdpi_2022.md"
                     "Modelica Conference 2021" => "examples/modelica_conference_2021.md"
-					"Pluto Workshops" => "examples/workshops.md"
+                    "Pluto Workshops" => "examples/workshops.md"
             ]
             "FAQ" => "faq.md"
             "Library Functions" => "library.md"
