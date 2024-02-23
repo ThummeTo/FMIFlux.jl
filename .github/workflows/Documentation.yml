@@ -54,3 +54,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
         run: julia --project=docs/ docs/make.jl
+
+      - name: Archive examples artifacts (success)
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: docs/build
+          
+      - name: Archive examples artifacts (failure)
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: docs/build

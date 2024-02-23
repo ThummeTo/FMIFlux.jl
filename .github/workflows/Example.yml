@@ -6,14 +6,16 @@ on:
   push:
     branches: 
       - main
+      - pluto-test
     paths:
       - 'src/**'
       - 'examples/jupyter-src/**'
+      - 'examples/pluto-src/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
   
 jobs:
-  sync-files:
+  jypiter:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -57,32 +59,59 @@ jobs:
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
 
-      - name: Archive examples artifacts
+      - name: Archive examples artifacts (success)
         if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3
         with:
-          name: examples
+          name: jupyter-examples
           path: examples/jupyter-src/${{ matrix.file-name }}*
+          
+  pluto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v3
 
+      - name: "Set up Julia"
+        uses: julia-actions/setup-julia@v1
+        with:
+            version: '1.10'
+
+      - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
+      - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
+
+      - name: Archive examples artifacts (success)
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pluto-examples
+          path: examples/pluto-src/*
+          
   auto-commit:
-    needs: sync-files
+    needs: [jypiter, pluto]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Download examples
+      - name: Download jupyter examples
         uses: actions/download-artifact@v3
         with:
-          name: examples
+          name: jupyter-examples
           path: examples/jupyter-src/
       
+      - name: Download pluto examples
+        uses: actions/download-artifact@v3
+        with:
+          name: pluto-examples
+          path: examples/pluto-src/
+          
       - name: auto-commit
         env: 
-          CI_COMMIT_MESSAGE: Jupyter nbconvert synch - modified, paired .ipynb files
+          CI_COMMIT_MESSAGE: Jupyter modified .ipynb & exported md files; Pluto static html exported files
           CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples/jupyter-src
+          EXAMPLES_PATH: examples
         # Fetch all and clear the stash list. Include all files from the examples/jupyter-src folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples/jupyter-src folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
