@@ -18,3 +18,7 @@ The examples show how to combine FMUs with machine learning ("NeuralFMU") and il
 
 ## Archived
 - [__MDPI 2022: Physics-enhanced NeuralODEs in real-world applications__](https://thummeto.github.io/FMIFlux.jl/dev/examples/mdpi_2022/): An example for a NeuralODE in a real world modeling scenario (Contribution in *MDPI Electronics 2022*).
+
+## Workshops
+[Pluto](https://plutojl.org/) based notebooks, that can easyly be executed on your own Pluto-Setup.
+- [__HybridModelingUsingFMI__](../pluto-src/HybridModelingUsingFMI/HybridModelingUsingFMI.html): Workshop at MODPROD 2024 (Linköping University, Sweden)
