@@ -6,7 +6,6 @@ on:
   push:
     branches: 
       - main
-      - pluto-test
     paths:
       - 'src/**'
       - 'examples/jupyter-src/**'
