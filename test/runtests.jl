@@ -12,9 +12,9 @@ using FMIFlux.Flux
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
-using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATIONS
-using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
+using FMIFlux.FMIImport: stringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
+using FMIFlux.FMIImport: FMU_EXECUTION_CONFIGURATIONS
+using FMIFlux.FMIImport: getState, getValue, getTime
 
 exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0.25")]
 exportingToolsLinux = [("Dymola", "2022x")]
@@ -50,7 +50,7 @@ function syntTrainingData(tData)
 end
 
 # enable assertions for warnings/errors for all default execution configurations - we want strict tests here
-for exec in FMU2_EXECUTION_CONFIGURATIONS
+for exec in FMU_EXECUTION_CONFIGURATIONS
     exec.assertOnError = true
     exec.assertOnWarning = true
 end

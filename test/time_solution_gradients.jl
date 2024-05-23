@@ -10,7 +10,7 @@ import FMIFlux.FMISensitivity.SciMLSensitivity.SciMLBase: RightRootFind, LeftRoo
 import FMIFlux: unsense
 using FMIFlux.FMISensitivity.SciMLSensitivity.ForwardDiff, FMIFlux.FMISensitivity.SciMLSensitivity.ReverseDiff, FMIFlux.FMISensitivity.SciMLSensitivity.FiniteDiff, FMIFlux.FMISensitivity.SciMLSensitivity.Zygote
 using FMIFlux.FMIImport, FMIFlux.FMIImport.FMICore, FMIZoo
-using FMIFlux.FMIImport.FMICore: unsense
+using FMIFlux.FMIImport.FMIBase: unsense
 import LinearAlgebra:I
 
 import Random 
@@ -208,7 +208,7 @@ stepCb = FunctionCallingCallback(stepCompleted;
                                             func_start=true)
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("BouncingBallGravitySwitch1D", "Dymola", "2023x"; type=:ME)
+fmu = loadFMU("BouncingBallGravitySwitch1D", "Dymola", "2023x"; type=:ME)
 fmu_params = Dict("damping" => ENERGY_LOSS, "mass_radius" => RADIUS, "gravity" => GRAVITY, "period" => TIME_FREQ, "mass_m" => MASS, "mass_s_min" => DBL_MIN)
 fmu.executionConfig.isolatedStateDependency = true
 
@@ -280,7 +280,7 @@ using FMIFlux.FMISensitivity.SciMLSensitivity
 sensealg = ReverseDiffAdjoint() # InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)) #  
 
 c = nothing
-c, _ = FMIFlux.prepareSolveFMU(prob.fmu, c, fmi2TypeModelExchange, nothing, nothing, nothing, nothing, nothing, prob.parameters, prob.tspan[1], prob.tspan[end], nothing; x0=prob.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+c, _ = FMIFlux.prepareSolveFMU(prob.fmu, c, fmi2TypeModelExchange; parameters=prob.parameters, t_start=prob.tspan[1], t_stop=prob.tspan[end], x0=prob.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
 
 ### START CHECK CONDITIONS 
 
@@ -340,7 +340,7 @@ affect_nfmu_check = function(x, t, idx=1)
         x = copy(x)
     end
     
-    c, _ = FMIFlux.prepareSolveFMU(prob.fmu, nothing, fmi2TypeModelExchange, nothing, nothing, nothing, nothing, nothing, fmu_params, unsense(t), prob.tspan[end], nothing; x0=unsense(x), handleEvents=FMIFlux.handleEvents, cleanup=true)
+    c, _ = FMIFlux.prepareSolveFMU(prob.fmu, nothing, fmi2TypeModelExchange; parameters=fmu_params, t_start=unsense(t), t_stop=prob.tspan[end], x0=unsense(x), handleEvents=FMIFlux.handleEvents, cleanup=true)
 
     integrator = (t=t, u=x, opts=(internalnorm=(a,b)->1.0,) )
     FMIFlux.affectFMU!(prob, c, integrator, idx)
@@ -487,4 +487,4 @@ atol = 1e-3
 
 ###
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

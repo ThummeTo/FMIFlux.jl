@@ -19,7 +19,7 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 losssum = function(p)
@@ -30,8 +30,8 @@ losssum = function(p)
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
 end
@@ -47,10 +47,10 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "mass.s")]
+getVRs = [stringToValueReference(fmu, "mass.s")]
 numGetVRs = length(getVRs)
 y = zeros(fmi2Real, numGetVRs)
-setVRs = [fmi2StringToValueReference(fmu, "mass.m")]
+setVRs = [stringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
@@ -189,4 +189,4 @@ end
 
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

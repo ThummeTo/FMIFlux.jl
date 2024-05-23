@@ -17,7 +17,7 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData, velData, accData = syntTrainingData(tData)
 
-fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
+fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
 
 # loss function for training
 losssum = function(p)
@@ -28,13 +28,13 @@ losssum = function(p)
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return Flux.Losses.mse(posNet, posData) + FMIFlux.Losses.mse(velNet, velData) 
 end
 
-vr = fmi2StringToValueReference(fmu, "g")
+vr = stringToValueReference(fmu, "g")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
@@ -47,10 +47,10 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "h")]
+getVRs = [stringToValueReference(fmu, "h")]
 y = zeros(fmi2Real, length(getVRs))
 numGetVRs = length(getVRs)
-setVRs = [fmi2StringToValueReference(fmu, "v")]
+setVRs = [stringToValueReference(fmu, "v")]
 numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
@@ -196,4 +196,4 @@ end
 
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

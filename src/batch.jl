@@ -3,9 +3,9 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import FMIImport.FMICore: FMUSnapshot
+import FMIImport.FMIBase: FMUSnapshot
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
-using DifferentialEquations.DiffEqCallbacks: FunctionCallingCallback
+using FMIImport.FMIBase.DiffEqCallbacks: FunctionCallingCallback
 
 abstract type FMU2BatchElement end
 
@@ -66,7 +66,7 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
     
     indicesModel
 
-    solution::FMU2Solution
+    solution::FMUSolution
 
     scalarLoss::Bool
     # canGetSetState::Bool
@@ -309,10 +309,10 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=fa
 
     loss = 0.0 # will be incremented
 
-    if hasmethod(lossFct, Tuple{FMU2Solution})
+    if hasmethod(lossFct, Tuple{FMUSolution})
         loss = lossFct(batchElement.solution)
 
-    elseif hasmethod(lossFct, Tuple{FMU2Solution, Union{}})
+    elseif hasmethod(lossFct, Tuple{FMUSolution, Union{}})
         loss = lossFct(batchElement.solution, batchElement.targets)
 
     else # hasmethod(lossFct, Tuple{Union{}, Union{}})

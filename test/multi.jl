@@ -30,7 +30,7 @@ losssum = function(p)
         return Inf 
     end
 
-    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
+    accNet = getValue(solution, 1; isIndex=true)
 
     FMIFlux.Losses.mse(accNet, accData)
 end
@@ -38,7 +38,7 @@ end
 # Load FMUs
 fmus = Vector{FMU2}()
 for i in 1:2 # how many FMUs do you want?
-    _fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
+    _fmu = loadFMU("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
     push!(fmus, _fmu)
 end
 
@@ -78,5 +78,5 @@ lossAfter = losssum(p_net[1])
 solutionAfter = problem(extForce, t_step)
 
 for i in 1:length(fmus)
-    fmi2Unload(fmus[i])
+    unloadFMU(fmus[i])
 end
