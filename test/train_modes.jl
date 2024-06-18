@@ -48,7 +48,8 @@ comp = nothing
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
         for config in FMU_EXECUTION_CONFIGURATIONS
-            @testset "config: $config" begin
+            configstr = "$(config)"
+            @testset "config: $(configstr[1:64])..." begin
                 
                 global problem, lastLoss, iterCB, comp
 
