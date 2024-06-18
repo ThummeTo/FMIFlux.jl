@@ -16,7 +16,7 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData, velData, accData = syntTrainingData(tData)
 
-fmu = fmi2Load("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
+fmu = loadFMU("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
 
 # sine(t) as external force
 extForce = function(t)
@@ -31,7 +31,7 @@ losssum = function(p)
         return Inf 
     end
 
-    accNet = fmi2GetSolutionValue(solution, 1; isIndex=true)
+    accNet = getValue(solution, 1; isIndex=true)
 
     Flux.Losses.mse(accNet, accData)
 end
@@ -61,4 +61,4 @@ lossAfter = losssum(p_net[1])
 
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

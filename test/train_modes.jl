@@ -19,7 +19,7 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 losssum = function(p)
@@ -30,13 +30,13 @@ losssum = function(p)
         return Inf 
     end
 
-    #posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    #posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
-vr = fmi2StringToValueReference(fmu, "mass.m")
+vr = stringToValueReference(fmu, "mass.m")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
@@ -47,8 +47,9 @@ global comp
 comp = nothing
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
-        for config in [FMU2_EXECUTION_CONFIGURATION_NO_RESET, FMU2_EXECUTION_CONFIGURATION_RESET, FMU2_EXECUTION_CONFIGURATION_NO_FREEING]
-            @testset "config: $config" begin
+        for config in FMU_EXECUTION_CONFIGURATIONS
+            configstr = "$(config)"
+            @testset "config: $(configstr[1:64])..." begin
                 
                 global problem, lastLoss, iterCB, comp
 
@@ -123,4 +124,4 @@ for handleEvents in [true, false]
     end
 end
 
-fmi2Unload(fmu)
+unloadFMU(fmu)
