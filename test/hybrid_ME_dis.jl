@@ -146,8 +146,8 @@ for solver in solvers
                 net = nets[i]
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
 
-                if i ∈ (3, 4, 6)
-                    @warn "Currently skipping nets ∈ (3, 4, 6)"
+                if i ∈ (1, 2, 3, 4, 6)
+                    @warn "Currently skipping nets ∈ (1, 2, 3, 4, 6)"
                     continue
                 end
                 
