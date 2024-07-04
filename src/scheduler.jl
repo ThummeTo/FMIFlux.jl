@@ -206,7 +206,7 @@ mutable struct SequentialScheduler <: BatchScheduler
     end
 end
 
-function initialize!(scheduler::BatchScheduler; runkwargs...)
+function initialize!(scheduler::BatchScheduler; print::Bool=true, runkwargs...)
 
     lastIndex = 0
     scheduler.step = 0
@@ -216,7 +216,7 @@ function initialize!(scheduler::BatchScheduler; runkwargs...)
         scheduler.runkwargs = runkwargs
     end
 
-    scheduler.elementIndex = apply!(scheduler)
+    scheduler.elementIndex = apply!(scheduler; print=print)
     
     if scheduler.plotStep > 0
         plot(scheduler, lastIndex)
@@ -230,7 +230,7 @@ function update!(scheduler::BatchScheduler; print::Bool=true)
     scheduler.step += 1
     
     if scheduler.applyStep > 0 && scheduler.step % scheduler.applyStep == 0
-        scheduler.elementIndex = apply!(scheduler)
+        scheduler.elementIndex = apply!(scheduler; print=print)
     end
 
     # max/avg error 
