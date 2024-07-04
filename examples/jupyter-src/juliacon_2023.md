@@ -51,94 +51,6 @@ import Random       # for fixing the random seed
 using Plots         # plotting results
 ```
 
-    [33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mError requiring `Enzyme` from `LinearSolve`
-    [33m[1m│ [22m[39m  exception =
-    [33m[1m│ [22m[39m   LoadError: ArgumentError: Package LinearSolve does not have Enzyme in its dependencies:
-    [33m[1m│ [22m[39m   - You may have a partially installed environment. Try `Pkg.instantiate()`
-    [33m[1m│ [22m[39m     to ensure all packages in the environment are installed.
-    [33m[1m│ [22m[39m   - Or, if you have LinearSolve checked out for development and have
-    [33m[1m│ [22m[39m     added Enzyme as a dependency but haven't updated your primary
-    [33m[1m│ [22m[39m     environment's manifest file, try `Pkg.resolve()`.
-    [33m[1m│ [22m[39m   - Otherwise you may need to report an issue with LinearSolve
-    [33m[1m│ [22m[39m   Stacktrace:
-    [33m[1m│ [22m[39m     [1] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mloading.jl:1167[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m     [2] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mlock.jl:223[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m     [3] [0m[1mrequire[22m[0m[1m([22m[90minto[39m::[0mModule, [90mmod[39m::[0mSymbol[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1144[24m[39m
-    [33m[1m│ [22m[39m     [4] [0m[1minclude[22m[0m[1m([22m[90mmod[39m::[0mModule, [90m_path[39m::[0mString[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mBase.jl:419[24m[39m
-    [33m[1m│ [22m[39m     [5] [0m[1minclude[22m[0m[1m([22m[90mx[39m::[0mString[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4mLinearSolve.jl:1[24m[39m
-    [33m[1m│ [22m[39m     [6] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mRequires.jl:40[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m     [7] top-level scope
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4minit.jl:16[24m[39m
-    [33m[1m│ [22m[39m     [8] [0m[1meval[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mboot.jl:368[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m     [9] [0m[1meval[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4mLinearSolve.jl:1[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [10] [0m[1m(::LinearSolve.var"#88#97")[22m[0m[1m([22m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:101[24m[39m
-    [33m[1m│ [22m[39m    [11] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m[4mtiming.jl:382[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [12] [0m[1merr[22m[0m[1m([22m[90mf[39m::[0mAny, [90mlistener[39m::[0mModule, [90mmodname[39m::[0mString, [90mfile[39m::[0mString, [90mline[39m::[0mAny[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:47[24m[39m
-    [33m[1m│ [22m[39m    [13] [0m[1m(::LinearSolve.var"#87#96")[22m[0m[1m([22m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:100[24m[39m
-    [33m[1m│ [22m[39m    [14] [0m[1mwithpath[22m[0m[1m([22m[90mf[39m::[0mAny, [90mpath[39m::[0mString[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:37[24m[39m
-    [33m[1m│ [22m[39m    [15] [0m[1m(::LinearSolve.var"#86#95")[22m[0m[1m([22m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:99[24m[39m
-    [33m[1m│ [22m[39m    [16] [0m[1m#invokelatest#2[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [17] [0m[1minvokelatest[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [18] [0m[1mforeach[22m[0m[1m([22m[90mf[39m::[0mtypeof(Base.invokelatest), [90mitr[39m::[0mVector[90m{Function}[39m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mabstractarray.jl:2774[24m[39m
-    [33m[1m│ [22m[39m    [19] [0m[1mloadpkg[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:27[24m[39m
-    [33m[1m│ [22m[39m    [20] [0m[1m#invokelatest#2[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [21] [0m[1minvokelatest[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [22] [0m[1mrun_package_callbacks[22m[0m[1m([22m[90mmodkey[39m::[0mBase.PkgId[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:869[24m[39m
-    [33m[1m│ [22m[39m    [23] [0m[1m_tryrequire_from_serialized[22m[0m[1m([22m[90mmodkey[39m::[0mBase.PkgId, [90mpath[39m::[0mString, [90msourcepath[39m::[0mString, [90mdepmods[39m::[0mVector[90m{Any}[39m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:944[24m[39m
-    [33m[1m│ [22m[39m    [24] [0m[1m_require_search_from_serialized[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId, [90msourcepath[39m::[0mString, [90mbuild_id[39m::[0mUInt64[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1028[24m[39m
-    [33m[1m│ [22m[39m    [25] [0m[1m_require[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1315[24m[39m
-    [33m[1m│ [22m[39m    [26] [0m[1m_require_prelocked[22m[0m[1m([22m[90muuidkey[39m::[0mBase.PkgId[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1200[24m[39m
-    [33m[1m│ [22m[39m    [27] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mloading.jl:1180[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [28] [0m[1mmacro expansion[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mlock.jl:223[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [29] [0m[1mrequire[22m[0m[1m([22m[90minto[39m::[0mModule, [90mmod[39m::[0mSymbol[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1144[24m[39m
-    [33m[1m│ [22m[39m    [30] [0m[1meval[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mboot.jl:368[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [31] [0m[1minclude_string[22m[0m[1m([22m[90mmapexpr[39m::[0mtypeof(REPL.softscope), [90mmod[39m::[0mModule, [90mcode[39m::[0mString, [90mfilename[39m::[0mString[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1428[24m[39m
-    [33m[1m│ [22m[39m    [32] [0m[1msoftscope_include_string[22m[0m[1m([22m[90mm[39m::[0mModule, [90mcode[39m::[0mString, [90mfilename[39m::[0mString[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[32mSoftGlobalScope[39m [90mC:\Users\runneradmin\.julia\packages\SoftGlobalScope\u4UzH\src\[39m[90m[4mSoftGlobalScope.jl:65[24m[39m
-    [33m[1m│ [22m[39m    [33] [0m[1mexecute_request[22m[0m[1m([22m[90msocket[39m::[0mZMQ.Socket, [90mmsg[39m::[0mIJulia.Msg[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90mC:\Users\runneradmin\.julia\packages\IJulia\Vo51o\src\[39m[90m[4mexecute_request.jl:67[24m[39m
-    [33m[1m│ [22m[39m    [34] [0m[1m#invokelatest#2[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [35] [0m[1minvokelatest[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
-    [33m[1m│ [22m[39m    [36] [0m[1meventloop[22m[0m[1m([22m[90msocket[39m::[0mZMQ.Socket[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90mC:\Users\runneradmin\.julia\packages\IJulia\Vo51o\src\[39m[90m[4meventloop.jl:8[24m[39m
-    [33m[1m│ [22m[39m    [37] [0m[1m(::IJulia.var"#15#18")[22m[0m[1m([22m[0m[1m)[22m
-    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90m.\[39m[90m[4mtask.jl:484[24m[39m
-    [33m[1m│ [22m[39m   in expression starting at C:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\ext\LinearSolveEnzymeExt.jl:1
-    [33m[1m└ [22m[39m[90m@ Requires C:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\require.jl:51[39m
-    
-
 Beside the packages, we use another little script that includes some nice plotting functions specially for this workshop.
 
 
@@ -182,15 +94,6 @@ plot(data.speed_t,              # the time points the speed was captures (from d
      ylabel="velocity [m/s]")   # plot y-label
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_11_0.svg)
-    
-
-
-
 Further, we load validation data and have a look on it, too.
 
 
@@ -202,15 +105,6 @@ data_validation = VLDM(:validate, dt=dt)
 plot(data_validation.speed_t, data_validation.speed_val; label="Data", ribbon=data_validation.speed_dev, fillalpha=0.3, title="WLTC (complete)", xlabel="t [s]", ylabel="velocity [m/s]")
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_13_0.svg)
-    
-
-
-
 Let's extract a simulation starting time `tStart` and stopping time `tStop` from data - so we simulate as far as data is available. `tSave` are the points in time we want our ODE solution beeing saved later.
 
 
@@ -220,39 +114,6 @@ tStart = data.consumption_t[1]
 tStop = data.consumption_t[end]
 tSave = data.consumption_t
 ```
-
-
-
-
-    5838-element Vector{Float64}:
-       0.0
-       0.1
-       0.2
-       0.3
-       0.4
-       0.5
-       0.6
-       0.7
-       0.8
-       0.9
-       1.0
-       1.1
-       1.2
-       ⋮
-     582.6
-     582.7
-     582.8
-     582.9
-     583.0
-     583.1
-     583.2
-     583.3
-     583.4
-     583.5
-     583.6
-     583.7
-
-
 
 So you can see time points are sampled with `dt=0.1` as specified and the cycle ranges from $0.0s$ to $583.7s$.
 
@@ -265,19 +126,6 @@ x0 = FMIZoo.getStateVector(data,    # the data container
                            tStart)  # the point in time where we want the state
 ```
 
-
-
-
-    6-element Vector{Float64}:
-     0.0
-     0.0
-     0.0
-     0.0
-     0.0
-     0.0
-
-
-
 In this special case, it's all zero, but this is not the default over different system!
 
 Further, we can check for the loaded FMU parameters, that are paths to the used characterisitc maps used in the model.
@@ -287,13 +135,6 @@ Further, we can check for the loaded FMU parameters, that are paths to the used 
 # have a look on the FMU parameters (these are the file paths to the characteristic maps, remaining parameters are set to default by the FMU)
 display(data.params)
 ```
-
-
-    Dict{String, Any} with 3 entries:
-      "peFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
-      "edFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
-      "dcFileName" => "C:\\Users\\runneradmin\\.julia\\packages\\FMIZoo\\gp8Qi\\src…
-
 
 After that, we load the FMU and have a look on its model meta data.
 
@@ -305,39 +146,6 @@ fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME)
 # let's have a look on the model meta data
 fmiInfo(fmu)
 ```
-
-    #################### Begin information for FMU ####################
-    	Model name:			Longitudinaldynamic.LongitudinaldynamicmodelContinuous
-    	FMI-Version:			2.0
-    	GUID:				{669889ab-7ab7-4fac-be92-96b6cd0b86a6}
-    	Generation tool:		Dymola Version 2020x (64-bit), 2019-10-10
-    	Generation time:		2022-07-22T09:32:50Z
-    	Var. naming conv.:		structured
-    	Event indicators:		28
-    	Inputs:				0
-    	Outputs:			0
-    	States:				6
-    		33554432 ["driver.accelerationPedalController.PI.x"]
-    		33554433 ["driver.brakePedalController.PI.x"]
-    		33554434 ["drivingCycle.s"]
-    		33554435 ["dynamics.accelerationCalculation.integrator.y"]
-    		33554436 ["dynamics.accelerationCalculation.limiter.u", "dynamics.accelerationCalculation.limIntegrator.y", "dynamics.accelerationCalculation.limiter.simplifiedExpr"]
-    		33554437 ["result.integrator.y"]
-    	Supports Co-Simulation:		true
-    		Model identifier:	Longitudinaldynamic_LongitudinaldynamicmodelContinuous
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    		Var. com. steps:	true
-    		Input interpol.:	true
-    		Max order out. der.:	1
-    	Supports Model-Exchange:	true
-    		Model identifier:	Longitudinaldynamic_LongitudinaldynamicmodelContinuous
-    		Get/Set State:		true
-    		Serialize State:	true
-    		Dir. Derivatives:	true
-    ##################### End information for FMU #####################
-    
 
 One can find many useful things, like the number of states (6), inputs (0) and outputs (0), their names and information about supported features. 
 
@@ -356,74 +164,6 @@ resultFMU = fmiSimulate(fmu,                        # the loaded FMU of the VLDM
 display(resultFMU)
 ```
 
-
-    Model name:
-    	Longitudinaldynamic.LongitudinaldynamicmodelContinuous
-    Success:
-    	true
-    f(x)-Evaluations:
-    	In-place: 351569
-    	Out-of-place: 0
-    Jacobian-Evaluations:
-    	∂ẋ_∂p: 0
-    	∂ẋ_∂x: 0
-    	∂ẋ_∂u: 0
-    	∂y_∂p: 0
-    	∂y_∂x: 0
-    	∂y_∂u: 0
-    	∂e_∂p: 0
-    	∂e_∂x: 0
-    	∂e_∂u: 0
-    	∂xr_∂xl: 0
-    Gradient-Evaluations:
-    	∂ẋ_∂t: 0
-    	∂y_∂t: 0
-    	∂e_∂t: 0
-    Callback-Evaluations:
-    	Condition (event-indicators): 702563
-    	Time-Choice (event-instances): 58371
-    	Affect (event-handling): 58409
-    	Save values: 5838
-    	Steps completed: 58453
-    States [5838]:
-    	0.0	[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    	0.1	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 14.260000000955804]
-    	0.2	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 28.52000000095581]
-    	0.3	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 42.78000000095581]
-    	0.4	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 57.04000000095582]
-    	0.5	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 71.30000000095582]
-    	0.6	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 85.56000000095582]
-    	0.7	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 99.82000000095582]
-    	0.8	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 114.08000000095585]
-    	...
-    	583.7	[-0.0019167094141548354, -0.05412068948856807, 3131.826061088357, 3131.346887728074, -4.101081869676333e-5, 1.4259873371357084e6]
-    Values [5838]:
-    	0.0	(0.0, 0.0, 0.0, 0.0, -0.1773972602739726, 142.6)
-    	0.1	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.2	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.3	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.4	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.5	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.6	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.7	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	0.8	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    	...
-    	583.7	(0.0, 0.0, 0.0, 0.0, 0.0, 142.6)
-    Events [58409]:
-    	Time-Event @ 0.01s (state-change: false)
-    	Time-Event @ 0.02s (state-change: false)
-    	Time-Event @ 0.03s (state-change: false)
-    	Time-Event @ 0.04s (state-change: false)
-    	Time-Event @ 0.05s (state-change: false)
-    	Time-Event @ 0.06s (state-change: false)
-    	Time-Event @ 0.07s (state-change: false)
-    	Time-Event @ 0.08s (state-change: false)
-    	Time-Event @ 0.09s (state-change: false)
-    	...
-    	Time-Event @ 583.7s (state-change: false)
-    
-
-
 This way, you can see interessting metadata on the solution process, like the number of evaluations of the ODE-function, sensitivity or callback evaluations. 
 
 We can use the `plot` command to plot simulation results from FMUs, too!
@@ -440,18 +180,6 @@ fig = plot(resultFMU;                               # the simulation result from
 # further plot the (measurement) data values `consumption_val` and deviation between measurements `consumption_dev`
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val; label="Data", ribbon=data.cumconsumption_dev, fillalpha=0.3)
 ```
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mfmiPlot(...): Number of time events (58370) exceeding 100, disabling automatic plotting of time events (can be forced with keyword `timeEvents=true`).
-    
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_25_1.svg)
-    
-
-
 
 The simulation result we already know from the introduction!
 
@@ -477,30 +205,12 @@ manipulatedDerVals = fmiGetSolutionValue(resultFMU, manipulatedDerVars)
 plot(resultFMU.values.t, manipulatedDerVals[1,:][1]; label="original", xlabel="t [s]", ylabel="velocity [m/s]")
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_29_0.svg)
-    
-
-
-
 But what happens if we put the velocity into the hyperbolic tangens function?
 
 
 ```julia
 plot!(resultFMU.values.t, tanh.(manipulatedDerVals[1,:][1]); label="tanh(velocity)")
 ```
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_31_0.svg)
-    
-
-
 
 It gets saturated drastically! That's why we need shift- and scale layers for online pre- and post-processing!
 
@@ -521,15 +231,6 @@ plot!(resultFMU.values.t,
       testVals; 
       label="tanh(preProcess(velocity))")
 ```
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_35_0.svg)
-    
-
-
 
 You can clearly see, that after pre-processing, the trajectory (green) still mirrors the dynamical behaviour of the original system (blue), while the not pre-processed option (orange) just saturates values. 
 
@@ -594,13 +295,6 @@ function build_NFMU(f::FMU2)
 end
 ```
 
-
-
-
-    build_NFMU (generic function with 1 method)
-
-
-
 Let's test the NeuralFMU: First, load the FMU und built a NeuralFMU from it.
 
 
@@ -623,69 +317,6 @@ resultNFMU = neuralFMU(x0,                          # the start state to solve t
 display(resultNFMU)     
 ```
 
-    [33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mNo solver keyword detected for NeuralFMU.
-    [33m[1m│ [22m[39mContinuous adjoint method is applied, which requires solving backward in time.
-    [33m[1m│ [22m[39mThis might be not supported by every FMU.
-    [33m[1m│ [22m[39m(This message is only printed once.)
-    [33m[1m└ [22m[39m[90m@ FMICore C:\Users\runneradmin\.julia\packages\FMICore\7NIyu\src\printing.jl:38[39m
-    
-
-
-    Model name:
-    	Longitudinaldynamic.LongitudinaldynamicmodelContinuous
-    Success:
-    	true
-    f(x)-Evaluations:
-    	In-place: 409926
-    	Out-of-place: 0
-    Jacobian-Evaluations:
-    	∂ẋ_∂p: 0
-    	∂ẋ_∂x: 0
-    	∂ẋ_∂u: 0
-    	∂y_∂p: 0
-    	∂y_∂x: 0
-    	∂y_∂u: 0
-    	∂e_∂p: 0
-    	∂e_∂x: 0
-    	∂e_∂u: 0
-    	∂xr_∂xl: 0
-    Gradient-Evaluations:
-    	∂ẋ_∂t: 0
-    	∂y_∂t: 0
-    	∂e_∂t: 0
-    Callback-Evaluations:
-    	Condition (event-indicators): 702407
-    	Time-Choice (event-instances): 58371
-    	Affect (event-handling): 58409
-    	Save values: 0
-    	Steps completed: 58440
-    States [5838]:
-    	0.0	[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    	0.1	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 14.260000000955804]
-    	0.2	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 28.52000000095581]
-    	0.3	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 42.78000000095581]
-    	0.4	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 57.04000000095582]
-    	0.5	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 71.30000000095582]
-    	0.6	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 85.56000000095582]
-    	0.7	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 99.82000000095582]
-    	0.8	[-1.0313822985067192e-12, -1.5470734477600789e-12, 0.0, 7.219676089547036e-12, -1.0224379404543445e-5, 114.08000000095585]
-    	...
-    	583.7	[-0.0019167094095929496, -0.05412068948173642, 3131.826061088355, 3131.346887534511, -4.3267310775903565e-5, 1.4259877656768537e6]
-    Events [58409]:
-    	Time-Event @ 0.01s (state-change: false)
-    	Time-Event @ 0.02s (state-change: false)
-    	Time-Event @ 0.03s (state-change: false)
-    	Time-Event @ 0.04s (state-change: false)
-    	Time-Event @ 0.05s (state-change: false)
-    	Time-Event @ 0.06s (state-change: false)
-    	Time-Event @ 0.07s (state-change: false)
-    	Time-Event @ 0.08s (state-change: false)
-    	Time-Event @ 0.09s (state-change: false)
-    	...
-    	Time-Event @ 583.7s (state-change: false)
-    
-
-
 As for the FMU, we can display the NeuralFMU simulation result and check some statisitics.
 
 Now, let's have a look on the cumulative consumption plot ...
@@ -697,15 +328,6 @@ fig = plot(resultNFMU; stateIndices=6:6, stateEvents=false, timeEvents=false, la
 plot!(fig, resultFMU; stateIndices=6:6, values=false, stateEvents=false, timeEvents=false, label="FMU")
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val, label="Data")
 ```
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_45_0.svg)
-    
-
-
 
 As you can see, the FMU und NeuralFMU result looks identically - and this is what we expect for a fully open FMU gate and a fully closed ANN gate!
 
@@ -732,39 +354,6 @@ train_t = data.consumption_t
 # data is as "array of arrays" required (often we have multidimensional data)
 train_data = collect([d] for d in data.cumconsumption_val)
 ```
-
-
-
-
-    5838-element Vector{Vector{Float64}}:
-     [0.0]
-     [-0.41296068176650935]
-     [0.26787411983582043]
-     [0.7202168791949798]
-     [1.0714482470335085]
-     [1.390037422822217]
-     [2.1200151652794643]
-     [2.5196535613914306]
-     [2.656369007464336]
-     [2.993187294279602]
-     [3.4693116134235407]
-     [4.049369938809381]
-     [4.673174216401814]
-     ⋮
-     [1.3879359188013095e6]
-     [1.3879515067827937e6]
-     [1.3879669882976608e6]
-     [1.3879825294049252e6]
-     [1.3879980607748663e6]
-     [1.3880134565080018e6]
-     [1.3880287579379592e6]
-     [1.388044098663902e6]
-     [1.388059371012591e6]
-     [1.388074504338062e6]
-     [1.3880896849414955e6]
-     [1.3881049434185931e6]
-
-
 
 The data sequence is too long to train on it all at once - so we **need to batch** our data.
 
@@ -811,13 +400,6 @@ function _lossFct(solution::FMU2Solution, data::VLDM_Data, LOSS::Symbol, LASTWEI
     return Δcumconsumption 
 end
 ```
-
-
-
-
-    _lossFct (generic function with 2 methods)
-
-
 
 Finally, the function `train!` is defined, that triggers a new training run for a given set of hyperparameters `hyper_params`, a training ressource `ressource` and the current training index `ind`.
 
@@ -943,13 +525,6 @@ function train!(hyper_params, ressource, ind)
 end
 ```
 
-
-
-
-    train! (generic function with 1 method)
-
-
-
 Let's check if the train function is working for a given set of hyperparameters.
 
 
@@ -958,35 +533,6 @@ Let's check if the train function is working for a given set of hyperparameters.
 #     ([  ETA, BETA1,  BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS], RESSOURCE, INDEX)
 train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0,     1) 
 ```
-
-    [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m--------------
-    [36m[1m│ [22m[39mStarting run 1 with parameters: Any[0.0001, 0.9, 0.999, 4.0, 0.7, :Random, :MSE] and ressource 8.0 doing 2 step(s).
-    [36m[1m└ [22m[39m--------------------
-    
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 0 | Current element=0 | Next element=92
-    
-
-    [91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError("Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.")
-    [91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
-    
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 1 | Current element=92 | Next element=55
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
-    
-
-    [91m[1m┌ [22m[39m[91m[1mError: [22m[39mTraining asserted, but continuing: AssertionError("Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD.")
-    [91m[1m└ [22m[39m[90m@ FMIFlux D:\a\FMIFlux.jl\FMIFlux.jl\src\neural.jl:1665[39m
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mCurrent step: 2 | Current element=55 | Next element=106
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mAVG: 0.0 | MAX: 0.0 | SUM: 0.0
-    
-
-
-
-
-    9.108986582805376e9
-
-
 
 # 5. Results 
 After training with a set of good hyperparameters, results can be loaded (one set is already preparred if you skipped the optimization).
@@ -1012,15 +558,6 @@ plot!(fig, resultFMU; stateIndices=6:6, values=false, stateEvents=false, timeEve
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val, label="Data")
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_58_0.svg)
-    
-
-
-
 We also have a ready-to-use function that calculates different errors and plots them.
 
 
@@ -1028,30 +565,12 @@ We also have a ready-to-use function that calculates different errors and plots 
 plotCumulativeConsumption(resultNFMU, resultFMU, data; filename=joinpath(@__DIR__, "comparision_train_100.png"))
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_60_0.svg)
-    
-
-
-
 Because the deviation is small, let's check the last 10% of WLTC focussed, so from 90% to 100%.
 
 
 ```julia
 plotCumulativeConsumption(resultNFMU, resultFMU, data; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparision_train_10.png"))
 ```
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_62_0.svg)
-    
-
-
 
 Finally, we should check the results on validation data: The full WLTC cycle.
 
@@ -1069,30 +588,12 @@ resultFMU  = fmiSimulate(fmu, (tStart_validation, tStop_validation); parameters=
 plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; filename=joinpath(@__DIR__, "comparision_validation_100.png"))
 ```
 
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_64_0.svg)
-    
-
-
-
 ... and the last 10% ...
 
 
 ```julia
 plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparision_validation_10.png"))
 ```
-
-
-
-
-    
-![svg](juliacon_2023_files/juliacon_2023_66_0.svg)
-    
-
-
 
 Check out the **error values** in the legend: This is an enhancement of factor x326 on MSE, x22 on MAE and x11 on MAX error, wow!
 
@@ -1102,16 +603,6 @@ Finally some plotting "sugar": A plot showing for which locations in derivative-
 ```julia
 plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "gif_1.gif"))
 ```
-
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mSaved animation to D:\a\FMIFlux.jl\FMIFlux.jl\examples\jupyter-src\gif_1.gif
-    
-
-
-
-
-![gif](juliacon_2023_files/gif_1.gif)
-
-
 
 After we finished, let's finally unload the FMU and invalidate the NeuralFMU.
 
