@@ -404,9 +404,6 @@ HIDDEN_CODE_MESSAGE
 	
 end
 
-# ╔═╡ fcf3b763-bd66-4ede-9866-42d3432489c7
-fmu.executionConfig.sensealg = FMIFlux.ReverseDiffAdjoint()
-
 # ╔═╡ 16ffc610-3c21-40f7-afca-e9da806ea626
 md"""
 Let's check out some meta data of the FMU with `fmiInfo`:
@@ -585,7 +582,7 @@ end
 
 # ╔═╡ 5e9cb956-d5ea-4462-a649-b133a77929b0
 md"""
-TODO
+> TODO: above!
 """
 
 # ╔═╡ 9dc93971-85b6-463b-bd17-43068d57de94
@@ -1065,6 +1062,89 @@ begin
                          saveat=tSave)    # time points to save the solution at
 end
 
+# ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
+begin
+
+using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
+	
+function train(eta, batchdur, steps)
+
+	if steps == 0
+		return md"""⚠️ Number of training steps is `0`, no training."""
+	end
+
+	FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+	
+	train_t = data_train.t
+	train_data = collect([data_train.i2[i], data_train.i1[i]] for i in 1:length(train_t))
+
+	#@info 
+	@info "Started batching ..."
+	
+	batch = batchDataSolution(neuralFMU, # our NeuralFMU model
+                              t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
+                              train_t, # data time points
+                              train_data; # data cumulative consumption 
+                              batchDuration=batchdur, # duration of one batch element
+                              indicesModel=[1,2], # model indices to train on (1 and 2 equal the `electrical current` states)
+                              plot=false, # don't show intermediate plots (try this outside of Pluto)
+                              showProgress=false,
+                              parameters=parameters)   
+	
+	@info "... batching finished!"
+	
+	# a random element scheduler
+	scheduler = RandomScheduler(neuralFMU, batch; applyStep=1, plotStep=0)
+
+	lossFct = (solution::FMU2Solution) -> loss(solution, data_train)
+
+	maxiters = round(Int, 1e5*batchdur)
+
+	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the NeuralFMU to simulate
+                                    batch; # the batch to take an element from
+                                    p=p, # the NeuralFMU training parameters (given as input)
+                                    lossFct=lossFct, # our custom loss function
+                                    batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the choosen scheduler
+                                    logLoss=true, # log losses after every evaluation
+                                    showProgress=false,
+									parameters=parameters,
+									maxiters=maxiters) 
+
+	params = FMIFlux.params(neuralFMU)
+
+	FMIFlux.initialize!(scheduler; p=params[1], showProgress=false, parameters=parameters, print=false)
+
+	BETA1 = 0.9
+	BETA2 = 0.999
+	optim = Adam(eta, (BETA1, BETA2))
+
+	@info "Started training ..."
+	
+	@withprogress name="iterating" begin
+		iteration = 0
+		function cb()
+			iteration += 1
+			@logprogress iteration/steps
+			FMIFlux.update!(scheduler; print=false)
+			nothing
+		end
+		
+		FMIFlux.train!(_loss, # the loss function for training
+                   neuralFMU, # the parameters to train
+                   Iterators.repeated((), steps), # an iterator repeating `steps` times
+                   optim; # the optimizer to train
+                   gradient=:ReverseDiff, # use ReverseDiff, because it's much faster!
+                   cb=cb, # update the scheduler after every step 
+                   proceed_on_assert=true) # go on if a training steps fails (e.g. because of instability)  
+	end
+
+	@info "... training finished!"
+end
+
+HIDDEN_CODE_MESSAGE
+
+end
+
 # ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
 begin
 	if MODE == :demo
@@ -1095,75 +1175,6 @@ begin
 		md"""ℹ️ No training in demo mode. Please continue with plotting results.
 		"""
 	end
-end
-
-# ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
-begin
-
-function train(eta, batchdur, steps)
-
-	if steps == 0
-		return md"""⚠️ Number of training steps is `0`, no training."""
-	end
-
-	FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
-	
-	train_t = data_train.t
-	train_data = collect([data_train.i2[i], data_train.i1[i]] for i in 1:length(train_t))
-
-	@info "Started batching ..."
-	batch = batchDataSolution(neuralFMU, # our NeuralFMU model
-                              t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
-                              train_t, # data time points
-                              train_data; # data cumulative consumption 
-                              batchDuration=batchdur, # duration of one batch element
-                              indicesModel=[1,2], # model indices to train on (1 and 2 equal the `electrical current` states)
-                              plot=false, # don't show intermediate plots (try this outside of Pluto)
-                              showProgress=false,
-                              parameters=parameters)   
-	
-	@info "... batching finished!"
-
-	# a random element scheduler
-	scheduler = RandomScheduler(neuralFMU, batch; applyStep=1, plotStep=0)
-
-	lossFct = (solution::FMU2Solution) -> loss(solution, data_train)
-
-	maxiters = round(Int, 1e5*batchdur)
-
-	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the NeuralFMU to simulate
-                                    batch; # the batch to take an element from
-                                    p=p, # the NeuralFMU training parameters (given as input)
-                                    lossFct=lossFct, # our custom loss function
-                                    batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the choosen scheduler
-                                    logLoss=true, # log losses after every evaluation
-                                    showProgress=false,
-									parameters=parameters,
-									maxiters=maxiters) 
-
-	params = FMIFlux.params(neuralFMU)
-
-	FMIFlux.initialize!(scheduler; p=params[1], showProgress=false, parameters=parameters)
-
-	BETA1 = 0.9
-	BETA2 = 0.999
-	optim = Adam(eta, (BETA1, BETA2))
-
-	@info "Started training ..."
-
-	FMIFlux.train!(_loss, # the loss function for training
-                   neuralFMU, # the parameters to train
-                   Iterators.repeated((), steps), # an iterator repeating `steps` times
-                   optim; # the optimizer to train
-                   gradient=:ReverseDiff, # use ReverseDiff, because it's much faster!
-                   cb=()->FMIFlux.update!(scheduler; print=false), # update the scheduler after every step 
-                   proceed_on_assert=true) # go on if a training steps fails (e.g. because of instability)  
-
-	@info "... training finished!"
-end
-
-HIDDEN_CODE_MESSAGE
-
 end
 
 # ╔═╡ c3f5704b-8e98-4c46-be7a-18ab4f139458
@@ -1464,16 +1475,19 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 BenchmarkTools = "~1.5.0"
 FMI = "~0.13.3"
-FMIZoo = "~0.3.2"
+FMIFlux = "~0.12.1"
+FMIZoo = "~0.3.3"
 JLD2 = "~0.4.48"
 PlotlyJS = "~0.18.13"
 Plots = "~1.40.4"
 PlutoUI = "~0.7.59"
+ProgressLogging = "~0.1.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1482,7 +1496,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "d97d979ce92c1130152c3fddc24883dc8f8f46c9"
+project_hash = "08923028677604b1c11bc64fd352208482d3b0c5"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -1560,9 +1574,9 @@ version = "0.4.0"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "ed2ec3c9b483842ae59cd273834e5b46206d6dda"
+git-tree-sha1 = "5c9b74c973181571deb6442d41e5c902e6b9f38e"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.11.0"
+version = "7.12.0"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceBandedMatricesExt = "BandedMatrices"
@@ -1588,9 +1602,9 @@ version = "7.11.0"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "600078184f7de14b3e60efe13fc0ba5c59f6dca5"
+git-tree-sha1 = "8556500c18fcad8b4c44058e23fbc4a36143f6be"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.10.0"
+version = "1.10.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -2141,9 +2155,11 @@ version = "0.3.2"
 
 [[deps.FMIFlux]]
 deps = ["Colors", "DifferentiableEigen", "DifferentialEquations", "FMIImport", "FMISensitivity", "Flux", "Optim", "Printf", "ProgressMeter", "Requires", "Statistics", "ThreadPools"]
-git-tree-sha1 = "f7d75c35f1e4c42847b31a5cb58e693276a90f5f"
+git-tree-sha1 = "792ac12176b79d9d2e31d61ad9cb0947cad8d69c"
+repo-rev = "v0.12.2"
+repo-url = "https://github.com/ThummeTo/FMIFlux.jl"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.12.1"
+version = "0.12.2"
 
 [[deps.FMIImport]]
 deps = ["Downloads", "EzXML", "FMICore", "Libdl", "RelocatableFolders", "ZipFile"]
@@ -2420,10 +2436,10 @@ version = "0.17.2"
     MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 
 [[deps.HDF5_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
-git-tree-sha1 = "38c8874692d48d5440d5752d6c74b0c6b0b60739"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
+git-tree-sha1 = "82a471768b513dc39e471540fdadc84ff80ff997"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
-version = "1.14.2+1"
+version = "1.14.3+3"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
@@ -3099,9 +3115,9 @@ uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
 version = "0.5.5"
 
 [[deps.OffsetArrays]]
-git-tree-sha1 = "e64b4f5ea6b7389f6f046d13d4896a8f9c1ba71e"
+git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.14.0"
+version = "1.14.1"
 weakdeps = ["Adapt"]
 
     [deps.OffsetArrays.extensions]
@@ -3130,10 +3146,10 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
-git-tree-sha1 = "a9de2f1fc98b92f8856c640bf4aec1ac9b2a0d86"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
+git-tree-sha1 = "e25c1778a98e34219a00455d6e4384e017ea9762"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "5.0.3+0"
+version = "4.1.6+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -3829,9 +3845,9 @@ version = "5.2.2+0"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["Accessors", "ArrayInterface", "RuntimeGeneratedFunctions", "StaticArraysCore"]
-git-tree-sha1 = "ebb8a46ffcef0f0cf17bf33ab61f33d9770f50d2"
+git-tree-sha1 = "9c490ee01823dc443da25bf9225827e3cdd2d7e9"
 uuid = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
-version = "0.3.25"
+version = "0.3.26"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -4404,7 +4420,6 @@ version = "1.4.1+1"
 # ╟─e50d7cc2-7155-42cf-9fef-93afeee6ffa4
 # ╟─3756dd37-03e0-41e9-913e-4b4f183d8b81
 # ╠═2f83bc62-5a54-472a-87a2-4ddcefd902b6
-# ╠═fcf3b763-bd66-4ede-9866-42d3432489c7
 # ╟─c228eb10-d694-46aa-b952-01d824879287
 # ╟─16ffc610-3c21-40f7-afca-e9da806ea626
 # ╠═052f2f19-767b-4ede-b268-fce0aee133ad
@@ -4421,7 +4436,7 @@ version = "1.4.1+1"
 # ╟─5d688c3d-b5e3-4a3a-9d91-0896cc001000
 # ╠═2e08df84-a468-4e99-a277-e2813dfeae5c
 # ╟─68719de3-e11e-4909-99a3-5e05734cc8b1
-# ╠═b42bf3d8-e70c-485c-89b3-158eb25d8b25
+# ╟─b42bf3d8-e70c-485c-89b3-158eb25d8b25
 # ╟─c446ed22-3b23-487d-801e-c23742f81047
 # ╠═fc3d7989-ac10-4a82-8777-eeecd354a7d0
 # ╟─0a7955e7-7c1a-4396-9613-f8583195c0a8
@@ -4479,7 +4494,7 @@ version = "1.4.1+1"
 # ╟─53e971d8-bf43-41cc-ac2b-20dceaa78667
 # ╟─e8b8c63b-2ca4-4e6a-a801-852d6149283e
 # ╟─c0ac7902-0716-4f18-9447-d18ce9081ba5
-# ╠═84215a73-1ab0-416d-a9db-6b29cd4f5d2a
+# ╟─84215a73-1ab0-416d-a9db-6b29cd4f5d2a
 # ╟─f9d35cfd-4ae5-4dcd-94d9-02aefc99bdfb
 # ╟─bc09bd09-2874-431a-bbbb-3d53c632be39
 # ╠═f741b213-a20d-423a-a382-75cae1123f2c
