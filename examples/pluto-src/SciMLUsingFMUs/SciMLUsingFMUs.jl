@@ -59,7 +59,7 @@ If there is something YOU know about a physical system, AI shouldn’t need to l
 
 # Introduction
 This workshop focuses on the integration of Functional Mock-Up Units (FMUs) into a machine learning topology. FMUs are simulation models that can be generated within a variety of modeling tools, see the [FMI homepage](https://fmi-standard.org/). Together with deep neural networks that complement and improve the FMU prediction, so called *neural FMUs* can be created. 
-The workshop itself evolves around the hybrid modeling of a *Selective Compliance Assembly Robot Arm* (SCARA), that is able to write user defined words on a sheet of paper. A ready to use physical simulation model (FMU) for the SCARA is given and shortly highlighted in this workshop. However, this model – as any simulation model – shows some deviations if compared to measurements from the real system. These deviations results from unmodeled slip-stick-friction: The pen sticks to the paper until a force limit is reached, but then moves jerkily. A hard to model physical effect – but not for a neural FMU.
+The workshop itself evolves around the hybrid modeling of a *Selective Compliance Assembly Robot Arm* (SCARA), that is able to write user defined words on a sheet of paper. A ready to use physical simulation model (FMU) for the SCARA is given and shortly highlighted in this workshop. However, this model – as any simulation model – shows some deviations if compared to measurements from the real system. These deviations results from not modeled slip-stick-friction: The pen sticks to the paper until a force limit is reached, but then moves jerkily. A hard to model physical effect – but not for a neural FMU.
 
 More advanced code snippets are hidden by default and marked with a ghost `👻`. Computations, that are disabled for performance reasons, are marked with `ℹ️`. They offer a hint how to enable the idled computation by activating the corresponding checkbox marked with `🎬`. 
 
@@ -123,7 +123,7 @@ To visualize a progress bar during training:
 
 # ╔═╡ 93fab704-a8dd-47ec-ac88-13f32be99460
 md"""
-And to do some benachmarking:
+And to do some benchmarking:
 """
 
 # ╔═╡ 5cb505f7-01bd-4824-8876-3e0f5a922fb7
@@ -174,7 +174,7 @@ data_train = FMIZoo.RobotRR(:train)
 # ╔═╡ 33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 begin
 	
-# define the prinintg messages used at different places in this notebook
+# define the printing messages used at different places in this notebook
 LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting is disabled to safe performance. Checkbox `Plot Results`."""
 LIVE_TRAIN_MESSAGE = md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
 BENCHMARK_MESSAGE = md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
@@ -327,7 +327,7 @@ plotRobot(data_train.solution, t_train_plot)
 
 # ╔═╡ d8ca5f66-4f55-48ab-a6c9-a0be662811d9
 md"""
-> 👁️ Interesstingly, the first part of the word "trai" is not significantly affected by the slip-stick-effect, the actual TCP trajectory (green) lays quite good on the target position (black dashed). However, the "n" is very jerky. This can be explained by the increasing lever, the motor needs more torque to overcome the static friction the further away the TCP (orange) is from the robot base (red).
+> 👁️ Interestingly, the first part of the word "trai" is not significantly affected by the slip-stick-effect, the actual TCP trajectory (green) lays quite good on the target position (black dashed). However, the "n" is very jerky. This can be explained by the increasing lever, the motor needs more torque to overcome the static friction the further away the TCP (orange) is from the robot base (red).
 
 Let's extract a start and stop time, as well as saving points for the later solving process:
 """
@@ -343,7 +343,7 @@ tStop = tSave[end]   # stop time for simulation of FMU and neural FMU
 
 # ╔═╡ 4510022b-ad28-4fc2-836b-e4baf3c14d26
 md"""
-Finally, also the start state can be grabbed from *FMIZoo.jl*, as well as some default parameters for the simulation model we load in the next section. How to interpretate the six states is discussed in the next section where the model is loaded.
+Finally, also the start state can be grabbed from *FMIZoo.jl*, as well as some default parameters for the simulation model we load in the next section. How to interpret the six states is discussed in the next section where the model is loaded.
 """
 
 # ╔═╡ 9589416a-f9b3-4b17-a381-a4f660a5ee4c
@@ -595,7 +595,7 @@ For forward-mode automatic differentiation (using *ForwardDiff.jl*), it's the sa
 
 # ╔═╡ cae2e094-b6a2-45e4-9afd-a6b78e912ab7
 md"""
-We can determine further jacobians for FMUs, for example the Jacobian $C = \frac{\partial y}{\partial x}$ states (using *ReverseDiff.jl*): 
+We can determine further Jacobians for FMUs, for example the Jacobian $C = \frac{\partial y}{\partial x}$ states (using *ReverseDiff.jl*): 
 """
 
 # ╔═╡ ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
@@ -650,7 +650,7 @@ end
 
 # ╔═╡ 3bc2b859-d7b1-4b79-88df-8fb517a6929d
 md"""
-Gradient and Jaobian computation takes a little longer of course. We use reverse-mode automatic differentiation via `ReverseDiff.jl` here:
+Gradient and Jacobian computation takes a little longer of course. We use reverse-mode automatic differentiation via `ReverseDiff.jl` here:
 """
 
 # ╔═╡ a501d998-6fd6-496f-9718-3340c42b08a6
@@ -720,7 +720,7 @@ end
 md"""
 In general, it looks like the velocity isn't saturated too much by `tanh`. This is a good thing and not always the case! However, the very beginning of the trajectory is saturated too much (the peak value of $\approx -3$ is saturated to $\approx -1$). This is bad, because the hybrid model velocity is *slower* at this point in time and it won't reach the same angle over time as the original FMU.
 
-We can add shift (=addition) and scale (=multiplication) operations before and after the ANN to bypass this issue. See how you can influence the output *after* the `tanh` (and the ANN repectively) to match the ranges. The goal is to choose pre- and post-processing parameters so that the signal ranges needed by the FMU are preserved by the hybrid model.
+We can add shift (=addition) and scale (=multiplication) operations before and after the ANN to bypass this issue. See how you can influence the output *after* the `tanh` (and the ANN respectively) to match the ranges. The goal is to choose pre- and post-processing parameters so that the signal ranges needed by the FMU are preserved by the hybrid model.
 """
 
 # ╔═╡ bf6bf640-54bc-44ef-bd4d-b98e934d416e
@@ -764,7 +764,7 @@ The left plot shows the negative spike at the very beginning in more detail. In 
 
 # ╔═╡ b864631b-a9f3-40d4-a6a8-0b57a37a476d
 md"""
-> 💡 In many machine larning applications, pre- and post-processing is done offline. If we combine machine learning and physical models, we need to pre- and post-process online at the interfaces. This does at least improve training performance and is a necessity if the nominal values become very large or very small.
+> 💡 In many machine learning applications, pre- and post-processing is done offline. If we combine machine learning and physical models, we need to pre- and post-process online at the interfaces. This does at least improve training performance and is a necessity if the nominal values become very large or very small.
 """
 
 # ╔═╡ 0fb90681-5d04-471a-a7a8-4d0f3ded7bcf
@@ -818,7 +818,7 @@ begin
 	    # (2) consumption  from FMU (gate=1.0 | open)
 	    # (3) acceleration from ANN (gate=0.0 | closed)
 	    # (4) consumption  from ANN (gate=0.0 | closed)
-	    # the acelerations [1,3] and consumptions [2,4] are paired
+	    # the accelerations [1,3] and consumptions [2,4] are paired
 	    gates = ScaleSum([GATE_INIT_FMU, GATE_INIT_ANN], [[1,2]]) # gates with sum
 	
 	    # setup the neural FMU topology
@@ -826,7 +826,7 @@ begin
 	                  Dense(1, 16, tanh),  
 						Dense(16, 1, tanh),  # pre-process `dx`
 	                  dx -> cacheRetrieve(1, dx),       # dynamics FMU | dynamics ANN
-	                  gates))       # stack toget
+	                  gates))       # stack together
 
 		model_input = collect([v] for v in data_train.da1)
 		model_output = collect(model_gates(inp) for inp in model_input)
@@ -945,9 +945,9 @@ function build_topology(gates_init, add_y_refs, nl, lw)
 	end
 
 	# pre- and post-processing
-    preProcess = ShiftScale(ANN_input_Vals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deivation of 1
+    preProcess = ShiftScale(ANN_input_Vals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
     #preProcess.scale[:] *= 0.1                         # add some additional "buffer"
-    postProcess = ScaleShift(preProcess; indices=[1,2])   # initialize the postPrcess as inverse of the preProcess, but only take indices 2 and 3 (we don't need 1, the vehcile velocity)
+    postProcess = ScaleShift(preProcess; indices=[1,2])   # initialize the postProcess as inverse of the preProcess, but only take indices 1 and 2
 
     # cache
     cache = CacheLayer()                        # allocate a cache layer
@@ -994,7 +994,7 @@ On basis of this `Chain`, we can build a neural FMU very easy:
 md"""
 # Training
 
-After setting everything up, we can give it a try and train our created neural FMU. Deepending on the chosen optimization hyper parameters, this will be more or less successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself.
+After setting everything up, we can give it a try and train our created neural FMU. Depending on the chosen optimization hyperparameters, this will be more or less successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself.
 """
 
 # ╔═╡ d60d2561-51a4-4f8a-9819-898d70596e0c
@@ -1006,7 +1006,7 @@ Besides the already introduced hyperparameters - the depth, width and initial ga
 For this example, we use the well-known `Adam`-Optimizer with a step size `eta` of $(@bind ETA Select([1e-4 => "1e-4", 1e-3 => "1e-3", 1e-2 => "1e-2"])). 
 
 ### Batching 
-Because data has a significant length, gradient computation over the entire simulation trajectory might not be effective. The most common approach is to *cut* data into slices and train on these subsets instead of the entire trajctory at once. In this example, data is cut in pieces with length of $(@bind BATCHDUR Select([0.05, 0.1, 0.15, 0.2])) seconds.
+Because data has a significant length, gradient computation over the entire simulation trajectory might not be effective. The most common approach is to *cut* data into slices and train on these subsets instead of the entire trajectory at once. In this example, data is cut in pieces with length of $(@bind BATCHDUR Select([0.05, 0.1, 0.15, 0.2])) seconds.
 """
 
 # ╔═╡ c97f2dea-cb18-409d-9ae8-1d03647a6bb3
@@ -1095,7 +1095,7 @@ end
 begin
 	# in demo mode, we load parameters from a pre-trained model
 	if MODE == :demo
-		fmiLoadParameters(neuralFMU, "C:\\Users\\thummeto\\Documents\\Dissertation\\Publikationen\\MODPROD 2024\\results\\20000.jld2")
+		fmiLoadParameters(neuralFMU, joinpath(@__DIR__, "src", "20000.jld2"))
 	end
 
 	HIDDEN_CODE_MESSAGE
@@ -1164,7 +1164,7 @@ function train(eta, batchdur, steps)
                                     batch; # the batch to take an element from
                                     p=p, # the neural FMU training parameters (given as input)
                                     lossFct=lossFct, # our custom loss function
-                                    batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the choosen scheduler
+                                    batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the chosen scheduler
                                     logLoss=true, # log losses after every evaluation
                                     showProgress=false,
 									parameters=parameters,
@@ -1302,7 +1302,7 @@ begin
 				  "rRPositionControl_Elasticity.tCP.N",
 				  "rRPositionControl_Elasticity.tCP.a_x", 
                   "rRPositionControl_Elasticity.tCP.a_y"],
-	showProgress=true, maxiters=1e7, saveat=data_train.t, solver=Tsit5());
+	showProgress=true, maxiters=1e6, saveat=data_train.t, solver=Tsit5());
 	nothing
 end
 
