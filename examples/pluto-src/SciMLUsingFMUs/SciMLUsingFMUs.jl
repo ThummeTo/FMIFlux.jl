@@ -38,6 +38,9 @@ using BenchmarkTools
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
 using Plots 
 
+# ╔═╡ ddc9ce37-5f93-4851-a74f-8739b38ab092
+using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
+
 # ╔═╡ 1470df0f-40e1-45d5-a4cc-519cc3b28fb8
 md"""
 # Scientific Machine Learning $br using Functional Mock-Up Units
@@ -129,6 +132,11 @@ md"""
 # ╔═╡ e6e91a22-7724-46a3-88c1-315c40660290
 plotlyjs()
 
+# ╔═╡ 3e2579c2-39ce-4249-ad75-228f82e616da
+md"""
+To visualize the progress bar:
+"""
+
 # ╔═╡ 44500f0a-1b89-44af-b135-39ce0fec5810
 md"""
 Next, we define some helper functions, that are not important to follow the workshop - they are hidden by default. However they are here, if you want to explore what it takes to write fully working code. If you do this workshop for the first time, it is recommended to skip the hidden part and directly go on.
@@ -165,7 +173,7 @@ begin
 LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting are disabled to safe performance. Checkbox `Plot Results`."""
 LIVE_TRAIN_MESSAGE = md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
 BENCHMARK_MESSAGE = md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
-HIDDEN_CODE_MESSAGE = md"""👻 Hidden Code | You probably want to skip this code section on the first run."""
+HIDDEN_CODE_MESSAGE = md"""> 👻 Hidden Code | You probably want to skip this code section on the first run."""
 
 import FMI.FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, FMU2Solution
 import Random 
@@ -374,7 +382,6 @@ The SCARA simulation model is called `RobotRR` for `Robot Rotational Rotational`
 # the FMU was exported from Dymola (version 2023x)
 # load the FMU in mode `model-exchange` (ME) 
 fmu = fmiLoad("RobotRR", "Dymola", "2023x"; type=:ME) 
-#fmu = fmiLoad("C:\\Users\\thummeto\\Documents\\FMIZoo.jl\\models\\bin\\Dymola\\2023x\\2.0\\RobotRR.fmu"; type=:ME) # TODO
 
 # ╔═╡ c228eb10-d694-46aa-b952-01d824879287
 begin
@@ -473,7 +480,7 @@ Now that we know our model and data a little bit better, it's time to care about
 
 Today is opposite day! Instead of deriving a topology step by step, the final NeuralFMU topology is presented in the picture below... however, three experiments are intended to make clear why it looks the way it looks.
 
-![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/HybridModelingUsingFMI/src/plan_complete.png?raw=true)
+![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_complete.png?raw=true)
 
 The first experiment is on choosing a good interface between FMU and ANN. The second is on online data pre- and post-processing. And the third one on gates, that allow to control the influence of ANN and FMU on the resulting hybrid model dynamics. After you completed all three, you are equipped with the knowledge to cope the final challenge: Build your own NeuralFMU and train it!
 """
@@ -485,7 +492,7 @@ md"""
 
 When connecting an FMU with an ANN, technically different signals could be used: States, state derivatives, inputs, outputs, parameters, time itself or other observable variables. Depending on the use case, some signals are more clever to choose than others. In general, every additional signal costs a little bit of computational performance, as you will see. So picking the right subset is the key!
 
-![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/HybridModelingUsingFMI/src/plan_e1.png?raw=true)
+![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_e1.png?raw=true)
 
 Choose additional FMU variables to put in together with the state derivatives:
 """
@@ -532,7 +539,7 @@ end
 
 # ╔═╡ 0a7955e7-7c1a-4396-9613-f8583195c0a8
 md"""
-Depending on how many signals you select, the output of the FMU-layer is extended. The first six outputs are the state derivatives, the remaining are the additional outputs selected above.
+Depending on how many signals you select, the output of the FMU-layer is extended. The first six outputs are the state derivatives, the remaining are the $(length(CHOOSE_y_refs)) additional output(s) selected above.
 """
 
 # ╔═╡ 4912d9c9-d68d-4afd-9961-5d8315884f75
@@ -558,23 +565,33 @@ y = dx_y[length(x1)+1:end]
 
 # ╔═╡ 13ede3cd-99b1-4e65-8a18-9043db544728
 md"""
-Gradient and Jaobian computation takes a little longer of course. We use reverse-mode automatic differentiation via `ReverseDiff.jl` here:
+For the later training, we need gradients and Jacobians.
 """
 
 # ╔═╡ f7c119dd-c123-4c43-812e-d0625817d77e
 md"""
-The determined Jacobian $A = \frac{\partial \dot{x}}{\partial x}$ states: 
+If we use reverse-mode automatic differentiation via `ReverseDiff.jl`, the determined Jacobian $A = \frac{\partial \dot{x}}{\partial x}$ states: 
+"""
+
+# ╔═╡ b163115b-393d-4589-842d-03859f05be9a
+md"""
+For forward-mode automatic differentiation (using *ForwardDiff.jl*), it's the same of course:
 """
 
 # ╔═╡ cae2e094-b6a2-45e4-9afd-a6b78e912ab7
 md"""
-The Jacobian $C = \frac{\partial y}{\partial x}$ states: 
+We can determine further jacobians for FMUs, for example the Jacobian $C = \frac{\partial y}{\partial x}$ states (using *ReverseDiff.jl*): 
 """
 
 # ╔═╡ ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
 begin
  	C_rwd = jac_rwd[length(x1)+1:end, :]
 end
+
+# ╔═╡ fe85179e-36ba-45d4-b7a1-a893a382ade4
+md"""
+And the same for using *ForwardDiff.jl*:
+"""
 
 # ╔═╡ 5b8084b1-a8be-4bf3-b86d-e2603ae36c5b
 begin
@@ -583,13 +600,13 @@ end
 
 # ╔═╡ 5e9cb956-d5ea-4462-a649-b133a77929b0
 md"""
-TODO
+Let's check the performance of these calls, because they will have significant influence on the later training performance!
 """
 
 # ╔═╡ 9dc93971-85b6-463b-bd17-43068d57de94
 md"""
 ### Benchmark
-Finally, keep in mind that the amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. 
+The amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. For now, you have picked $(length(CHOOSE_y_refs)) additional signal(s). 
 """
 
 # ╔═╡ 476a1ed7-c865-4878-a948-da73d3c81070
@@ -666,7 +683,7 @@ md"""
 
 Now that we have defined the signals that come *from* the FMU and go *into* the ANN, we need to think about data pre- and post-processing. In ML, this is often done before the actual training starts. In hybrid modeling, we need to do this *online*, because the FMU constantly generates signals that might not be suitable for ANNs. On the other hand, the signals generated by ANNs might not suit the expected FMU input. This gets more clear if we have a look on the used activation functions, like e.g. the *tanh*.
 
-![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/HybridModelingUsingFMI/src/plan_e2.png?raw=true)
+![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_e2.png?raw=true)
 
 We simplify the ANN to a single nonlinear activation function. Let's see what's happening as soon as we put the derivative *angular velocity of joint 1* (dα1) from the FMU into a `tanh` function:
 """
@@ -740,7 +757,7 @@ md"""
 ## Introducing Gates
 **to control how physical and machine learning model interact**
 
-![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/HybridModelingUsingFMI/src/plan_e3.png?raw=true)
+![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_e3.png?raw=true)
 """
 
 # ╔═╡ 95e14ea5-d82d-4044-8c68-090d74d95a61
@@ -828,7 +845,7 @@ md"""
 
 # ╔═╡ 1cd976fb-db40-4ebe-b40d-b996e16fc213
 md"""
-> 💡 ToDo
+> 💡 Gates allow to make parts of the architecture *learnable* while still keeping the training results interpretable.
 """
 
 # ╔═╡ e79badcd-0396-4a44-9318-8c6b0a94c5c8
@@ -841,7 +858,7 @@ md"""
 # Building the neural FMU
 **... putting everything together**
 
-![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/HybridModelingUsingFMI/src/plan_train.png?raw=true)
+![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_train.png?raw=true)
 """
 
 # ╔═╡ 4454c8d2-68ed-44b4-adfa-432297cdc957
@@ -864,7 +881,7 @@ Pick additional ANN layer inputs:
 """
 
 # ╔═╡ d240c95c-5aba-4b47-ab8d-2f9c0eb854cd
-@bind y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
+@bind y_refs MultiCheckBox([STATE_A2 => "Angle Joint 2", STATE_A1 => "Angle Joint 1", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
 
 # ╔═╡ 06937575-9ab1-41cd-960c-7eef3e8cae7f
 md"""
@@ -903,7 +920,7 @@ Even if this looks a little confusing at first glance, our final NeuralFMU topol
 # ╔═╡ 84215a73-1ab0-416d-a9db-6b29cd4f5d2a
 begin 
 
-function build_topology(gates_init, add_y_refs)
+function build_topology(gates_init, add_y_refs, nl, lw)
 
 	ANN_input_Vars = [recordValues[1:2]..., add_y_refs...]
 	ANN_input_Vals = fmiGetSolutionValue(sol_fmu_train, ANN_input_Vars)
@@ -924,27 +941,27 @@ function build_topology(gates_init, add_y_refs)
 	gates = ScaleSum([1.0-gates_init, 1.0-gates_init, gates_init, gates_init], [[1,3], [2,4]]) # gates with sum
 	
 	ANN_layers = []
-	push!(ANN_layers, Dense(2+length(add_y_refs), LAYERS_WIDTH, tanh)) # first layer 
-	for i in 3:NUM_LAYERS
-		push!(ANN_layers, Dense(LAYERS_WIDTH, LAYERS_WIDTH, tanh))
+	push!(ANN_layers, Dense(2+length(add_y_refs), lw, tanh)) # first layer 
+	for i in 3:nl
+		push!(ANN_layers, Dense(lw, lw, tanh))
 	end
-	push!(ANN_layers, Dense(LAYERS_WIDTH, 2, tanh)) # last layer 
+	push!(ANN_layers, Dense(lw, 2, tanh)) # last layer 
 
 	model = Flux.f64(Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=add_y_refs), 
 		dxy -> cache(dxy),                    # cache `dx`
         dxy -> dxy[ANN_input_Idcs], 
 		preProcess,
 		ANN_layers...,
-	postProcess,
-	dx -> cacheRetrieve(4, 6, dx),       # dynamics FMU | dynamics ANN
-    gates,                              # compute resulting dx from ANN + FMU
-      dx -> cacheRetrieve(1:3, dx[1], 5, dx[2])))
+		postProcess,
+		dx -> cacheRetrieve(4, 6, dx),       # dynamics FMU | dynamics ANN
+    	gates,                              # compute resulting dx from ANN + FMU
+      	dx -> cacheRetrieve(1:3, dx[1], 5, dx[2])))
 
 	return model
 	
 end
 
-final_model = build_topology(GATES_INIT, y_refs)
+HIDDEN_CODE_MESSAGE
 
 end
 
@@ -953,24 +970,9 @@ md"""
 We can evaluate it, by putting in our start state `x0`. The model computes the resulting state derivative:
 """
 
-# ╔═╡ f741b213-a20d-423a-a382-75cae1123f2c
-final_model(x0)
-
 # ╔═╡ f02b9118-3fb5-4846-8c08-7e9bbca9d208
 md"""
 On basis of this `Chain`, we can build a NeuralFMU very easy:
-"""
-
-# ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
-neuralFMU = ME_NeuralFMU(fmu,             # the FMU used in the NeuralFMU 
-                    	 final_model,     # the model we specified above 
-                         (tStart, tStop), # start and stop time for solving
-                    	 solver; 		  # the solver (Tsit5)
-                         saveat=tSave)    # time points to save the solution at
-
-# ╔═╡ 55c22dae-fba8-4e79-8c25-462ed7519ad2
-md"""
-> 💡 ToDo
 """
 
 # ╔═╡ d347d51b-743f-4fec-bed7-6cca2b17bacb
@@ -1044,25 +1046,72 @@ To summarize, your ANN has a **depth of $(NUM_LAYERS) layers** with a **width of
 Batching takes a few seconds and training a few minutes (depending on the number of training steps), so this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Start Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 5000, 10000])) training steps.
 """
 
+# ╔═╡ abc57328-4de8-42d8-9e79-dd4020769dd9
+md"""
+Select training mode:
+$(@bind MODE Select([:train => "Training", :demo => "Demo (pre-trained)"]))
+"""
+
+# ╔═╡ f9d35cfd-4ae5-4dcd-94d9-02aefc99bdfb
+begin
+	using JLD2
+	
+	if MODE == :train
+		final_model = build_topology(GATES_INIT, y_refs, NUM_LAYERS, LAYERS_WIDTH)
+	elseif MODE == :demo
+		final_model = build_topology(0.2, [STATE_A2, STATE_A1, VAR_TCP_VX, VAR_TCP_VY, VAR_TCP_F], 3, 32)
+	end
+end
+
+# ╔═╡ f741b213-a20d-423a-a382-75cae1123f2c
+final_model(x0)
+
+# ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
+begin
+	neuralFMU = ME_NeuralFMU(
+		fmu, 			# the FMU used in the NeuralFMU 
+        final_model,    # the model we specified above 
+    	(tStart, tStop),# start and stop time for solving
+        solver; 		# the solver (Tsit5)
+        saveat=tSave)   # time points to save the solution at
+end
+
+# ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
+begin
+	# in demo mode, we load parameters from a pre-trained model
+	if MODE == :demo
+		fmiLoadParameters(neuralFMU, "C:\\Users\\thummeto\\Documents\\Dissertation\\Publikationen\\MODPROD 2024\\results\\20000.jld2")
+	end
+
+	HIDDEN_CODE_MESSAGE
+end
+
 # ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 begin
+	neuralFMU;
 	y_refs;
 	NUM_LAYERS;
 	LAYERS_WIDTH;
 	GATES_INIT;
 	ETA;
 	BATCHDUR;
-	
-	md"""
-	⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
+	MODE;
 
-	🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
-	"""
+	if MODE == :train
+		md"""⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
+	
+🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
+		"""
+	else
+		LIVE_TRAIN = false
+		md"""ℹ️ No training in demo mode. Please continue with plotting results.
+		"""
+	end
 end
 
 # ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
 begin
-
+	
 function train(eta, batchdur, steps)
 
 	if steps == 0
@@ -1074,7 +1123,9 @@ function train(eta, batchdur, steps)
 	train_t = data_train.t
 	train_data = collect([data_train.i2[i], data_train.i1[i]] for i in 1:length(train_t))
 
+	#@info 
 	@info "Started batching ..."
+	
 	batch = batchDataSolution(neuralFMU, # our NeuralFMU model
                               t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
                               train_t, # data time points
@@ -1086,7 +1137,7 @@ function train(eta, batchdur, steps)
                               parameters=parameters)   
 	
 	@info "... batching finished!"
-
+	
 	# a random element scheduler
 	scheduler = RandomScheduler(neuralFMU, batch; applyStep=1, plotStep=0)
 
@@ -1106,21 +1157,31 @@ function train(eta, batchdur, steps)
 
 	params = FMIFlux.params(neuralFMU)
 
-	FMIFlux.initialize!(scheduler; p=params[1], showProgress=false, parameters=parameters)
+	FMIFlux.initialize!(scheduler; p=params[1], showProgress=false, parameters=parameters, print=false)
 
 	BETA1 = 0.9
 	BETA2 = 0.999
 	optim = Adam(eta, (BETA1, BETA2))
 
 	@info "Started training ..."
-
-	FMIFlux.train!(_loss, # the loss function for training
+	
+	@withprogress name="iterating" begin
+		iteration = 0
+		function cb()
+			iteration += 1
+			@logprogress iteration/steps
+			FMIFlux.update!(scheduler; print=false)
+			nothing
+		end
+		
+		FMIFlux.train!(_loss, # the loss function for training
                    neuralFMU, # the parameters to train
                    Iterators.repeated((), steps), # an iterator repeating `steps` times
                    optim; # the optimizer to train
                    gradient=:ReverseDiff, # use ReverseDiff, because it's much faster!
-                   cb=()->FMIFlux.update!(scheduler; print=false), # update the scheduler after every step 
+                   cb=cb, # update the scheduler after every step 
                    proceed_on_assert=true) # go on if a training steps fails (e.g. because of instability)  
+	end
 
 	@info "... training finished!"
 end
@@ -1131,16 +1192,21 @@ end
 
 # ╔═╡ c3f5704b-8e98-4c46-be7a-18ab4f139458
 let
-	if LIVE_TRAIN
-		train(ETA, BATCHDUR, STEPS)
+	if MODE == :train
+		if LIVE_TRAIN
+			train(ETA, BATCHDUR, STEPS)
+		else
+			LIVE_TRAIN_MESSAGE
+		end
 	else
-		LIVE_TRAIN_MESSAGE
+		md"""ℹ️ No training in demo mode. Please continue with plotting results.
+		"""
 	end
 end
 
-# ╔═╡ 2f917499-6234-4467-886d-689e4c5aa920
+# ╔═╡ 1a608bc8-7264-4dd3-a4e7-0e39128a8375
 md"""
-ToDo: Loss curve?!
+> 💡 Playing around with hyperparameters is fun, but keep in mind that this is not a suitable method for finding good hyperparameters in real world engineering. Do a hyperparameter optimization instead.
 """
 
 # ╔═╡ ff106912-d18c-487f-bcdd-7b7af2112cab
@@ -1148,9 +1214,7 @@ md"""
 # Results 
 Now it's time to find out if it worked!
 
-
-
-⚠️ Plotting results makes the notebook slow, so it's deactivated by default. Activate it to plot results of your training.
+ℹ️ Plotting results makes the notebook slow, so it's deactivated by default. Activate it to plot results of your training.
 
 ## Training results
 Let's check out the *training* results of the freshly trained NeuralFMU.
@@ -1158,6 +1222,8 @@ Let's check out the *training* results of the freshly trained NeuralFMU.
 
 # ╔═╡ 51eeb67f-a984-486a-ab8a-a2541966fa72
 begin 
+	neuralFMU;
+	MODE;
 	LIVE_TRAIN;
 	md"""
 	🎬 **Plot results** $(@bind LIVE_RESULTS CheckBox()) 
@@ -1208,15 +1274,6 @@ HIDDEN_CODE_MESSAGE
 
 end
 
-# ╔═╡ 4b68b48d-7c58-4bf1-920b-c60f787d2ede
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	using JLD2
-	fmiLoadParameters(neuralFMU, "C:\\Users\\thummeto\\Documents\\Dissertation\\Publikationen\\MODPROD 2024\\results\\20000.jld2")
-end
-  ╠═╡ =#
-
 # ╔═╡ 737e2c50-0858-4205-bef3-f541e33b85c3
 md"""
 ### FMU
@@ -1251,10 +1308,8 @@ begin
                       "rRPositionControl_Elasticity.tCP.p_y", 
                       "rRPositionControl_Elasticity.tCP.N",
 					  "rRPositionControl_Elasticity.tCP.v_x", 
-                      "rRPositionControl_Elasticity.tCP.v_y",
-					  "rRPositionControl_Elasticity.tCP.a_x", 
-                      "rRPositionControl_Elasticity.tCP.a_y"],
-        showProgress=true, maxiters=1e7, saveat=data_train.t);
+                      "rRPositionControl_Elasticity.tCP.v_y"],
+        showProgress=true, maxiters=1e6, saveat=data_train.t);
 		nothing
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1270,40 +1325,6 @@ The loss function value of the FMU on training data is $(round(loss(fmu_train, d
 	else
 		LIVE_RESULTS_MESSAGE
 	end
-end
-
-# ╔═╡ 6353e78a-57d5-43cd-a1fa-ff88af32d173
-let
-	#fmu_ax = collect(v[4] for v in fmu_train.values.saveval)
-	#fmu_ay = collect(v[5] for v in fmu_train.values.saveval)
-
-	nfmu_vx = collect(v[4] for v in result_train.values.saveval)
-	nfmu_vy = collect(v[5] for v in result_train.values.saveval)
-
-	fmu_ax = collect(v[6] for v in result_train.values.saveval)
-	fmu_ay = collect(v[7] for v in result_train.values.saveval)
-
-	# do a finite differences approximation for TCP acceleration
-	nfmu_ax = [0.0]
-	nfmu_ay = [0.0]
-	ts = result_train.values.t
-	for i in 2:length(nfmu_vx)-1
-		dx = (nfmu_vx[i+1] - nfmu_vx[i-1]) / (ts[i+1] - ts[i-1])
-		dy = (nfmu_vy[i+1] - nfmu_vy[i-1]) / (ts[i+1] - ts[i-1])
-
-		push!(nfmu_ax, dx)
-		push!(nfmu_ay, dy)
-	end
-	push!(nfmu_ax, 0.0)
-	push!(nfmu_ay, 0.0)
-
-	startIndex = round(Integer, length(ts)*0.8)
-
-	plot(ts[startIndex:end], nfmu_ax[startIndex:end]) #  .- fmu_ax, nfmu_vx)
-	plot!(ts[startIndex:end], fmu_ax[startIndex:end])
-	plot(ts[startIndex:end], nfmu_ax[startIndex:end] .- fmu_ax[startIndex:end])
-	#plot(nfmu_vx[startIndex:end], nfmu_ax[startIndex:end])
-	scatter(nfmu_vx[startIndex:end], nfmu_ax[startIndex:end] .- fmu_ax[startIndex:end])
 end
 
 # ╔═╡ 919419fe-35de-44bb-89e4-8f8688bee962
@@ -1433,6 +1454,18 @@ let
 	end
 end
 
+# ╔═╡ dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
+let
+	if LIVE_RESULTS
+		fig = plot(; dpi=300, size=(25*10,30*10), xlims=(0.265, 0.29), ylims=(-0.025, 0.005), legend=:topleft)
+		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
+		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
+		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
+	else
+		LIVE_RESULTS_MESSAGE
+	end
+end
+
 # ╔═╡ 88884204-79e4-4412-b861-ebeb5f6f7396
 md""" 
 # Conclusion
@@ -1448,7 +1481,7 @@ If your results are not *that* promising, here is a set of hyperparameters to ch
 | layer width | 32 |
 | initial gate opening | 0.2 |
 | batch element length | 0.05s |
-| training steps | 10 000 |
+| training steps | $\geq$ 10 000 |
 | additional variables | Joint 1 Angle $br Joint 2 Angle $br TCP velocity x $br TCP velocity y $br TCP nominal force |
 
 ## Citation
@@ -1468,19 +1501,23 @@ BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 FMI = "14a09403-18e3-468f-ad8a-74f8dda2d9ac"
 FMIFlux = "fabad875-0d53-4e47-9446-963b74cae21f"
 FMIZoo = "724179cf-c260-40a9-bd27-cccc6fe2f195"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 BenchmarkTools = "~1.5.0"
 FMI = "~0.13.3"
-FMIFlux = "~0.12.0"
-FMIZoo = "~0.3.2"
+FMIFlux = "~0.12.1"
+FMIZoo = "~0.3.3"
+JLD2 = "~0.4.48"
 PlotlyJS = "~0.18.13"
 Plots = "~1.40.4"
 PlutoUI = "~0.7.59"
+ProgressLogging = "~0.1.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1489,7 +1526,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "4ed19e47b77a1373bcc02e04351e51f176e148c3"
+project_hash = "08923028677604b1c11bc64fd352208482d3b0c5"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -1567,9 +1604,9 @@ version = "0.4.0"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "ed2ec3c9b483842ae59cd273834e5b46206d6dda"
+git-tree-sha1 = "5c9b74c973181571deb6442d41e5c902e6b9f38e"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.11.0"
+version = "7.12.0"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceBandedMatricesExt = "BandedMatrices"
@@ -1595,9 +1632,9 @@ version = "7.11.0"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "600078184f7de14b3e60efe13fc0ba5c59f6dca5"
+git-tree-sha1 = "8556500c18fcad8b4c44058e23fbc4a36143f6be"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.10.0"
+version = "1.10.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -2148,9 +2185,11 @@ version = "0.3.2"
 
 [[deps.FMIFlux]]
 deps = ["Colors", "DifferentiableEigen", "DifferentialEquations", "FMIImport", "FMISensitivity", "Flux", "Optim", "Printf", "ProgressMeter", "Requires", "Statistics", "ThreadPools"]
-git-tree-sha1 = "7cb8226af3635ac21ed1ecbd9986ace85ab36c3d"
+git-tree-sha1 = "792ac12176b79d9d2e31d61ad9cb0947cad8d69c"
+repo-rev = "v0.12.2"
+repo-url = "https://github.com/ThummeTo/FMIFlux.jl"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.12.0"
+version = "0.12.2"
 
 [[deps.FMIImport]]
 deps = ["Downloads", "EzXML", "FMICore", "Libdl", "RelocatableFolders", "ZipFile"]
@@ -2192,6 +2231,12 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "cbf5edddb61a43669710cbc2241bc08b36d9e660"
 uuid = "29a986be-02c6-4525-aec4-84b980013641"
 version = "2.0.4"
+
+[[deps.FileIO]]
+deps = ["Pkg", "Requires", "UUIDs"]
+git-tree-sha1 = "82d8afa92ecf4b52d78d869f038ebfb881267322"
+uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+version = "1.16.3"
 
 [[deps.FilePaths]]
 deps = ["FilePathsBase", "MacroTools", "Reexport", "Requires"]
@@ -2421,10 +2466,10 @@ version = "0.17.2"
     MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 
 [[deps.HDF5_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
-git-tree-sha1 = "38c8874692d48d5440d5752d6c74b0c6b0b60739"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
+git-tree-sha1 = "82a471768b513dc39e471540fdadc84ff80ff997"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
-version = "1.14.2+1"
+version = "1.14.3+3"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
@@ -2540,6 +2585,12 @@ version = "0.2.2"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
+
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "Requires", "TranscodingStreams", "UUIDs", "Unicode"]
+git-tree-sha1 = "bdbe8222d2f5703ad6a7019277d149ec6d78c301"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.4.48"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -3094,9 +3145,9 @@ uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
 version = "0.5.5"
 
 [[deps.OffsetArrays]]
-git-tree-sha1 = "e64b4f5ea6b7389f6f046d13d4896a8f9c1ba71e"
+git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.14.0"
+version = "1.14.1"
 weakdeps = ["Adapt"]
 
     [deps.OffsetArrays.extensions]
@@ -3125,10 +3176,10 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
-git-tree-sha1 = "a9de2f1fc98b92f8856c640bf4aec1ac9b2a0d86"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
+git-tree-sha1 = "e25c1778a98e34219a00455d6e4384e017ea9762"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "5.0.3+0"
+version = "4.1.6+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -3824,9 +3875,9 @@ version = "5.2.2+0"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["Accessors", "ArrayInterface", "RuntimeGeneratedFunctions", "StaticArraysCore"]
-git-tree-sha1 = "ebb8a46ffcef0f0cf17bf33ab61f33d9770f50d2"
+git-tree-sha1 = "9c490ee01823dc443da25bf9225827e3cdd2d7e9"
 uuid = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
-version = "0.3.25"
+version = "0.3.26"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -4373,6 +4424,8 @@ version = "1.4.1+1"
 # ╠═33d648d3-e66e-488f-a18d-e538ebe9c000
 # ╟─1e9541b8-5394-418d-8c27-2831951c538d
 # ╠═e6e91a22-7724-46a3-88c1-315c40660290
+# ╟─3e2579c2-39ce-4249-ad75-228f82e616da
+# ╠═ddc9ce37-5f93-4851-a74f-8739b38ab092
 # ╟─44500f0a-1b89-44af-b135-39ce0fec5810
 # ╟─33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 # ╟─74d23661-751b-4371-bf6b-986149124e81
@@ -4427,9 +4480,11 @@ version = "1.4.1+1"
 # ╟─13ede3cd-99b1-4e65-8a18-9043db544728
 # ╟─f7c119dd-c123-4c43-812e-d0625817d77e
 # ╟─f4e66f76-76ff-4e21-b4b5-c1ecfd846329
+# ╟─b163115b-393d-4589-842d-03859f05be9a
 # ╟─ea655baa-b4d8-4fce-b699-6a732dc06051
 # ╟─cae2e094-b6a2-45e4-9afd-a6b78e912ab7
 # ╟─ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
+# ╟─fe85179e-36ba-45d4-b7a1-a893a382ade4
 # ╟─5b8084b1-a8be-4bf3-b86d-e2603ae36c5b
 # ╟─5e9cb956-d5ea-4462-a649-b133a77929b0
 # ╟─9dc93971-85b6-463b-bd17-43068d57de94
@@ -4474,11 +4529,12 @@ version = "1.4.1+1"
 # ╟─e8b8c63b-2ca4-4e6a-a801-852d6149283e
 # ╟─c0ac7902-0716-4f18-9447-d18ce9081ba5
 # ╟─84215a73-1ab0-416d-a9db-6b29cd4f5d2a
+# ╟─f9d35cfd-4ae5-4dcd-94d9-02aefc99bdfb
 # ╟─bc09bd09-2874-431a-bbbb-3d53c632be39
 # ╠═f741b213-a20d-423a-a382-75cae1123f2c
 # ╟─f02b9118-3fb5-4846-8c08-7e9bbca9d208
 # ╠═91473bef-bc23-43ed-9989-34e62166d455
-# ╟─55c22dae-fba8-4e79-8c25-462ed7519ad2
+# ╟─404ca10f-d944-4a9f-addb-05efebb4f159
 # ╟─d347d51b-743f-4fec-bed7-6cca2b17bacb
 # ╟─d60d2561-51a4-4f8a-9819-898d70596e0c
 # ╟─c97f2dea-cb18-409d-9ae8-1d03647a6bb3
@@ -4487,20 +4543,19 @@ version = "1.4.1+1"
 # ╠═caa5e04a-2375-4c56-8072-52c140adcbbb
 # ╟─69657be6-6315-4655-81e2-8edef7f21e49
 # ╟─23ad65c8-5723-4858-9abe-750c3b65c28a
+# ╟─abc57328-4de8-42d8-9e79-dd4020769dd9
 # ╟─e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 # ╟─2dce68a7-27ec-4ffc-afba-87af4f1cb630
 # ╟─c3f5704b-8e98-4c46-be7a-18ab4f139458
-# ╟─2f917499-6234-4467-886d-689e4c5aa920
+# ╟─1a608bc8-7264-4dd3-a4e7-0e39128a8375
 # ╟─ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─51eeb67f-a984-486a-ab8a-a2541966fa72
 # ╟─27458e32-5891-4afc-af8e-7afdf7e81cc6
-# ╠═4b68b48d-7c58-4bf1-920b-c60f787d2ede
 # ╟─737e2c50-0858-4205-bef3-f541e33b85c3
 # ╟─5dd491a4-a8cd-4baf-96f7-7a0b850bb26c
 # ╟─4f27b6c0-21da-4e26-aaad-ff453c8af3da
-# ╠═1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
+# ╟─1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
 # ╟─b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
-# ╟─6353e78a-57d5-43cd-a1fa-ff88af32d173
 # ╟─919419fe-35de-44bb-89e4-8f8688bee962
 # ╟─2918daf2-6499-4019-a04b-8c3419ee1ab7
 # ╟─048e39c3-a3d9-4e6b-b050-1fd5a919e4ae
@@ -4513,6 +4568,7 @@ version = "1.4.1+1"
 # ╟─74ef5a39-1dd7-404a-8baf-caa1021d3054
 # ╟─05281c4f-dba8-4070-bce3-dc2f1319902e
 # ╟─67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
+# ╟─dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
 # ╟─88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
