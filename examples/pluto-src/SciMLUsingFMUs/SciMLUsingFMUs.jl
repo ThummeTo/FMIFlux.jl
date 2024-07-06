@@ -32,14 +32,14 @@ using FMIFlux.Flux # default Julia Machine Learning library
 # ╔═╡ 98c608d9-c60e-4eb6-b611-69d2ae7054c9
 using FMIFlux.DifferentialEquations # the mighty (O)DE solver suite
 
+# ╔═╡ ddc9ce37-5f93-4851-a74f-8739b38ab092
+using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
+
 # ╔═╡ de7a4639-e3b8-4439-924d-7d801b4b3eeb
-using BenchmarkTools
+using BenchmarkTools # default benachmarking library
 
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
 using Plots 
-
-# ╔═╡ ddc9ce37-5f93-4851-a74f-8739b38ab092
-using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
 
 # ╔═╡ 1470df0f-40e1-45d5-a4cc-519cc3b28fb8
 md"""
@@ -58,8 +58,8 @@ by Tobias Thummerer (University of Augsburg)
 If there is something YOU know about a physical system, AI shouldn’t need to learn it. How to integrate YOUR system knowledge into a ML development process is the core topic of this hands-on workshop. The entire workshop evolves around a challenging use case from robotics: Modeling a robot that is able to write arbitrary messages with a pen. After introducing the topic and the considered use case, participants can experiment with their very own hybrid model topology. 
 
 # Introduction
-This workshop focuses on the integration of Functional Mock-Up Units (FMUs) into a machine learning topology. FMUs are simulation models that can be generated within a variety of modeling tools, see the [FMI homepage](https://fmi-standard.org/). Together with deep neural networks that complement and improve the FMU prediction, so called *NeuralFMUs* can be created. 
-The workshop itself evolves around the hybrid modeling of a *Selective Compliance Assembly Robot Arm* (SCARA), that is able to write user defined words on a sheet of paper. A ready to use physical simulation model (FMU) for the SCARA is given and shortly highlighted in this workshop. However, this model – as any simulation model – shows some deviations if compared to measurements from the real system. These deviations results from unmodeled slip-stick-friction: The pen sticks to the paper until a force limit is reached, but then moves jerkily. A hard to model physical effect – but not for a NeuralFMU.
+This workshop focuses on the integration of Functional Mock-Up Units (FMUs) into a machine learning topology. FMUs are simulation models that can be generated within a variety of modeling tools, see the [FMI homepage](https://fmi-standard.org/). Together with deep neural networks that complement and improve the FMU prediction, so called *neural FMUs* can be created. 
+The workshop itself evolves around the hybrid modeling of a *Selective Compliance Assembly Robot Arm* (SCARA), that is able to write user defined words on a sheet of paper. A ready to use physical simulation model (FMU) for the SCARA is given and shortly highlighted in this workshop. However, this model – as any simulation model – shows some deviations if compared to measurements from the real system. These deviations results from unmodeled slip-stick-friction: The pen sticks to the paper until a force limit is reached, but then moves jerkily. A hard to model physical effect – but not for a neural FMU.
 
 More advanced code snippets are hidden by default and marked with a ghost `👻`. Computations, that are disabled for performance reasons, are marked with `ℹ️`. They offer a hint how to enable the idled computation by activating the corresponding checkbox marked with `🎬`. 
 
@@ -116,6 +116,16 @@ md"""
 Some additional libraries for machine learning and ODE solvers:
 """
 
+# ╔═╡ 3e2579c2-39ce-4249-ad75-228f82e616da
+md"""
+To visualize a progress bar during training:
+"""
+
+# ╔═╡ 93fab704-a8dd-47ec-ac88-13f32be99460
+md"""
+And to do some benachmarking:
+"""
+
 # ╔═╡ 5cb505f7-01bd-4824-8876-3e0f5a922fb7
 md""" 
 Load in the plotting libraries ...
@@ -131,11 +141,6 @@ md"""
 
 # ╔═╡ e6e91a22-7724-46a3-88c1-315c40660290
 plotlyjs()
-
-# ╔═╡ 3e2579c2-39ce-4249-ad75-228f82e616da
-md"""
-To visualize the progress bar:
-"""
 
 # ╔═╡ 44500f0a-1b89-44af-b135-39ce0fec5810
 md"""
@@ -170,7 +175,7 @@ data_train = FMIZoo.RobotRR(:train)
 begin
 	
 # define the prinintg messages used at different places in this notebook
-LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting are disabled to safe performance. Checkbox `Plot Results`."""
+LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting is disabled to safe performance. Checkbox `Plot Results`."""
 LIVE_TRAIN_MESSAGE = md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
 BENCHMARK_MESSAGE = md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
 HIDDEN_CODE_MESSAGE = md"""> 👻 Hidden Code | You probably want to skip this code section on the first run."""
@@ -223,6 +228,16 @@ function fmiSingleInstanceMode!(fmu::FMU2,
     end
     return nothing
 end
+
+	function prepareSolveFMU(fmu, parameters)
+		FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type,
+			fmu.executionConfig.instantiate, 
+	    	fmu.executionConfig.freeInstance, 
+	   		fmu.executionConfig.terminate, 
+	    	fmu.executionConfig.reset, 
+	    	fmu.executionConfig.setup, 
+	    	parameters)
+	end
 
 function dividePath(values)
 	last_value = values[1]
@@ -321,10 +336,10 @@ Let's extract a start and stop time, as well as saving points for the later solv
 tSave = data_train.t # time points to save the solution at
 
 # ╔═╡ 8f45871f-f72a-423f-8101-9ce93e5a885b
-tStart = tSave[1]    # start time for simulation of FMU and NeuralFMU
+tStart = tSave[1]    # start time for simulation of FMU and neural FMU
 
 # ╔═╡ 57c039f7-5b24-4d63-b864-d5f808110b91
-tStop = tSave[end]   # stop time for simulation of FMU and NeuralFMU
+tStop = tSave[end]   # stop time for simulation of FMU and neural FMU
 
 # ╔═╡ 4510022b-ad28-4fc2-836b-e4baf3c14d26
 md"""
@@ -478,11 +493,11 @@ Now that we know our model and data a little bit better, it's time to care about
 
 # Experiments: $br Hybrid Model Topology
 
-Today is opposite day! Instead of deriving a topology step by step, the final NeuralFMU topology is presented in the picture below... however, three experiments are intended to make clear why it looks the way it looks.
+Today is opposite day! Instead of deriving a topology step by step, the final neural FMU topology is presented in the picture below... however, three experiments are intended to make clear why it looks the way it looks.
 
 ![](https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/plan_complete.png?raw=true)
 
-The first experiment is on choosing a good interface between FMU and ANN. The second is on online data pre- and post-processing. And the third one on gates, that allow to control the influence of ANN and FMU on the resulting hybrid model dynamics. After you completed all three, you are equipped with the knowledge to cope the final challenge: Build your own NeuralFMU and train it!
+The first experiment is on choosing a good interface between FMU and ANN. The second is on online data pre- and post-processing. And the third one on gates, that allow to control the influence of ANN and FMU on the resulting hybrid model dynamics. After you completed all three, you are equipped with the knowledge to cope the final challenge: Build your own neural FMU and train it!
 """
 
 # ╔═╡ 786c4652-583d-43e9-a101-e28c0b6f64e4
@@ -524,7 +539,7 @@ x1 = FMIZoo.getState(data_train, tStart+1.0)
 # ╔═╡ f4e66f76-76ff-4e21-b4b5-c1ecfd846329
 begin 
 	using FMIFlux.FMISensitivity.ReverseDiff
-	FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+	prepareSolveFMU(fmu, parameters)
 	jac_rwd = ReverseDiff.jacobian(x -> model(x), x1);
 	A_rwd = jac_rwd[1:length(x1), :]
 end
@@ -532,7 +547,7 @@ end
 # ╔═╡ ea655baa-b4d8-4fce-b699-6a732dc06051
 begin
 	using FMIFlux.FMISensitivity.ForwardDiff
-	FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+	prepareSolveFMU(fmu, parameters)
 	jac_fwd = ForwardDiff.jacobian(x -> model(x), x1);
 	A_fwd = jac_fwd[1:length(x1), :]
 end
@@ -641,7 +656,7 @@ Gradient and Jaobian computation takes a little longer of course. We use reverse
 # ╔═╡ a501d998-6fd6-496f-9718-3340c42b08a6
 begin
 	if BENCHMARK
-		FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+		prepareSolveFMU(fmu, parameters)
 		function ben_rwd(x)
 			return ReverseDiff.jacobian(model, x + rand(6)*1e-12);
 		end
@@ -660,7 +675,7 @@ Further, forward-mode automatic differentiation is available too via `ForwardDif
 # ╔═╡ e342be7e-0806-4f72-9e32-6d74ed3ed3f2
 begin
 	if BENCHMARK
-		FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+		prepareSolveFMU(fmu, parameters)
 		function ben_fwd(x)
 			return ForwardDiff.jacobian(model, x + rand(6)*1e-12);
 		end
@@ -806,7 +821,7 @@ begin
 	    # the acelerations [1,3] and consumptions [2,4] are paired
 	    gates = ScaleSum([GATE_INIT_FMU, GATE_INIT_ANN], [[1,2]]) # gates with sum
 	
-	    # setup the NeuralFMU topology
+	    # setup the neural FMU topology
 	    model_gates = Flux.f64(Chain(dx -> cache(dx),                    # cache `dx`
 	                  Dense(1, 16, tanh),  
 						Dense(16, 1, tanh),  # pre-process `dx`
@@ -820,7 +835,7 @@ begin
 		fig = plot(; ylims=(-3,1), legend=:bottomright) 
 		plot!(fig, data_train.t, collect(v[1] for v in model_input), label="dα1 of FMU")
 		plot!(fig, data_train.t, collect(v[1] for v in ANN_output), label="dα1 of ANN")
-		plot!(fig, data_train.t, collect(v[1] for v in model_output), label="dα1 of NeuralFMU")
+		plot!(fig, data_train.t, collect(v[1] for v in model_output), label="dα1 of neural FMU")
 		
 		return fig
 	end
@@ -836,16 +851,16 @@ This equals the parallel topology: $((GATE_INIT_FMU==1 && GATE_INIT_ANN==1) ? "�
 The neural FMU dynamics equal the FMU dynamics: $((GATE_INIT_FMU==1 && GATE_INIT_ANN==0) ? "✔️" : "❌")
 """
 
+# ╔═╡ 1cd976fb-db40-4ebe-b40d-b996e16fc213
+md"""
+> 💡 Gates allow to make parts of the architecture *learnable* while still keeping the training results interpretable.
+"""
+
 # ╔═╡ 93771b35-4edd-49e3-bed1-a3ccdb7975e6
 md"""
 > 💭 **Further reading:** Optimizing the gates together with the ANN parameters seems a useful strategy if we don't know how FMU and ANN need to interact in the later application. Technically, we keep a part of the architecture *parameterizable* and therefore learnable. How far can we push this game?
 >
 > Actually to the point, that the combination of FMU and ANN is described by a single *connection* equation, that is able to express all possible combinations of both models with each other - so a connection between every pair of inputs and outputs. This is discussed in detail as part of our article [*Learnable & Interpretable Model Combination in Dynamic Systems Modeling*](https://doi.org/10.48550/arXiv.2406.08093).
-"""
-
-# ╔═╡ 1cd976fb-db40-4ebe-b40d-b996e16fc213
-md"""
-> 💡 Gates allow to make parts of the architecture *learnable* while still keeping the training results interpretable.
 """
 
 # ╔═╡ e79badcd-0396-4a44-9318-8c6b0a94c5c8
@@ -913,8 +928,8 @@ ANN gates shall be initialized with $(GATES_INIT), meaning the ANN contributes $
 
 # ╔═╡ c0ac7902-0716-4f18-9447-d18ce9081ba5
 md"""
-## Resulting NeuralFMU
-Even if this looks a little confusing at first glance, our final NeuralFMU topology looks like this:
+## Resulting neural FMU
+Even if this looks a little confusing at first glance, our final neural FMU topology looks like this:
 """
 
 # ╔═╡ 84215a73-1ab0-416d-a9db-6b29cd4f5d2a
@@ -972,14 +987,14 @@ We can evaluate it, by putting in our start state `x0`. The model computes the r
 
 # ╔═╡ f02b9118-3fb5-4846-8c08-7e9bbca9d208
 md"""
-On basis of this `Chain`, we can build a NeuralFMU very easy:
+On basis of this `Chain`, we can build a neural FMU very easy:
 """
 
 # ╔═╡ d347d51b-743f-4fec-bed7-6cca2b17bacb
 md"""
 # Training
 
-After setting everything up, we can give it a try and train our created NeuralFMU. Deepending on the chosen optimization hyper parameters, this will be more or less successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself.
+After setting everything up, we can give it a try and train our created neural FMU. Deepending on the chosen optimization hyper parameters, this will be more or less successful. Feel free to play around a bit, but keep in mind that for real application design, you should do hyper parameter optimization instead of playing around by yourself.
 """
 
 # ╔═╡ d60d2561-51a4-4f8a-9819-898d70596e0c
@@ -1043,7 +1058,7 @@ md"""
 ## Summary
 To summarize, your ANN has a **depth of $(NUM_LAYERS) layers** with a **width of $(LAYERS_WIDTH)** each. The **ANN gates are initialized with $(GATES_INIT*100)%**, so all FMU gates are initialized with $(100-GATES_INIT*100)%. You decided to batch your data with a **batch element length of $(BATCHDUR)** seconds. Besides the state derivatives, you **put $(length(y_refs)) additional variables** in the ANN. Adam optimizer will try to find a good minimum with **`eta` is $(ETA)**.
 
-Batching takes a few seconds and training a few minutes (depending on the number of training steps), so this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Start Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 5000, 10000])) training steps.
+Batching takes a few seconds and training a few minutes (depending on the number of training steps), so this is not triggered automatically. If you are ready to go, choose a number of training steps and check the checkbox `Start Training`. This will start a training of $(@bind STEPS Select([0, 10, 100, 1000, 2500, 5000, 10000])) training steps. Alternatively, you can change the training mode to `demo` which loads parameters from a pre-trained model.
 """
 
 # ╔═╡ abc57328-4de8-42d8-9e79-dd4020769dd9
@@ -1069,7 +1084,7 @@ final_model(x0)
 # ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
 begin
 	neuralFMU = ME_NeuralFMU(
-		fmu, 			# the FMU used in the NeuralFMU 
+		fmu, 			# the FMU used in the neural FMU 
         final_model,    # the model we specified above 
     	(tStart, tStop),# start and stop time for solving
         solver; 		# the solver (Tsit5)
@@ -1118,7 +1133,7 @@ function train(eta, batchdur, steps)
 		return md"""⚠️ Number of training steps is `0`, no training."""
 	end
 
-	FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type)
+	prepareSolveFMU(fmu, parameters)
 	
 	train_t = data_train.t
 	train_data = collect([data_train.i2[i], data_train.i1[i]] for i in 1:length(train_t))
@@ -1126,7 +1141,7 @@ function train(eta, batchdur, steps)
 	#@info 
 	@info "Started batching ..."
 	
-	batch = batchDataSolution(neuralFMU, # our NeuralFMU model
+	batch = batchDataSolution(neuralFMU, # our neural FMU model
                               t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
                               train_t, # data time points
                               train_data; # data cumulative consumption 
@@ -1145,9 +1160,9 @@ function train(eta, batchdur, steps)
 
 	maxiters = round(Int, 1e5*batchdur)
 
-	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the NeuralFMU to simulate
+	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the neural FMU to simulate
                                     batch; # the batch to take an element from
-                                    p=p, # the NeuralFMU training parameters (given as input)
+                                    p=p, # the neural FMU training parameters (given as input)
                                     lossFct=lossFct, # our custom loss function
                                     batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the choosen scheduler
                                     logLoss=true, # log losses after every evaluation
@@ -1212,12 +1227,10 @@ md"""
 # ╔═╡ ff106912-d18c-487f-bcdd-7b7af2112cab
 md"""
 # Results 
-Now it's time to find out if it worked!
-
-ℹ️ Plotting results makes the notebook slow, so it's deactivated by default. Activate it to plot results of your training.
+Now it's time to find out if it worked! Plotting results makes the notebook slow, so it's deactivated by default. Activate it to plot results of your training.
 
 ## Training results
-Let's check out the *training* results of the freshly trained NeuralFMU.
+Let's check out the *training* results of the freshly trained neural FMU.
 """
 
 # ╔═╡ 51eeb67f-a984-486a-ab8a-a2541966fa72
@@ -1317,10 +1330,13 @@ begin
 end
 
 # ╔═╡ b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
-begin
+let
 	if LIVE_RESULTS
+		loss_fmu = loss(fmu_train, data_train)
+		loss_nfmu = loss(result_train, data_train)
+		
 		md"""
-The loss function value of the FMU on training data is $(round(loss(fmu_train, data_train); digits=6)), of the NeuralFMU it is $(round(loss(result_train, data_train); digits=6)).
+The loss function value of the FMU on training data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
 """
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1333,7 +1349,7 @@ let
 		fig = plot(; dpi=300, size=(200*3,60*3))
 		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
 		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="NeuralFMU", color=:blue)
+		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
 	else
 		LIVE_RESULTS_MESSAGE
 	end
@@ -1345,7 +1361,7 @@ let
 		fig = plot(; dpi=300, size=(40*10,40*10), xlims=(0.165, 0.205), ylims=(-0.035, 0.005))
 		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
 		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="NeuralFMU", color=:blue)
+		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
 	else 
 		LIVE_RESULTS_MESSAGE
 	end
@@ -1357,7 +1373,7 @@ let
 		fig = plot(; dpi=300, size=(50*10,40*10), xlims=(0.245, 0.295), ylims=(-0.04, 0.0))
 		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
 		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="NeuralFMU", color=:blue)
+		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
 	else
 		LIVE_RESULTS_MESSAGE 
 	end
@@ -1366,7 +1382,7 @@ end
 # ╔═╡ b489f97d-ee90-48c0-af06-93b66a1f6d2e
 md"""
 ## Validation results
-Let's check out the *validation* results of the freshly trained NeuralFMU.
+Let's check out the *validation* results of the freshly trained neural FMU.
 """
 
 # ╔═╡ 4dad3e55-5bfd-4315-bb5a-2680e5cbd11c
@@ -1410,8 +1426,10 @@ end
 # ╔═╡ 8d9dc86e-f38b-41b1-80c6-b2ab6f488a3a
 begin
 	if LIVE_RESULTS
+		loss_fmu = loss(fmu_validation, data_validation)
+		loss_nfmu = loss(result_validation, data_validation)
 		md"""
-The loss function value of the FMU on validation data is $(round(loss(fmu_validation, data_validation); digits=6)), of the NeuralFMU it is $(round(loss(result_validation, data_validation); digits=6)).
+The loss function value of the FMU on validation data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
 """
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1424,7 +1442,7 @@ let
 		fig = plot(; dpi=300, size=(200*3,40*3))
 		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
 		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="NeuralFMU", color=:blue)
+		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
 	else
 		LIVE_RESULTS_MESSAGE
 	end
@@ -1436,7 +1454,7 @@ let
 		fig = plot(; dpi=300, size=(35*10,50*10), xlims=(0.188, 0.223), ylims=(-0.025, 0.025))
 		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
 		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="NeuralFMU", color=:blue)
+		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
 	else
 		LIVE_RESULTS_MESSAGE
 	end
@@ -1506,18 +1524,6 @@ PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-
-[compat]
-BenchmarkTools = "~1.5.0"
-FMI = "~0.13.3"
-FMIFlux = "~0.12.1"
-FMIZoo = "~0.3.3"
-JLD2 = "~0.4.48"
-PlotlyJS = "~0.18.13"
-Plots = "~1.40.4"
-PlutoUI = "~0.7.59"
-ProgressLogging = "~0.1.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1526,7 +1532,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "08923028677604b1c11bc64fd352208482d3b0c5"
+project_hash = "14236b441b24ac6fadf5fa28f912f308bf0bd752"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
@@ -1604,9 +1610,9 @@ version = "0.4.0"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "5c9b74c973181571deb6442d41e5c902e6b9f38e"
+git-tree-sha1 = "ed2ec3c9b483842ae59cd273834e5b46206d6dda"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.12.0"
+version = "7.11.0"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceBandedMatricesExt = "BandedMatrices"
@@ -1632,9 +1638,9 @@ version = "7.12.0"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "8556500c18fcad8b4c44058e23fbc4a36143f6be"
+git-tree-sha1 = "600078184f7de14b3e60efe13fc0ba5c59f6dca5"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.10.1"
+version = "1.10.0"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -1797,9 +1803,9 @@ version = "0.1.13"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
-git-tree-sha1 = "b8fe8546d52ca154ac556809e10c75e6e7430ac8"
+git-tree-sha1 = "59939d8a997469ee05c4b4944560a820f9ba0d73"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.7.5"
+version = "0.7.4"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "PrecompileTools", "Random"]
@@ -1871,9 +1877,9 @@ version = "0.2.3"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
-git-tree-sha1 = "ea32b83ca4fefa1768dc84e504cc0a94fb1ab8d1"
+git-tree-sha1 = "6cbbd4d241d7e6579ab354737f4dd95ca43946e1"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
-version = "2.4.2"
+version = "2.4.1"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -2185,9 +2191,7 @@ version = "0.3.2"
 
 [[deps.FMIFlux]]
 deps = ["Colors", "DifferentiableEigen", "DifferentialEquations", "FMIImport", "FMISensitivity", "Flux", "Optim", "Printf", "ProgressMeter", "Requires", "Statistics", "ThreadPools"]
-git-tree-sha1 = "792ac12176b79d9d2e31d61ad9cb0947cad8d69c"
-repo-rev = "v0.12.2"
-repo-url = "https://github.com/ThummeTo/FMIFlux.jl"
+git-tree-sha1 = "1315f3bfe3e273eb35ea872d71869814349541cd"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
 version = "0.12.2"
 
@@ -2378,16 +2382,16 @@ deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GLFW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]
-git-tree-sha1 = "3f74912a156096bd8fdbef211eff66ab446e7297"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
+git-tree-sha1 = "ff38ba61beff76b8f4acad8ab0c97ef73bb670cb"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
-version = "3.4.0+0"
+version = "3.3.9+0"
 
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "Serialization", "Statistics"]
-git-tree-sha1 = "04661708f5301394a1f1be86a07a89e835900db6"
+git-tree-sha1 = "5c9de6d5af87acd2cf719e214ed7d51e14017b7a"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "10.2.3"
+version = "10.2.2"
 
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
@@ -2444,9 +2448,9 @@ version = "1.3.14+0"
 
 [[deps.Graphs]]
 deps = ["ArnoldiMethod", "Compat", "DataStructures", "Distributed", "Inflate", "LinearAlgebra", "Random", "SharedArrays", "SimpleTraits", "SparseArrays", "Statistics"]
-git-tree-sha1 = "ebd18c326fa6cee1efb7da9a3b45cf69da2ed4d9"
+git-tree-sha1 = "334d300809ae0a68ceee3444c6e99ded412bf0b3"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
-version = "1.11.2"
+version = "1.11.1"
 
 [[deps.Grisu]]
 git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
@@ -2466,10 +2470,10 @@ version = "0.17.2"
     MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 
 [[deps.HDF5_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
-git-tree-sha1 = "82a471768b513dc39e471540fdadc84ff80ff997"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
+git-tree-sha1 = "38c8874692d48d5440d5752d6c74b0c6b0b60739"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
-version = "1.14.3+3"
+version = "1.14.2+1"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
@@ -2588,9 +2592,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "Requires", "TranscodingStreams", "UUIDs", "Unicode"]
-git-tree-sha1 = "bdbe8222d2f5703ad6a7019277d149ec6d78c301"
+git-tree-sha1 = "84642bc18a79d715b39d3724b03cbdd2e7d48c62"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.48"
+version = "0.4.49"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -2715,9 +2719,9 @@ version = "1.3.1"
 
 [[deps.Latexify]]
 deps = ["Format", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "OrderedCollections", "Requires"]
-git-tree-sha1 = "5b0d630f3020b82c0775a51d05895852f8506f50"
+git-tree-sha1 = "e0b5cd21dc1b44ec6e64f351976f961e6f31d6c4"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.16.4"
+version = "0.16.3"
 
     [deps.Latexify.extensions]
     DataFramesExt = "DataFrames"
@@ -3062,22 +3066,20 @@ version = "4.5.1"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Pkg", "Random", "Requires", "Statistics"]
-git-tree-sha1 = "1288e6db94d98f7d194454452176b82edb25b32c"
+git-tree-sha1 = "78de319bce99d1d8c1d4fe5401f7cfc2627df396"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.9.19"
+version = "0.9.18"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
     NNlibCUDACUDNNExt = ["CUDA", "cuDNN"]
     NNlibCUDAExt = "CUDA"
     NNlibEnzymeCoreExt = "EnzymeCore"
-    NNlibFFTWExt = "FFTW"
 
     [deps.NNlib.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
-    FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
     cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [[deps.NaNMath]]
@@ -3145,9 +3147,9 @@ uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
 version = "0.5.5"
 
 [[deps.OffsetArrays]]
-git-tree-sha1 = "1a27764e945a152f7ca7efa04de513d473e9542e"
+git-tree-sha1 = "e64b4f5ea6b7389f6f046d13d4896a8f9c1ba71e"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.14.1"
+version = "1.14.0"
 weakdeps = ["Adapt"]
 
     [deps.OffsetArrays.extensions]
@@ -3176,10 +3178,10 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "e25c1778a98e34219a00455d6e4384e017ea9762"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
+git-tree-sha1 = "a9de2f1fc98b92f8856c640bf4aec1ac9b2a0d86"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "4.1.6+0"
+version = "5.0.3+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -3328,10 +3330,10 @@ uuid = "f2990250-8cf9-495f-b13a-cce12b45703c"
 version = "2.2.4"
 
 [[deps.Plots]]
-deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "UnitfulLatexify", "Unzip"]
-git-tree-sha1 = "442e1e7ac27dd5ff8825c3fa62fbd1e86397974b"
+deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "TOML", "UUIDs", "UnicodeFun", "UnitfulLatexify", "Unzip"]
+git-tree-sha1 = "082f0c4b70c202c37784ce4bfbc33c9f437685bf"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.40.4"
+version = "1.40.5"
 
     [deps.Plots.extensions]
     FileIOExt = "FileIO"
@@ -3583,9 +3585,9 @@ version = "0.6.43"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "Accessors", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "SciMLStructures", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "281e82f2ae2b73262fed9e7a518711eb7feb7e59"
+git-tree-sha1 = "7a6c5c8c38d2e37f45d4686c3598c20c1aebf48e"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.42.0"
+version = "2.41.3"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -3773,9 +3775,9 @@ weakdeps = ["OffsetArrays", "StaticArrays"]
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "eeafab08ae20c62c44c8399ccb9354a04b80db50"
+git-tree-sha1 = "20833c5b7f7edf0e5026f23db7f268e4f23ec577"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.7"
+version = "1.9.6"
 weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]
@@ -3875,9 +3877,9 @@ version = "5.2.2+0"
 
 [[deps.SymbolicIndexingInterface]]
 deps = ["Accessors", "ArrayInterface", "RuntimeGeneratedFunctions", "StaticArraysCore"]
-git-tree-sha1 = "9c490ee01823dc443da25bf9225827e3cdd2d7e9"
+git-tree-sha1 = "a5f6f138b740c9d93d76f0feddd3092e6ef002b7"
 uuid = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
-version = "0.3.26"
+version = "0.3.22"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -4021,9 +4023,9 @@ weakdeps = ["ConstructionBase", "InverseFunctions"]
 
 [[deps.UnitfulLatexify]]
 deps = ["LaTeXStrings", "Latexify", "Unitful"]
-git-tree-sha1 = "975c354fcd5f7e1ddcc1f1a23e6e091d99e99bc8"
+git-tree-sha1 = "e2d817cc500e960fdbafcf988ac8436ba3208bfd"
 uuid = "45397f5d-5981-4c77-b2b3-fc36d6e9b728"
-version = "1.6.4"
+version = "1.6.3"
 
 [[deps.UnsafeAtomics]]
 git-tree-sha1 = "6331ac3440856ea1988316b46045303bef658278"
@@ -4418,14 +4420,15 @@ version = "1.4.1+1"
 # ╟─85308992-04c4-4d20-a840-6220cab54680
 # ╠═eaae989a-c9d2-48ca-9ef8-fd0dbff7bcca
 # ╠═98c608d9-c60e-4eb6-b611-69d2ae7054c9
+# ╟─3e2579c2-39ce-4249-ad75-228f82e616da
+# ╠═ddc9ce37-5f93-4851-a74f-8739b38ab092
+# ╟─93fab704-a8dd-47ec-ac88-13f32be99460
 # ╠═de7a4639-e3b8-4439-924d-7d801b4b3eeb
 # ╟─5cb505f7-01bd-4824-8876-3e0f5a922fb7
 # ╠═45c4b9dd-0b04-43ae-a715-cd120c571424
 # ╠═33d648d3-e66e-488f-a18d-e538ebe9c000
 # ╟─1e9541b8-5394-418d-8c27-2831951c538d
 # ╠═e6e91a22-7724-46a3-88c1-315c40660290
-# ╟─3e2579c2-39ce-4249-ad75-228f82e616da
-# ╠═ddc9ce37-5f93-4851-a74f-8739b38ab092
 # ╟─44500f0a-1b89-44af-b135-39ce0fec5810
 # ╟─33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 # ╟─74d23661-751b-4371-bf6b-986149124e81
@@ -4515,8 +4518,8 @@ version = "1.4.1+1"
 # ╟─845a95c4-9a35-44ae-854c-57432200da1a
 # ╟─5a399a9b-32d9-4f93-a41f-8f16a4b102dc
 # ╟─fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
-# ╟─93771b35-4edd-49e3-bed1-a3ccdb7975e6
 # ╟─1cd976fb-db40-4ebe-b40d-b996e16fc213
+# ╟─93771b35-4edd-49e3-bed1-a3ccdb7975e6
 # ╟─e79badcd-0396-4a44-9318-8c6b0a94c5c8
 # ╟─2a5157c5-f5a2-4330-b2a3-0c1ec0b7adff
 # ╟─4454c8d2-68ed-44b4-adfa-432297cdc957
