@@ -38,6 +38,9 @@ using BenchmarkTools
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
 using Plots 
 
+# ╔═╡ ddc9ce37-5f93-4851-a74f-8739b38ab092
+using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
+
 # ╔═╡ 1470df0f-40e1-45d5-a4cc-519cc3b28fb8
 md"""
 # Scientific Machine Learning $br using Functional Mock-Up Units
@@ -129,6 +132,11 @@ md"""
 # ╔═╡ e6e91a22-7724-46a3-88c1-315c40660290
 plotlyjs()
 
+# ╔═╡ 3e2579c2-39ce-4249-ad75-228f82e616da
+md"""
+To visualize the progress bar:
+"""
+
 # ╔═╡ 44500f0a-1b89-44af-b135-39ce0fec5810
 md"""
 Next, we define some helper functions, that are not important to follow the workshop - they are hidden by default. However they are here, if you want to explore what it takes to write fully working code. If you do this workshop for the first time, it is recommended to skip the hidden part and directly go on.
@@ -165,7 +173,7 @@ begin
 LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting are disabled to safe performance. Checkbox `Plot Results`."""
 LIVE_TRAIN_MESSAGE = md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
 BENCHMARK_MESSAGE = md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
-HIDDEN_CODE_MESSAGE = md"""👻 Hidden Code | You probably want to skip this code section on the first run."""
+HIDDEN_CODE_MESSAGE = md"""> 👻 Hidden Code | You probably want to skip this code section on the first run."""
 
 import FMI.FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, FMU2Solution
 import Random 
@@ -531,7 +539,7 @@ end
 
 # ╔═╡ 0a7955e7-7c1a-4396-9613-f8583195c0a8
 md"""
-Depending on how many signals you select, the output of the FMU-layer is extended. The first six outputs are the state derivatives, the remaining are the additional outputs selected above.
+Depending on how many signals you select, the output of the FMU-layer is extended. The first six outputs are the state derivatives, the remaining are the $(length(CHOOSE_y_refs)) additional output(s) selected above.
 """
 
 # ╔═╡ 4912d9c9-d68d-4afd-9961-5d8315884f75
@@ -557,23 +565,33 @@ y = dx_y[length(x1)+1:end]
 
 # ╔═╡ 13ede3cd-99b1-4e65-8a18-9043db544728
 md"""
-Gradient and Jaobian computation takes a little longer of course. We use reverse-mode automatic differentiation via `ReverseDiff.jl` here:
+For the later training, we need gradients and Jacobians.
 """
 
 # ╔═╡ f7c119dd-c123-4c43-812e-d0625817d77e
 md"""
-The determined Jacobian $A = \frac{\partial \dot{x}}{\partial x}$ states: 
+If we use reverse-mode automatic differentiation via `ReverseDiff.jl`, the determined Jacobian $A = \frac{\partial \dot{x}}{\partial x}$ states: 
+"""
+
+# ╔═╡ b163115b-393d-4589-842d-03859f05be9a
+md"""
+For forward-mode automatic differentiation (using *ForwardDiff.jl*), it's the same of course:
 """
 
 # ╔═╡ cae2e094-b6a2-45e4-9afd-a6b78e912ab7
 md"""
-The Jacobian $C = \frac{\partial y}{\partial x}$ states: 
+We can determine further jacobians for FMUs, for example the Jacobian $C = \frac{\partial y}{\partial x}$ states (using *ReverseDiff.jl*): 
 """
 
 # ╔═╡ ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
 begin
  	C_rwd = jac_rwd[length(x1)+1:end, :]
 end
+
+# ╔═╡ fe85179e-36ba-45d4-b7a1-a893a382ade4
+md"""
+And the same for using *ForwardDiff.jl*:
+"""
 
 # ╔═╡ 5b8084b1-a8be-4bf3-b86d-e2603ae36c5b
 begin
@@ -582,13 +600,13 @@ end
 
 # ╔═╡ 5e9cb956-d5ea-4462-a649-b133a77929b0
 md"""
-> TODO: above!
+Let's check the performance of these calls, because they will have significant influence on the later training performance!
 """
 
 # ╔═╡ 9dc93971-85b6-463b-bd17-43068d57de94
 md"""
 ### Benchmark
-Finally, keep in mind that the amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. 
+The amount of selected signals has influence on the computational performance of the model. The more signals you use, the slower is inference and gradient determination. For now, you have picked $(length(CHOOSE_y_refs)) additional signal(s). 
 """
 
 # ╔═╡ 476a1ed7-c865-4878-a948-da73d3c81070
@@ -827,7 +845,7 @@ md"""
 
 # ╔═╡ 1cd976fb-db40-4ebe-b40d-b996e16fc213
 md"""
-> 💡 ToDo
+> 💡 Gates allow to make parts of the architecture *learnable* while still keeping the training results interpretable.
 """
 
 # ╔═╡ e79badcd-0396-4a44-9318-8c6b0a94c5c8
@@ -957,11 +975,6 @@ md"""
 On basis of this `Chain`, we can build a NeuralFMU very easy:
 """
 
-# ╔═╡ 55c22dae-fba8-4e79-8c25-462ed7519ad2
-md"""
-> 💡 ToDo
-"""
-
 # ╔═╡ d347d51b-743f-4fec-bed7-6cca2b17bacb
 md"""
 # Training
@@ -1055,17 +1068,49 @@ final_model(x0)
 
 # ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
 begin
-	neuralFMU = ME_NeuralFMU(fmu,             # the FMU used in the NeuralFMU 
-                    	 final_model,     # the model we specified above 
-                         (tStart, tStop), # start and stop time for solving
-                    	 solver; 		  # the solver (Tsit5)
-                         saveat=tSave)    # time points to save the solution at
+	neuralFMU = ME_NeuralFMU(
+		fmu, 			# the FMU used in the NeuralFMU 
+        final_model,    # the model we specified above 
+    	(tStart, tStop),# start and stop time for solving
+        solver; 		# the solver (Tsit5)
+        saveat=tSave)   # time points to save the solution at
+end
+
+# ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
+begin
+	# in demo mode, we load parameters from a pre-trained model
+	if MODE == :demo
+		fmiLoadParameters(neuralFMU, "C:\\Users\\thummeto\\Documents\\Dissertation\\Publikationen\\MODPROD 2024\\results\\20000.jld2")
+	end
+
+	HIDDEN_CODE_MESSAGE
+end
+
+# ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
+begin
+	neuralFMU;
+	y_refs;
+	NUM_LAYERS;
+	LAYERS_WIDTH;
+	GATES_INIT;
+	ETA;
+	BATCHDUR;
+	MODE;
+
+	if MODE == :train
+		md"""⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
+	
+🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
+		"""
+	else
+		LIVE_TRAIN = false
+		md"""ℹ️ No training in demo mode. Please continue with plotting results.
+		"""
+	end
 end
 
 # ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
 begin
-
-using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
 	
 function train(eta, batchdur, steps)
 
@@ -1145,38 +1190,6 @@ HIDDEN_CODE_MESSAGE
 
 end
 
-# ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
-begin
-	if MODE == :demo
-		fmiLoadParameters(neuralFMU, "C:\\Users\\thummeto\\Documents\\Dissertation\\Publikationen\\MODPROD 2024\\results\\20000.jld2")
-	end
-
-	HIDDEN_CODE_MESSAGE
-end
-
-# ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
-begin
-	neuralFMU;
-	y_refs;
-	NUM_LAYERS;
-	LAYERS_WIDTH;
-	GATES_INIT;
-	ETA;
-	BATCHDUR;
-	MODE;
-
-	if MODE == :train
-		md"""⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
-	
-🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
-		"""
-	else
-		LIVE_TRAIN = false
-		md"""ℹ️ No training in demo mode. Please continue with plotting results.
-		"""
-	end
-end
-
 # ╔═╡ c3f5704b-8e98-4c46-be7a-18ab4f139458
 let
 	if MODE == :train
@@ -1190,6 +1203,11 @@ let
 		"""
 	end
 end
+
+# ╔═╡ 1a608bc8-7264-4dd3-a4e7-0e39128a8375
+md"""
+> 💡 Playing around with hyperparameters is fun, but keep in mind that this is not a suitable method for finding good hyperparameters in real world engineering. Do a hyperparameter optimization instead.
+"""
 
 # ╔═╡ ff106912-d18c-487f-bcdd-7b7af2112cab
 md"""
@@ -1436,6 +1454,18 @@ let
 	end
 end
 
+# ╔═╡ dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
+let
+	if LIVE_RESULTS
+		fig = plot(; dpi=300, size=(25*10,30*10), xlims=(0.265, 0.29), ylims=(-0.025, 0.005), legend=:topleft)
+		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
+		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
+		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
+	else
+		LIVE_RESULTS_MESSAGE
+	end
+end
+
 # ╔═╡ 88884204-79e4-4412-b861-ebeb5f6f7396
 md""" 
 # Conclusion
@@ -1451,7 +1481,7 @@ If your results are not *that* promising, here is a set of hyperparameters to ch
 | layer width | 32 |
 | initial gate opening | 0.2 |
 | batch element length | 0.05s |
-| training steps | 20 000 |
+| training steps | $\geq$ 10 000 |
 | additional variables | Joint 1 Angle $br Joint 2 Angle $br TCP velocity x $br TCP velocity y $br TCP nominal force |
 
 ## Citation
@@ -4394,6 +4424,8 @@ version = "1.4.1+1"
 # ╠═33d648d3-e66e-488f-a18d-e538ebe9c000
 # ╟─1e9541b8-5394-418d-8c27-2831951c538d
 # ╠═e6e91a22-7724-46a3-88c1-315c40660290
+# ╟─3e2579c2-39ce-4249-ad75-228f82e616da
+# ╠═ddc9ce37-5f93-4851-a74f-8739b38ab092
 # ╟─44500f0a-1b89-44af-b135-39ce0fec5810
 # ╟─33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 # ╟─74d23661-751b-4371-bf6b-986149124e81
@@ -4448,9 +4480,11 @@ version = "1.4.1+1"
 # ╟─13ede3cd-99b1-4e65-8a18-9043db544728
 # ╟─f7c119dd-c123-4c43-812e-d0625817d77e
 # ╟─f4e66f76-76ff-4e21-b4b5-c1ecfd846329
+# ╟─b163115b-393d-4589-842d-03859f05be9a
 # ╟─ea655baa-b4d8-4fce-b699-6a732dc06051
 # ╟─cae2e094-b6a2-45e4-9afd-a6b78e912ab7
 # ╟─ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
+# ╟─fe85179e-36ba-45d4-b7a1-a893a382ade4
 # ╟─5b8084b1-a8be-4bf3-b86d-e2603ae36c5b
 # ╟─5e9cb956-d5ea-4462-a649-b133a77929b0
 # ╟─9dc93971-85b6-463b-bd17-43068d57de94
@@ -4501,7 +4535,6 @@ version = "1.4.1+1"
 # ╟─f02b9118-3fb5-4846-8c08-7e9bbca9d208
 # ╠═91473bef-bc23-43ed-9989-34e62166d455
 # ╟─404ca10f-d944-4a9f-addb-05efebb4f159
-# ╟─55c22dae-fba8-4e79-8c25-462ed7519ad2
 # ╟─d347d51b-743f-4fec-bed7-6cca2b17bacb
 # ╟─d60d2561-51a4-4f8a-9819-898d70596e0c
 # ╟─c97f2dea-cb18-409d-9ae8-1d03647a6bb3
@@ -4514,6 +4547,7 @@ version = "1.4.1+1"
 # ╟─e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 # ╟─2dce68a7-27ec-4ffc-afba-87af4f1cb630
 # ╟─c3f5704b-8e98-4c46-be7a-18ab4f139458
+# ╟─1a608bc8-7264-4dd3-a4e7-0e39128a8375
 # ╟─ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─51eeb67f-a984-486a-ab8a-a2541966fa72
 # ╟─27458e32-5891-4afc-af8e-7afdf7e81cc6
@@ -4534,6 +4568,7 @@ version = "1.4.1+1"
 # ╟─74ef5a39-1dd7-404a-8baf-caa1021d3054
 # ╟─05281c4f-dba8-4070-bce3-dc2f1319902e
 # ╟─67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
+# ╟─dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
 # ╟─88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
