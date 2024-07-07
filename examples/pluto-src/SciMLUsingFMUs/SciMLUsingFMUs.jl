@@ -36,7 +36,7 @@ using FMIFlux.DifferentialEquations # the mighty (O)DE solver suite
 using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
 
 # ╔═╡ de7a4639-e3b8-4439-924d-7d801b4b3eeb
-using BenchmarkTools # default benachmarking library
+using BenchmarkTools # default benchmarking library
 
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
 using Plots 
@@ -1093,9 +1093,12 @@ end
 
 # ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
 begin
+	import Downloads
+	demo_path = Downloads.download("https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/20000.jld2?raw=true")
+	
 	# in demo mode, we load parameters from a pre-trained model
 	if MODE == :demo
-		fmiLoadParameters(neuralFMU, joinpath(@__DIR__, "src", "20000.jld2"))
+		fmiLoadParameters(neuralFMU, demo_path)
 	end
 
 	HIDDEN_CODE_MESSAGE
@@ -1398,7 +1401,7 @@ begin
 		recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
 					  "rRPositionControl_Elasticity.tCP.p_y",
 					  "rRPositionControl_Elasticity.tCP.N"],
-		showProgress=true, maxiters=1e7, saveat=data_validation.t, solver=Tsit5());
+		showProgress=true, maxiters=1e6, saveat=data_validation.t, solver=Tsit5());
 	nothing
 end
 
@@ -1416,7 +1419,7 @@ begin
         recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
             "rRPositionControl_Elasticity.tCP.p_y",
             "rRPositionControl_Elasticity.tCP.N"],
-        showProgress=true, maxiters=1e7, saveat=data_validation.t);
+        showProgress=true, maxiters=1e6, saveat=data_validation.t);
 		nothing
 	else
 		LIVE_RESULTS_MESSAGE
@@ -1516,6 +1519,7 @@ Tobias Thummerer, Johannes Stoljar and Lars Mikelsons. 2022. **NeuralFMU: presen
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FMI = "14a09403-18e3-468f-ad8a-74f8dda2d9ac"
 FMIFlux = "fabad875-0d53-4e47-9446-963b74cae21f"
 FMIZoo = "724179cf-c260-40a9-bd27-cccc6fe2f195"
@@ -1524,6 +1528,18 @@ PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[compat]
+BenchmarkTools = "~1.5.0"
+FMI = "~0.13.3"
+FMIFlux = "~0.12.2"
+FMIZoo = "~0.3.3"
+JLD2 = "~0.4.49"
+PlotlyJS = "~0.18.13"
+Plots = "~1.40.5"
+PlutoUI = "~0.7.59"
+ProgressLogging = "~0.1.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -1532,7 +1548,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "14236b441b24ac6fadf5fa28f912f308bf0bd752"
+project_hash = "79772b37e2cae2421c7159b63f3cbe881b42eaeb"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
