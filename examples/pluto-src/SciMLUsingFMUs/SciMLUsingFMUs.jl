@@ -1320,6 +1320,7 @@ let
 		loss_nfmu = loss(result_train, data_train)
 		
 		md"""
+#### The word `train`
 The loss function value of the FMU on training data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
 """
 	else
@@ -1339,6 +1340,11 @@ let
 	end
 end
 
+# ╔═╡ ed25a535-ca2f-4cd2-b0af-188e9699f1c3
+md"""
+#### The letter `a`
+"""
+
 # ╔═╡ 2918daf2-6499-4019-a04b-8c3419ee1ab7
 let
 	if LIVE_RESULTS
@@ -1350,6 +1356,11 @@ let
 		LIVE_RESULTS_MESSAGE
 	end
 end
+
+# ╔═╡ d798a5d0-3017-4eab-9cdf-ee85d63dfc49
+md"""
+#### The letter `n`
+"""
 
 # ╔═╡ 048e39c3-a3d9-4e6b-b050-1fd5a919e4ae
 let
@@ -1413,6 +1424,7 @@ begin
 		loss_fmu = loss(fmu_validation, data_validation)
 		loss_nfmu = loss(result_validation, data_validation)
 		md"""
+#### The word `validate`
 The loss function value of the FMU on validation data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
 """
 	else
@@ -1432,6 +1444,11 @@ let
 	end
 end
 
+# ╔═╡ 347d209b-9d41-48b0-bee6-0d159caacfa9
+md"""
+#### The letter `d`
+"""
+
 # ╔═╡ 05281c4f-dba8-4070-bce3-dc2f1319902e
 let
 	if LIVE_RESULTS
@@ -1444,6 +1461,11 @@ let
 	end
 end
 
+# ╔═╡ 590d7f24-c6b6-4524-b3db-0c93d9963b74
+md"""
+#### The letter `t`
+"""
+
 # ╔═╡ 67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
 let
 	if LIVE_RESULTS
@@ -1455,6 +1477,11 @@ let
 		LIVE_RESULTS_MESSAGE
 	end
 end
+
+# ╔═╡ e6dc8aab-82c1-4dc9-a1c8-4fe9c137a146
+md"""
+#### The letter `e`
+"""
 
 # ╔═╡ dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
 let
@@ -4542,7 +4569,7 @@ version = "1.4.1+1"
 # ╟─abc57328-4de8-42d8-9e79-dd4020769dd9
 # ╟─e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 # ╟─2dce68a7-27ec-4ffc-afba-87af4f1cb630
-# ╠═c3f5704b-8e98-4c46-be7a-18ab4f139458
+# ╟─c3f5704b-8e98-4c46-be7a-18ab4f139458
 # ╟─1a608bc8-7264-4dd3-a4e7-0e39128a8375
 # ╟─ff106912-d18c-487f-bcdd-7b7af2112cab
 # ╟─51eeb67f-a984-486a-ab8a-a2541966fa72
@@ -4553,7 +4580,9 @@ version = "1.4.1+1"
 # ╟─1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
 # ╟─b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
 # ╟─919419fe-35de-44bb-89e4-8f8688bee962
+# ╟─ed25a535-ca2f-4cd2-b0af-188e9699f1c3
 # ╟─2918daf2-6499-4019-a04b-8c3419ee1ab7
+# ╟─d798a5d0-3017-4eab-9cdf-ee85d63dfc49
 # ╟─048e39c3-a3d9-4e6b-b050-1fd5a919e4ae
 # ╟─b489f97d-ee90-48c0-af06-93b66a1f6d2e
 # ╟─4dad3e55-5bfd-4315-bb5a-2680e5cbd11c
@@ -4562,8 +4591,11 @@ version = "1.4.1+1"
 # ╟─51aed933-2067-4ea8-9c2f-9d070692ecfc
 # ╟─8d9dc86e-f38b-41b1-80c6-b2ab6f488a3a
 # ╟─74ef5a39-1dd7-404a-8baf-caa1021d3054
+# ╟─347d209b-9d41-48b0-bee6-0d159caacfa9
 # ╟─05281c4f-dba8-4070-bce3-dc2f1319902e
+# ╟─590d7f24-c6b6-4524-b3db-0c93d9963b74
 # ╟─67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
+# ╟─e6dc8aab-82c1-4dc9-a1c8-4fe9c137a146
 # ╟─dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
 # ╟─88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
