@@ -18,7 +18,7 @@ tspan = (t_start, t_stop)
 posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 fmu.handleEventIndicators = [1]
 
 x0_bb = [1.0, 0.0]
@@ -37,7 +37,7 @@ losssum = function(p)
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
     
     return FMIFlux.Losses.mse(posNet, posData)
 end
@@ -54,4 +54,4 @@ for solver in solvers
     @test best_timing != Inf
 end
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

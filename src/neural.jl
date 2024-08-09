@@ -3,20 +3,21 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import FMIImport.FMICore: assert_integrator_valid, isdual, istracked, undual, unsense, unsense_copy, untrack, FMUSnapshot
+import FMIImport.FMIBase: assert_integrator_valid, isdual, istracked, issense, undual, unsense, unsense_copy, untrack, FMUSnapshot
 import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot!, snapshot_if_needed!, getSnapshot
 import Optim
-import ProgressMeter
+import FMIImport.FMIBase.ProgressMeter
 import FMISensitivity.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
     VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
-import DifferentialEquations.OrdinaryDiffEq: isimplicit, alg_autodiff, AutoForwardDiff
+import OrdinaryDiffEq: isimplicit, alg_autodiff, AutoForwardDiff
 using FMISensitivity.ReverseDiff: TrackedArray
 import FMISensitivity.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
 import ThreadPools
+import FMIImport.FMIBase
 
-using DifferentialEquations.DiffEqCallbacks
-using DifferentialEquations: ODEFunction, ODEProblem, solve
-using FMIImport: FMU2Component, FMU2Event, FMU2Solution, fmi2ComponentState,
+using FMIImport.FMIBase.DiffEqCallbacks
+using FMIImport.FMIBase.SciMLBase: ODEFunction, ODEProblem, solve
+using FMIImport.FMIBase: fmi2ComponentState,
     fmi2ComponentStateContinuousTimeMode, fmi2ComponentStateError,
     fmi2ComponentStateEventMode, fmi2ComponentStateFatal,
     fmi2ComponentStateInitializationMode, fmi2ComponentStateInstantiated,
@@ -27,8 +28,8 @@ using FMISensitivity.SciMLSensitivity:
 import DifferentiableEigen
 import DifferentiableEigen.LinearAlgebra: I
 
-import FMIImport.FMICore: EMPTY_fmi2Real, EMPTY_fmi2ValueReference
-import FMIImport.FMICore
+import FMIImport.FMIBase: EMPTY_fmi2Real, EMPTY_fmi2ValueReference
+import FMIImport.FMIBase
 import FMISensitivity: NoTangent, ZeroTangent
 
 DEFAULT_PROGRESS_DESCR = "Simulating ME-NeuralFMU ..."
@@ -70,12 +71,7 @@ mutable struct ME_NeuralFMU{M, R} <: NeuralFMU
     
     tolerance::Union{Real, Nothing}
     parameters::Union{Dict{<:Any, <:Any}, Nothing}
-    setup::Union{Bool, Nothing}
-    reset::Union{Bool, Nothing}
-    instantiate::Union{Bool, Nothing}
-    freeInstance::Union{Bool, Nothing}
-    terminate::Union{Bool, Nothing}
-
+    
     modifiedState::Bool
 
     execution_start::Real
@@ -142,7 +138,7 @@ mutable struct CS_NeuralFMU{F, C} <: NeuralFMU
 end
 
 function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p, t=c.default_t)
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     # [ToDo]: Skip array check, e.g. by using a flag
     #if p !== nfmu.re_p || p != nfmu.re_p # || isnothing(nfmu.re_model)
@@ -159,7 +155,7 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p=nfmu.p, t=c.de
 end
 
 function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, dx, x; p=nfmu.p, t=c.default_t)
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     # [ToDo]: Skip array check, e.g. by using a flag
     #if p !== nfmu.re_p || p != nfmu.re_p # || isnothing(nfmu.re_model)
@@ -189,7 +185,7 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
 
         @assert t == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
         
-        c, x0 = prepareSolveFMU(nfmu.fmu, c, fmi2TypeModelExchange, nfmu.instantiate, nfmu.freeInstance, nfmu.terminate, nfmu.reset, nfmu.setup, nfmu.parameters, nfmu.tspan[1], nfmu.tspan[end], nfmu.tolerance; x0=nfmu.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
+        c, x0 = prepareSolveFMU(nfmu.fmu, c, fmi2TypeModelExchange; parameters=nfmu.parameters, t_start=nfmu.tspan[1], t_stop=nfmu.tspan[end], tolerance=nfmu.tolerance, x0=nfmu.x0, handleEvents=FMIFlux.handleEvents, cleanup=true)
         
         if c.eventInfo.nextEventTime == t && c.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
@@ -214,7 +210,7 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
             end
 
             @debug "ME_NeuralFMU: Applying snapshot..."
-            FMICore.apply!(c, readSnapshot; t=t)
+            FMIBase.apply!(c, readSnapshot; t=t)
             @debug "ME_NeuralFMU: Snapshot applied."
         end
 
@@ -225,7 +221,7 @@ end
 
 function stopCallback(nfmu::ME_NeuralFMU, c::FMU2Component, t)
 
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     ignore_derivatives() do
         
@@ -240,7 +236,7 @@ end
 # Read next time event from fmu and provide it to the integrator 
 function time_choice(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, tStart, tStop)
 
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @assert c.fmu.executionConfig.handleTimeEvents "time_choice(...) was called, but execution config disables time events.\nPlease open a issue."
     # assert_integrator_valid(integrator)
 
@@ -289,7 +285,7 @@ end
 
 function condition!(nfmu::ME_NeuralFMU, c::FMU2Component, out, x, t, integrator, handleEventIndicators) 
 
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @assert c.state == fmi2ComponentStateContinuousTimeMode "condition!(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
 
     # [ToDo] Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN.
@@ -329,7 +325,7 @@ global lastIndicatorT = nothing
 function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, integrator) 
 
     @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     if c.fmu.handleEventIndicators != nothing && index ∉ c.fmu.handleEventIndicators
         return 1.0
@@ -437,7 +433,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # first, jump to before the event instance
     # if length(c.solution.snapshots) > 0 # c.t != t 
     #     sn = getSnapshot(c.solution, t)
-    #     FMICore.apply!(c, sn; x_c=left_x, t=t)
+    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
     #     #@info "[d] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
     # end
     # indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
@@ -446,18 +442,16 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     new_left_x = copy(left_x)
     if length(c.solution.snapshots) > 0 # c.t != t 
         sn = getSnapshot(c.solution, t)
-        FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+        FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
         #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
     end
     new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
     statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
     
-    #@info "Sample given : t:$(t)   $(left_x) -> $(right_x)"
-    #@info "Sample repro.: t:$(t)   $(new_left_x) -> $(new_right_x)"
-
-    @assert statesChanged "Can't reproduce event (statesChanged)!"
-    @assert left_x == new_left_x "Can't reproduce event (left_x)!"
-    @assert right_x == new_right_x "Can't reproduce event (right_x)!"
+    # [ToDo: these tests should be included, but will drastically fail on FMUs with no support for get/setState]
+    # @assert statesChanged "Can't reproduce event (statesChanged)!" 
+    # @assert left_x == new_left_x "Can't reproduce event (left_x)!"
+    # @assert right_x == new_right_x "Can't reproduce event (right_x)!"
 
     for i in 1:numStates
         
@@ -468,7 +462,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
         # first, jump to before the event instance
         if length(c.solution.snapshots) > 0 # c.t != t 
             sn = getSnapshot(c.solution, t)
-            FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+            FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
             #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
         end
         # [ToDo] Don't check if event was handled via event-indicator, because there is no guarantee that it is reset (like for the bouncing ball)
@@ -489,7 +483,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
             
             if length(c.solution.snapshots) > 0 # c.t != t 
                 sn = getSnapshot(c.solution, t)
-                FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+                FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
                 #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
             end
             #fmi2EnterEventMode(c)
@@ -505,7 +499,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
 
         # if length(c.solution.snapshots) > 0 # c.t != t 
         #     sn = getSnapshot(c.solution, t)
-        #     FMICore.apply!(c, sn; x_c=new_left_x, t=t)
+        #     FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
         #     #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
         # end
 
@@ -524,14 +518,14 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # if length(c.solution.snapshots) > 0 # c.t != t 
     #     @info "Reset snapshot @ t = $(t)"
     #     sn = getSnapshot(c.solution, t)
-    #     FMICore.apply!(c, sn; x_c=left_x, t=t)
+    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
     # end
     # stateChange!(nfmu, c, left_x, t, idx)
     if length(c.solution.snapshots) > 0 
         #@info "Reset exact snapshot @t=$(t)"
         sn = getSnapshot(c.solution, t; exact=true)
         if !isnothing(sn)
-            FMICore.apply!(c, sn; x_c=left_x, t=t)
+            FMIBase.apply!(c, sn; x_c=left_x, t=t)
         end
     end
     
@@ -561,7 +555,7 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
     # if length(c.solution.snapshots) > 0 # c.t != t 
     #     sn = getSnapshot(c.solution, t)
     #     @info "[x] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-    #     FMICore.apply!(c, sn; x_c=left_x, t=t)
+    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
     # end
 
     fmi2EnterEventMode(c)
@@ -672,7 +666,7 @@ end
 function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     @debug "affectFMU!"
-    @assert getCurrentComponent(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+    @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     # assert_integrator_valid(integrator)
 
     @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
@@ -687,7 +681,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
         # if snapshots && length(c.solution.snapshots) > 0 
         #     sn = getSnapshot(c.solution, t)
-        #     FMICore.apply!(c, sn)
+        #     FMIBase.apply!(c, sn)
         # end
 
     #if c.x != left_x
@@ -742,7 +736,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
             _right_x = isnothing(right_x) ? _left_x : unsense_copy(right_x)
 
             #@assert c.eventInfo.valuesOfContinuousStatesChanged == (_left_x != _right_x) "FMU says valuesOfContinuousStatesChanged $(c.eventInfo.valuesOfContinuousStatesChanged), but states say different!"
-            e = FMU2Event(unsense(t), UInt64(idx), _left_x, _right_x)
+            e = FMUEvent(unsense(t), UInt64(idx), _left_x, _right_x)
             push!(c.solution.events, e)
         end
 
@@ -1027,19 +1021,21 @@ function checkExecTime(integrator, nfmu::ME_NeuralFMU, c, max_execution_duration
 end
 
 function getComponent(nfmu::NeuralFMU)
-    return hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing
+    return hasCurrentInstance(nfmu.fmu) ? getCurrentInstance(nfmu.fmu) : nothing
 end
 
 # ToDo: Separate this: NeuralFMU creation and solving!
 """
     
-    TODO: Signature, Arguments and Keyword-Arguments descriptions.
+    nfmu(x_start, tspan; kwargs)
 
-Evaluates the ME_NeuralFMU in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
+Evaluates the ME_NeuralFMU `nfmu` in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
 
 # Keyword arguments
     - `reset`, the FMU is reset every time evaluation is started (default=`true`).
     - `setup`, the FMU is set up every time evaluation is started (default=`true`).
+
+[ToDo]
 """
 function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     tspan::Tuple{Float64, Float64} = nfmu.tspan;
@@ -1047,11 +1043,6 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     progressDescr::String=DEFAULT_PROGRESS_DESCR,
     tolerance::Union{Real, Nothing} = nothing,
     parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
-    setup::Union{Bool, Nothing} = nothing,
-    reset::Union{Bool, Nothing} = nothing,
-    instantiate::Union{Bool, Nothing} = nothing,
-    freeInstance::Union{Bool, Nothing} = nothing,
-    terminate::Union{Bool, Nothing} = nothing,
     p=nfmu.p,
     solver=nfmu.solver, 
     saveEventPositions::Bool=false,
@@ -1103,11 +1094,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
         else
             nfmu.parameters = parameters
         end
-        nfmu.setup = setup
-        nfmu.reset = reset
-        nfmu.instantiate = instantiate
-        nfmu.freeInstance = freeInstance
-        nfmu.terminate = terminate
+    
     end
 
     callbacks = []
@@ -1119,7 +1106,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     
     ignore_derivatives() do
 
-        c.solution = FMU2Solution(c)
+        c.solution = FMUSolution(c)
 
         @debug "ME_NeuralFMU: Defining callbacks..."
 
@@ -1287,6 +1274,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     ff = ODEFunction{true}(fx_ip) # ; jvp=jvp, vjp=vjp, jac=fx_jac) # tgrad=nothing
     prob = ODEProblem{true}(ff, nfmu.x0, nfmu.tspan, p)
 
+    # [TODO] that (using ReverseDiffAdjoint) should work now with `autodiff=false` 
     if isnothing(sensealg)
         if isnothing(solver)
 
@@ -1361,7 +1349,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     # cleanup snapshots to release memory
     for snapshot in c.solution.snapshots 
-        FMICore.freeSnapshot!(snapshot)
+        FMIBase.freeSnapshot!(snapshot)
     end
     c.solution.snapshots = []
 
@@ -1389,17 +1377,12 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     tspan::Tuple{Float64, Float64} = nfmu.tspan; 
     p=nfmu.p,
     tolerance::Union{Real, Nothing} = nothing,
-    parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing,
-    setup::Union{Bool, Nothing} = nothing,
-    reset::Union{Bool, Nothing} = nothing,
-    instantiate::Union{Bool, Nothing} = nothing,
-    freeInstance::Union{Bool, Nothing} = nothing,
-    terminate::Union{Bool, Nothing} = nothing) where {F, C}
+    parameters::Union{Dict{<:Any, <:Any}, Nothing} = nothing) where {F, C}
 
     t_start, t_stop = tspan
 
-    c = (hasCurrentComponent(nfmu.fmu) ? getCurrentComponent(nfmu.fmu) : nothing)
-    c, _ = prepareSolveFMU(nfmu.fmu, c, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    c = (hasCurrentInstance(nfmu.fmu) ? getCurrentInstance(nfmu.fmu) : nothing)
+    c, _ = prepareSolveFMU(nfmu.fmu, c, fmi2TypeCoSimulation; parameters=parameters, t_start=t_start, t_stop=t_stop, tolerance=tolerance, cleanup=true)
     
     ts = collect(t_start:t_step:t_stop)
    
@@ -1447,12 +1430,7 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
                                          tspan::Tuple{Float64, Float64} = nfmu.tspan; 
                                          p=nothing,
                                          tolerance::Union{Real, Nothing} = nothing,
-                                         parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing} = nothing,
-                                         setup::Union{Bool, Nothing} = nothing,
-                                         reset::Union{Bool, Nothing} = nothing,
-                                         instantiate::Union{Bool, Nothing} = nothing,
-                                         freeInstance::Union{Bool, Nothing} = nothing,
-                                         terminate::Union{Bool, Nothing} = nothing) where {F, C}
+                                         parameters::Union{Vector{Union{Dict{<:Any, <:Any}, Nothing}}, Nothing} = nothing) where {F, C}
 
     t_start, t_stop = tspan
     numFMU = length(nfmu.fmu)
@@ -1461,12 +1439,14 @@ function (nfmu::CS_NeuralFMU{Vector{F}, Vector{C}})(inputFct,
     ignore_derivatives() do
         cs = Vector{Union{FMU2Component, Nothing}}(undef, numFMU)
         for i in 1:numFMU
-            cs[i] = (hasCurrentComponent(nfmu.fmu[i]) ? getCurrentComponent(nfmu.fmu[i]) : nothing)
+            cs[i] = (hasCurrentInstance(nfmu.fmu[i]) ? getCurrentInstance(nfmu.fmu[i]) : nothing)
         end
     end
-    cs, _ = prepareSolveFMU(nfmu.fmu, cs, fmi2TypeCoSimulation, instantiate, freeInstance, terminate, reset, setup, parameters, t_start, t_stop, tolerance; cleanup=true)
+    for i in 1:numFMU
+        cs[i], _ = prepareSolveFMU(nfmu.fmu[i], cs[i], fmi2TypeCoSimulation; parameters=parameters, t_start=t_start, t_stop=t_stop, tolerance=tolerance, cleanup=true)
+    end
     
-    solution = FMU2Solution(nothing)
+    solution = FMUSolution(nothing)
 
     ts = collect(t_start:t_step:t_stop)
     model_input = inputFct.(ts)
@@ -1521,7 +1501,13 @@ function Flux.params(nfmu::ME_NeuralFMU; destructure::Bool=false)
         nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
     end
 
-    return Flux.params(nfmu.p)
+    ps = Flux.params(nfmu.p)
+
+    if issense(ps)
+        @warn "Parameters include AD-primitives, this indicates that something did go wrong in before."
+    end
+
+    return ps
 end
 
 function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=false) # true)
@@ -1532,7 +1518,13 @@ function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool=false) # true)
     #     return Flux.params(nfmu.model)
     end
 
-    return Flux.params(nfmu.p)
+    ps = Flux.params(nfmu.p)
+
+    if issense(ps)
+        @warn "Parameters include AD-primitives, this indicates that something did go wrong in before."
+    end
+
+    return ps
 end
 
 function computeGradient!(jac, loss, params, gradient::Symbol, chunk_size::Union{Symbol, Int}, multiObjective::Bool)
