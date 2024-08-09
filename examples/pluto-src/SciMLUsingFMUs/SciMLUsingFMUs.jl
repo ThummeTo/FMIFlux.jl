@@ -4,6 +4,7 @@
 using Markdown
 using InteractiveUtils
 
+<<<<<<< HEAD:examples/pluto-src/pluto-src/SciMLUsingFMUs/SciMLUsingFMUs.jl
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
@@ -45,6 +46,11 @@ using PlutoPlotly
 md"""
 # Scientific Machine Learning $br using Functional Mock-Up Units
 (former *Hybrid Modeling using FMI*)
+=======
+# ╔═╡ 1470df0f-40e1-45d5-a4cc-519cc3b28fb8
+md"""
+# Hands-on: Hybrid Modeling using FMI
+>>>>>>> dbadbed4f4fae3fe1f1ca3761e637d2a8720526c:examples/pluto-src/HybridModelingUsingFMI/HybridModelingUsingFMI.jl
 
 Workshop $br
 @ JuliaCon 2024 (Eindhoven, Netherlands) $br
@@ -54,6 +60,7 @@ by Tobias Thummerer (University of Augsburg)
 
 *#hybridmodeling, #sciml, #neuralode, #neuralfmu, #penode*
 
+<<<<<<< HEAD:examples/pluto-src/pluto-src/SciMLUsingFMUs/SciMLUsingFMUs.jl
 # Abstract
 If there is something YOU know about a physical system, AI shouldn’t need to learn it. How to integrate YOUR system knowledge into a ML development process is the core topic of this hands-on workshop. The entire workshop evolves around a challenging use case from robotics: Modeling a robot that is able to write arbitrary messages with a pen. After introducing the topic and the considered use case, participants can experiment with their very own hybrid model topology. 
 
@@ -3725,10 +3732,14 @@ version = "2021.12.0+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.4.0+2"
+=======
+This workshop was refactored and moved to [Scientific Machine Learning using Functional Mock-up Units](https://github.com/ThummeTo/FMIFlux.jl/tree/main/examples/pluto-src/SciMLUsingFMUs/SciMLUsingFMUs.jl).
+>>>>>>> dbadbed4f4fae3fe1f1ca3761e637d2a8720526c:examples/pluto-src/HybridModelingUsingFMI/HybridModelingUsingFMI.jl
 """
 
 # ╔═╡ Cell order:
 # ╟─1470df0f-40e1-45d5-a4cc-519cc3b28fb8
+<<<<<<< HEAD:examples/pluto-src/pluto-src/SciMLUsingFMUs/SciMLUsingFMUs.jl
 # ╟─7d694be0-cd3f-46ae-96a3-49d07d7cf65a
 # ╟─6fc16c34-c0c8-48ce-87b3-011a9a0f4e7c
 # ╟─8a82d8c7-b781-4600-8780-0a0a003b676c
@@ -3897,3 +3908,5 @@ version = "17.4.0+2"
 # ╟─88884204-79e4-4412-b861-ebeb5f6f7396
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
+=======
+>>>>>>> dbadbed4f4fae3fe1f1ca3761e637d2a8720526c:examples/pluto-src/HybridModelingUsingFMI/HybridModelingUsingFMI.jl

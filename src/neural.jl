@@ -1276,7 +1276,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     # [TODO] that (using ReverseDiffAdjoint) should work now with `autodiff=false` 
     if isnothing(sensealg)
-        if !isnothing(solver)
+        if isnothing(solver)
 
             logWarning(nfmu.fmu, "No solver keyword detected for NeuralFMU.\nContinuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
             sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
