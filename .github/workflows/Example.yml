@@ -24,20 +24,20 @@ jobs:
         julia-version: ['1.8'] 
         julia-arch: [x64]
         experimental: [false]
-
+        
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v3
-
+        
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
-
+            
       - name: "Install dependencies"
         run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-
+        
       - name: "Install packages"
         run: pip install jupyter nbconvert
                         
@@ -48,7 +48,7 @@ jobs:
           jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.8" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
-
+          
       - name: "Fix GIFs"
         run: |
           echo "starting gif fixing"
@@ -57,7 +57,7 @@ jobs:
           awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ matrix.file-name }}.md > examples/jupyter-src/tmp_${{ matrix.file-name }}.md
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
-
+          
       - name: Archive examples artifacts (success)
         if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v3
@@ -70,15 +70,15 @@ jobs:
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v3
-
+        
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
             version: '1.10'
-
+            
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
-
+      
       - name: Archive examples artifacts (success)
         if: success()
         uses: actions/upload-artifact@v3
@@ -86,14 +86,36 @@ jobs:
           name: pluto-examples
           path: examples/pluto-src/*
           
-  auto-commit:
+  filecheck: 
     needs: [jypiter, pluto]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download jupyter examples
+        uses: actions/download-artifact@v3
+        with:
+          name: jupyter-examples
+          path: examples/jupyter-src/
+          
+      - name: Download pluto examples
+        uses: actions/download-artifact@v3
+        with:
+          name: pluto-examples
+          path: examples/pluto-src/
+          
+      - name: Check if the example files generated are valid (if jupyter-examples failed, svgs are missing; jupyter command does not fail even if examples fail)
+        uses: andstor/file-existence-action@v3
+        with: 
+          files: "examples/jupyter-src/*/*.svg"
+          fail: true
+          
+  auto-commit:
+    needs: [jypiter, pluto, filecheck]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
-
+        
       - name: Download jupyter examples
         uses: actions/download-artifact@v3
         with:
@@ -130,7 +152,7 @@ jobs:
           git add ${{ env.EXAMPLES_PATH }}
           git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
           git push origin examples 
-
+          
   call-docu:
     needs: auto-commit
     if: github.event_name != 'pull_request'

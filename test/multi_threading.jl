@@ -18,7 +18,7 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for training
-fmu = fmi2Load("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 losssum = function(p)
@@ -29,8 +29,8 @@ losssum = function(p)
         return Inf 
     end
 
-    # posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    # posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
@@ -145,4 +145,4 @@ for i in 1:length(nets)
     end
 end
 
-fmi2Unload(fmu)
+unloadFMU(fmu)
