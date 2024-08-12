@@ -27,10 +27,10 @@ jobs:
         
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
@@ -60,7 +60,7 @@ jobs:
           
       - name: Archive examples artifacts (success)
         if: success() && matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: jupyter-examples
           path: examples/jupyter-src/${{ matrix.file-name }}*
@@ -69,10 +69,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
             version: '1.10'
             
@@ -81,7 +81,7 @@ jobs:
       
       - name: Archive examples artifacts (success)
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pluto-examples
           path: examples/pluto-src/*
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Download jupyter examples
         uses: actions/download-artifact@v3
