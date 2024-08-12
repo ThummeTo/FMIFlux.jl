@@ -26,18 +26,18 @@ jobs:
     steps:
       # Checks-out your repository
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@latest
 
       # Set up Julia
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
 
      # Set up cache
       - name: "Set up cache"
-        uses: actions/cache@v3
+        uses: actions/cache@latest
         env:
           cache-name: cache-artifacts
         with:
@@ -50,18 +50,18 @@ jobs:
 
       # Build package
       - name: "Build package"
-        uses: julia-actions/julia-buildpkg@v1
+        uses: julia-actions/julia-buildpkg@latest
 
       # Run the tests
       - name: "Run tests"
-        uses: julia-actions/julia-runtest@v1
+        uses: julia-actions/julia-runtest@latest
 
       # Preprocess Coverage
       - name: "Preprocess Coverage"
-        uses: julia-actions/julia-processcoverage@v1
+        uses: julia-actions/julia-processcoverage@latest
 
       # Run codecov
       - name: "Run CodeCov"
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@latest
         with:
           file: lcov.info

@@ -27,10 +27,10 @@ jobs:
         
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@latest
         
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
@@ -60,7 +60,7 @@ jobs:
           
       - name: Archive examples artifacts (success)
         if: success() && matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@latest
         with:
           name: jupyter-examples
           path: examples/jupyter-src/${{ matrix.file-name }}*
@@ -69,10 +69,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@latest
         
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
             version: '1.10'
             
@@ -81,7 +81,7 @@ jobs:
       
       - name: Archive examples artifacts (success)
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@latest
         with:
           name: pluto-examples
           path: examples/pluto-src/*
@@ -91,19 +91,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download jupyter examples
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@latest
         with:
           name: jupyter-examples
           path: examples/jupyter-src/
           
       - name: Download pluto examples
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@latest
         with:
           name: pluto-examples
           path: examples/pluto-src/
           
       - name: Check if the example files generated are valid (if jupyter-examples failed, svgs are missing; jupyter command does not fail even if examples fail)
-        uses: andstor/file-existence-action@v3
+        uses: andstor/file-existence-action@latest
         with: 
           files: "examples/jupyter-src/*/*.svg"
           fail: true
@@ -114,16 +114,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@latest
         
       - name: Download jupyter examples
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@latest
         with:
           name: jupyter-examples
           path: examples/jupyter-src/
       
       - name: Download pluto examples
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@latest
         with:
           name: pluto-examples
           path: examples/pluto-src/
@@ -160,6 +160,6 @@ jobs:
     steps:
       # Trigger an repoisitory dispath event
       - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@latest
         with:
           event-type: trigger-docu
