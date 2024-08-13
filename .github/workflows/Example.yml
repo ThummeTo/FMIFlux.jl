@@ -23,10 +23,10 @@ jobs:
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
-        
+
       - name: "clean branch"
         env: 
-          CI_COMMIT_MESSAGE: cleaned
+          CI_COMMIT_MESSAGE: cleaned[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
@@ -90,30 +90,34 @@ jobs:
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
           
-      - name: "auto-commit for gathering"
+      - name: "auto-commit for gathering (retry on merge)"
         if: success()
+        uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch ci-example-gathering
-          git reset --hard origin/ci-example-gathering
-          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
-          git stash apply --index
-          git stash drop
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
-          git config --global core.autocrlf false
-          git add ${{ env.EXAMPLES_PATH }}
-          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-          git push origin ci-example-gathering 
+        with:
+          timeout_minutes: 999
+          max_attempts: 10
+          command: |
+            git fetch --all
+            git stash clear
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+            git switch ci-example-gathering
+            git reset --hard origin/ci-example-gathering
+            git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+            git stash apply --index
+            git stash drop
+            git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+            git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+            git config --global core.autocrlf false
+            git add ${{ env.EXAMPLES_PATH }}
+            git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+            git push origin ci-example-gathering 
 
   pluto:
     needs: [clean-ci-example-gathering-branch]
@@ -130,30 +134,35 @@ jobs:
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
       
-      - name: "auto-commit for gathering"
+      - name: "auto-commit for gathering (retry on merge)"
         if: success()
+        uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch ci-example-gathering
-          git reset --hard origin/ci-example-gathering
-          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
-          git stash apply --index
-          git stash drop
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
-          git config --global core.autocrlf false
-          git add ${{ env.EXAMPLES_PATH }}
-          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-          git push origin ci-example-gathering 
+        with:
+          timeout_minutes: 999
+          max_attempts: 10
+          command: |
+            git fetch --all
+            git stash clear
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+            git switch ci-example-gathering
+            git reset --hard origin/ci-example-gathering
+            git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+            git stash apply --index
+            git stash drop
+            git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+            git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+            git config --global core.autocrlf false
+            git pull
+            git add ${{ env.EXAMPLES_PATH }}
+            git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+            git push origin ci-example-gathering 
           
   filecheck: 
     needs: [jupyter, pluto]
