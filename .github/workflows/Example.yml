@@ -14,13 +14,13 @@ on:
       - 'Project.toml'
   
 jobs:
-  jypiter:
+  jupyter-compute:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest] # , ubuntu-latest]
-        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
+        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023] # Caution: if altered, alter jupyter-gather-job matrix too !!!
         julia-version: ['1.10'] 
         julia-arch: [x64]
         experimental: [false]
@@ -62,9 +62,27 @@ jobs:
         if: success() && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: jupyter-examples
+          name: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
           path: examples/jupyter-src/${{ matrix.file-name }}*
-          
+
+  jupyter-gather:
+    needs: jupyter-compute
+    runs-on: ubuntu-latest
+    env: 
+      JUPYTER_EXAMPLES: [windows-latest-growing_horizon_ME-1.10-x64-false, windows-latest-modelica_conference_2021-1.10-x64-false, windows-latest-simple_hybrid_CS-1.10-x64-false, windows-latest-simple_hybrid_ME-1.10-x64-false, windows-latest-mdpi_2022-1.10-x64-false, windows-latest-juliacon_2023-1.10-x64-false] # Caution: if altered, alter jupyter-compute-job matrix too !!!
+    steps:
+      - name: "gather jupyter artifacts"
+        uses: actions/download-artifact@v3
+        with:
+          name: jupyter-example-jupyter-example-$JUPYTER_EXAMPLES
+          path: examples/jupyter-src/
+      
+      - name: "upload combined jupyter artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: jupyter-examples
+          path: examples/jupyter-src/*
+
   pluto:
     runs-on: ubuntu-latest
     steps:
@@ -87,7 +105,7 @@ jobs:
           path: examples/pluto-src/*
           
   filecheck: 
-    needs: [jypiter, pluto]
+    needs: [jupyter-gather, pluto]
     runs-on: ubuntu-latest
     steps:
       - name: Download jupyter examples
@@ -109,7 +127,7 @@ jobs:
           fail: true
           
   auto-commit:
-    needs: [jypiter, pluto, filecheck]
+    needs: [jupyter-gather, pluto, filecheck]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
