@@ -12,15 +12,47 @@ on:
       - 'examples/pluto-src/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
+
+concurrency: # allow only one parallel job as conflicts can emerge from example-gathering branch
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
   
 jobs:
-  jupyter-compute:
+  clean-ci-example-gathering-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        
+      - name: "clean branch"
+        env: 
+          CI_COMMIT_MESSAGE: cleaned
+          CI_COMMIT_AUTHOR: github-actions[bot]
+          EXAMPLES_PATH: examples
+        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples folder. 
+        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        run: |
+          git fetch --all
+          git stash clear
+          git switch ci-example-gathering
+          git reset --hard origin/ci-example-gathering
+          rm -rf ${{ env.EXAMPLES_PATH }}
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+          git config --global core.autocrlf false
+          git add ${{ env.EXAMPLES_PATH }}
+          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+          git push origin ci-example-gathering 
+
+  jupyter:
+    needs: [clean-ci-example-gathering-branch]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest] # , ubuntu-latest]
-        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023] # Caution: if altered, alter jupyter-gather-job matrix too !!!
+        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
         julia-version: ['1.10'] 
         julia-arch: [x64]
         experimental: [false]
@@ -58,32 +90,33 @@ jobs:
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
           
-      - name: Archive examples artifacts (success)
-        if: success() && matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
-          path: examples/jupyter-src/${{ matrix.file-name }}*
-
-  jupyter-gather:
-    needs: jupyter-compute
-    runs-on: ubuntu-latest
-    env: 
-      JUPYTER_EXAMPLES: [windows-latest-growing_horizon_ME-1.10-x64-false, windows-latest-modelica_conference_2021-1.10-x64-false, windows-latest-simple_hybrid_CS-1.10-x64-false, windows-latest-simple_hybrid_ME-1.10-x64-false, windows-latest-mdpi_2022-1.10-x64-false, windows-latest-juliacon_2023-1.10-x64-false] # Caution: if altered, alter jupyter-compute-job matrix too !!!
-    steps:
-      - name: "gather jupyter artifacts"
-        uses: actions/download-artifact@v3
-        with:
-          name: jupyter-example-jupyter-example-$JUPYTER_EXAMPLES
-          path: examples/jupyter-src/
-      
-      - name: "upload combined jupyter artifact"
-        uses: actions/upload-artifact@v4
-        with:
-          name: jupyter-examples
-          path: examples/jupyter-src/*
+      - name: "auto-commit for gathering"
+        if: success()
+        env: 
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
+          CI_COMMIT_AUTHOR: github-actions[bot]
+          EXAMPLES_PATH: examples
+        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples folder. 
+        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        run: |
+          git fetch --all
+          git stash clear
+          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+          git switch ci-example-gathering
+          git reset --hard origin/ci-example-gathering
+          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+          git stash apply --index
+          git stash drop
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+          git config --global core.autocrlf false
+          git add ${{ env.EXAMPLES_PATH }}
+          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+          git push origin ci-example-gathering 
 
   pluto:
+    needs: [clean-ci-example-gathering-branch]
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
@@ -97,29 +130,43 @@ jobs:
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
       
-      - name: Archive examples artifacts (success)
+      - name: "auto-commit for gathering"
         if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/*
+        env: 
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}
+          CI_COMMIT_AUTHOR: github-actions[bot]
+          EXAMPLES_PATH: examples
+        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples folder. 
+        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        run: |
+          git fetch --all
+          git stash clear
+          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+          git switch ci-example-gathering
+          git reset --hard origin/ci-example-gathering
+          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+          git stash apply --index
+          git stash drop
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+          git config --global core.autocrlf false
+          git add ${{ env.EXAMPLES_PATH }}
+          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+          git push origin ci-example-gathering 
           
   filecheck: 
-    needs: [jupyter-gather, pluto]
+    needs: [jupyter, pluto]
     runs-on: ubuntu-latest
     steps:
-      - name: Download jupyter examples
-        uses: actions/download-artifact@v3
-        with:
-          name: jupyter-examples
-          path: examples/jupyter-src/
-          
-      - name: Download pluto examples
-        uses: actions/download-artifact@v3
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/
-          
+      - name: Download examples
+        run: |
+          git fetch --all
+          git stash clear
+          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+          git switch ci-example-gathering
+          git reset --hard origin/ci-example-gathering
+
       - name: Check if the example files generated are valid (if jupyter-examples failed, svgs are missing; jupyter command does not fail even if examples fail)
         uses: andstor/file-existence-action@v3
         with: 
@@ -127,24 +174,20 @@ jobs:
           fail: true
           
   auto-commit:
-    needs: [jupyter-gather, pluto, filecheck]
+    needs: [jupyter, pluto, filecheck]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         
-      - name: Download jupyter examples
-        uses: actions/download-artifact@v3
-        with:
-          name: jupyter-examples
-          path: examples/jupyter-src/
-      
-      - name: Download pluto examples
-        uses: actions/download-artifact@v3
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/
+      - name: Download examples
+        run: |
+          git fetch --all
+          git stash clear
+          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+          git switch ci-example-gathering
+          git reset --hard origin/ci-example-gathering
           
       - name: auto-commit
         env: 
