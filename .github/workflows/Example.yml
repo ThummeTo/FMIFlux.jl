@@ -16,7 +16,7 @@ on:
 concurrency: # allow only one parallel job as conflicts can emerge from example-gathering branch
   group: ${{ github.workflow }}
   cancel-in-progress: true
-  
+
 jobs:
   clean-ci-example-gathering-branch:
     runs-on: ubuntu-latest
@@ -56,23 +56,23 @@ jobs:
         julia-version: ['1.10'] 
         julia-arch: [x64]
         experimental: [false]
-        
+
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
-        
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@latest
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
-            
+
       - name: "Install dependencies"
         run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-        
+
       - name: "Install packages"
         run: pip install jupyter nbconvert
-                        
+
       - name: "Execute and synchronize all files"
         env:
           FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
@@ -80,7 +80,7 @@ jobs:
           jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.10" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
-          
+
       - name: "Fix GIFs"
         run: |
           echo "starting gif fixing"
@@ -89,7 +89,7 @@ jobs:
           awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ matrix.file-name }}.md > examples/jupyter-src/tmp_${{ matrix.file-name }}.md
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
-          
+
       - name: "auto-commit for gathering (retry on merge)"
         if: success()
         uses: nick-fields/retry@v3
@@ -103,6 +103,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          shell: bash
           command: |
             git fetch --all
             git stash clear
@@ -117,7 +118,7 @@ jobs:
             git config --global core.autocrlf false
             git add ${{ env.EXAMPLES_PATH }}
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-            git push origin ci-example-gathering 
+            git push origin ci-example-gathering || (git reset --soft HEAD~1 && (exit 1))
 
   pluto:
     needs: [clean-ci-example-gathering-branch]
@@ -125,20 +126,20 @@ jobs:
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
-        
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@latest
         with:
             version: '1.10'
-            
+
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
-      
+
       - name: "auto-commit for gathering (retry on merge)"
         if: success()
         uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
+          CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
@@ -147,6 +148,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          shell: bash
           command: |
             git fetch --all
             git stash clear
@@ -162,12 +164,15 @@ jobs:
             git pull
             git add ${{ env.EXAMPLES_PATH }}
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-            git push origin ci-example-gathering 
-          
+            git push origin ci-example-gathering || (git reset --soft HEAD~1 && (exit 1))
+
   filecheck: 
     needs: [jupyter, pluto]
     runs-on: ubuntu-latest
     steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+
       - name: Download examples
         run: |
           git fetch --all
@@ -181,7 +186,7 @@ jobs:
         with: 
           files: "examples/jupyter-src/*/*.svg"
           fail: true
-          
+
   auto-commit:
     needs: [jupyter, pluto, filecheck]
     if: github.event_name != 'pull_request'
@@ -189,7 +194,7 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        
+
       - name: Download examples
         run: |
           git fetch --all
@@ -197,7 +202,7 @@ jobs:
           git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
           git switch ci-example-gathering
           git reset --hard origin/ci-example-gathering
-          
+
       - name: auto-commit
         env: 
           CI_COMMIT_MESSAGE: Jupyter modified .ipynb & exported md files; Pluto static html exported files
@@ -222,7 +227,7 @@ jobs:
           git add ${{ env.EXAMPLES_PATH }}
           git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
           git push origin examples 
-          
+
   call-docu:
     needs: auto-commit
     if: github.event_name != 'pull_request'
