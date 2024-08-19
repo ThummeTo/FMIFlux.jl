@@ -59,7 +59,7 @@ jobs:
           echo "gifs should be fixed"
 
       - name: "run generated jl script to determine success of example building"
-        run: julia examples/jupyter-src/${{ env.FILE }}.jl
+        run: julia --project=examples/ examples/jupyter-src/${{ matrix.file-name }}.jl
 
       - name: "auto-commit (retry on merge)"
         if: success() && github.event_name != 'pull_request' && github.branch == 'main'
@@ -74,6 +74,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          warning_on_retry: false
           shell: bash
           command: |
             git fetch --all
@@ -118,6 +119,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          warning_on_retry: false
           shell: bash
           command: |
             git fetch --all
