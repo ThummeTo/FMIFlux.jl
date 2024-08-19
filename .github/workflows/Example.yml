@@ -103,6 +103,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          warning_on_retry: false
           shell: bash
           command: |
             git fetch --all
@@ -148,6 +149,7 @@ jobs:
         with:
           timeout_minutes: 999
           max_attempts: 10
+          warning_on_retry: false
           shell: bash
           command: |
             git fetch --all
