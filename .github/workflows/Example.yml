@@ -13,40 +13,8 @@ on:
       - '.github/workflows/Example.yml'
       - 'Project.toml'
 
-concurrency: # allow only one parallel job as conflicts can emerge from example-gathering branch
-  group: ${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
-  clean-ci-example-gathering-branch:
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Check out repository"
-        uses: actions/checkout@v4
-
-      - name: "clean branch"
-        env: 
-          CI_COMMIT_MESSAGE: cleaned[${{ github.ref }}]
-          CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples
-        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
-        # Reset the branch and remove all current files in the examples folder. 
-        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
-        run: |
-          git fetch --all
-          git stash clear
-          git switch ci-example-gathering
-          git reset --hard origin/ci-example-gathering
-          rm -rf ${{ env.EXAMPLES_PATH }}
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
-          git config --global core.autocrlf false
-          git add ${{ env.EXAMPLES_PATH }}
-          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-          git push origin ci-example-gathering 
-
   jupyter:
-    needs: [clean-ci-example-gathering-branch]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -73,11 +41,11 @@ jobs:
       - name: "Install packages"
         run: pip install jupyter nbconvert
 
-      - name: "Execute and synchronize all files"
+      - name: "Execute notebook"
         env:
           FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
         run: |
-          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.10" --to notebook --inplace --execute ${{ env.FILE }}
+          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-${{ matrix.julia-version }}" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
 
@@ -90,8 +58,11 @@ jobs:
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
 
-      - name: "auto-commit for gathering (retry on merge)"
-        if: success()
+      - name: "run generated jl script to determine success of example building"
+        run: julia examples/jupyter-src/${{ env.FILE }}.jl
+
+      - name: "auto-commit (retry on merge)"
+        if: success() && github.event_name != 'pull_request' && github.branch == 'main'
         uses: nick-fields/retry@v3
         env: 
           CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
@@ -108,8 +79,8 @@ jobs:
             git fetch --all
             git stash clear
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-            git switch ci-example-gathering
-            git reset --hard origin/ci-example-gathering
+            git switch examples
+            git reset --hard origin/examples
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
@@ -118,10 +89,9 @@ jobs:
             git config --global core.autocrlf false
             git add ${{ env.EXAMPLES_PATH }}
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-            git push origin ci-example-gathering || (git reset --soft HEAD~1 && (exit 1))
+            git push origin examples || (git reset --soft HEAD~1 && (exit 1))
 
   pluto:
-    needs: [clean-ci-example-gathering-branch]
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
@@ -135,8 +105,8 @@ jobs:
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
 
-      - name: "auto-commit for gathering (retry on merge)"
-        if: success()
+      - name: "auto-commit (retry on merge)"
+        if: success() && github.event_name != 'pull_request' && github.branch == 'main'
         uses: nick-fields/retry@v3
         env: 
           CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref }}]
@@ -153,8 +123,8 @@ jobs:
             git fetch --all
             git stash clear
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-            git switch ci-example-gathering
-            git reset --hard origin/ci-example-gathering
+            git switch examples
+            git reset --hard origin/examples
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
@@ -164,73 +134,11 @@ jobs:
             git pull
             git add ${{ env.EXAMPLES_PATH }}
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-            git push origin ci-example-gathering || (git reset --soft HEAD~1 && (exit 1))
-
-  filecheck: 
-    needs: [jupyter, pluto]
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Check out repository"
-        uses: actions/checkout@v4
-
-      - name: Download examples
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch ci-example-gathering
-          git reset --hard origin/ci-example-gathering
-
-      - name: Check if the example files generated are valid (if jupyter-examples failed, svgs are missing; jupyter command does not fail even if examples fail)
-        uses: andstor/file-existence-action@v3
-        with: 
-          files: "examples/jupyter-src/*/*.svg"
-          fail: true
-
-  auto-commit:
-    needs: [jupyter, pluto, filecheck]
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Download examples
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch ci-example-gathering
-          git reset --hard origin/ci-example-gathering
-
-      - name: auto-commit
-        env: 
-          CI_COMMIT_MESSAGE: Jupyter modified .ipynb & exported md files; Pluto static html exported files
-          CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples
-        # Fetch all and clear the stash list. Include all files from the examples/jupyter-src folder to the stash and switch the branch.
-        # Reset the branch and remove all current files in the examples/jupyter-src folder. 
-        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch examples
-          git reset --hard origin/examples
-          rm -rf ${{ env.EXAMPLES_PATH }}
-          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
-          git stash apply --index
-          git stash drop
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
-          git config --global core.autocrlf false
-          git add ${{ env.EXAMPLES_PATH }}
-          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-          git push origin examples 
+            git push origin examples || (git reset --soft HEAD~1 && (exit 1))
 
   call-docu:
-    needs: auto-commit
-    if: github.event_name != 'pull_request'
+    needs: [jupyter, pluto]
+    if: github.event_name != 'pull_request' && github.branch == 'main'
     runs-on: ubuntu-latest
     steps:
       # Trigger an repoisitory dispath event
