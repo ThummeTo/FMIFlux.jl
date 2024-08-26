@@ -47,7 +47,7 @@ jobs:
           cp ./README.md ./docs/src/index.md
 
       - name: "Install dependencies"
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.update()'
 
       - name: "Build and deploy"
         env:
