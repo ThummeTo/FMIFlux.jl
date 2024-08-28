@@ -4,7 +4,7 @@
 #
 
 import FMIImport.FMIBase: assert_integrator_valid, isdual, istracked, issense, undual, unsense, unsense_copy, untrack, FMUSnapshot
-import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot!, snapshot_if_needed!, getSnapshot
+import FMIImport: finishSolveFMU, handleEvents, prepareSolveFMU, snapshot_if_needed!, getSnapshot
 import Optim
 import FMIImport.FMIBase.ProgressMeter
 import FMISensitivity.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
@@ -194,11 +194,11 @@ function startCallback(integrator, nfmu::ME_NeuralFMU, c::Union{FMU2Component, N
         end
 
         if nfmu.snapshots
-            snapshot!(c.solution)
+            FMIBase.snapshot!(c.solution)
         end
 
         if !isnothing(writeSnapshot)
-            FMICore.update!(c, writeSnapshot)
+            FMIBase.update!(c, writeSnapshot)
         end
 
         if !isnothing(readSnapshot)
@@ -786,7 +786,7 @@ function stepCompleted(nfmu::ME_NeuralFMU, c::FMU2Component, x, t, integrator, t
     c.solution.evals_stepcompleted += 1
 
     # if snapshots
-    #     snapshot!(c.solution)
+    #     FMIBase.snapshot!(c.solution)
     # end
 
     if !isnothing(c.progressMeter)
@@ -1351,7 +1351,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     for snapshot in c.solution.snapshots 
         FMIBase.freeSnapshot!(snapshot)
     end
-    c.solution.snapshots = []
+    c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
 
     return c.solution
 end

@@ -139,21 +139,21 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
 end
 
 function pasteFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
-    c = getCurrentComponent(fmu)
-    FMICore.apply!(c, batchElement.snapshot)
+    c = getCurrentInstance(fmu)
+    FMIBase.apply!(c, batchElement.snapshot)
     @info "Pasting snapshot @$(batchElement.snapshot.t)"
     return nothing
 end
 
 function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
-    c = getCurrentComponent(fmu)
+    c = getCurrentInstance(fmu)
     if isnothing(batchElement.snapshot)
-        batchElement.snapshot = FMICore.snapshot!(c)
+        batchElement.snapshot = FMIBase.snapshot!(c)
         #batchElement.snapshot.t = batchElement.tStart
         @debug "New snapshot @$(batchElement.snapshot.t)"
     else
         #tBefore = batchElement.snapshot.t
-        FMICore.update!(c, batchElement.snapshot)
+        FMIBase.update!(c, batchElement.snapshot)
         #batchElement.snapshot.t = batchElement.tStart
         #tAfter = batchElement.snapshot.t
 
@@ -186,8 +186,8 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
 
     # on first run of the element, there is no snapshot
     if isnothing(batchElement.snapshot) 
-        c = getCurrentComponent(neuralFMU.fmu)
-        batchElement.snapshot = FMICore.snapshot!(c)
+        c = getCurrentInstance(neuralFMU.fmu)
+        batchElement.snapshot = snapshot!(c)
         writeSnapshot = batchElement.snapshot # needs to be updated, therefore write
     else
         readSnapshot = batchElement.snapshot
@@ -395,7 +395,7 @@ function _batchDataSolution!(batch::AbstractArray{<:FMIFlux.FMU2SolutionBatchEle
 
     @assert length(train_t) == length(targets) "Timepoints in `train_t` ($(length(train_t))) must match number of `targets` ($(length(targets)))"
 
-    canGetSetState = fmi2CanGetSetState(neuralFMU.fmu)
+    canGetSetState = canGetSetFMUState(neuralFMU.fmu)
     if !canGetSetState
         logWarning(neuralFMU.fmu, "This FMU can't set/get a FMU state. This is suboptimal for batched training.")
     end

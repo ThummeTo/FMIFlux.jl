@@ -72,8 +72,8 @@ export FMUTimeLayer
 
 function (l::FMUTimeLayer)(x)
     
-    if hasCurrentComponent(l.fmu) 
-        c = getCurrentComponent(l.fmu) 
+    if hasCurrentInstance(l.fmu) 
+        c = getCurrentInstance(l.fmu) 
         l.fct(c.default_t + l.offset[1])
     end
     
