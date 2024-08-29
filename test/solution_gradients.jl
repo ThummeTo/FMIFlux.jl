@@ -169,7 +169,7 @@ stepCb = FunctionCallingCallback(stepCompleted;
 # load FMU for NeuralFMU
 #fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 #fmu_params = nothing
-fmu = loadFMU("BouncingBall1D", "Dymola", "2022x"; type=:ME)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
 fmu_params = Dict("damping" => 0.7, "mass_radius" => 0.0, "mass_s_min" => DBL_MIN)
 fmu.executionConfig.isolatedStateDependency = true
 
