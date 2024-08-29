@@ -4,7 +4,7 @@
 #
 
 using Flux
-using FMIFlux.DifferentialEquations
+using DifferentialEquations
 
 import Random 
 Random.seed!(5678);
@@ -19,7 +19,7 @@ posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
 fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-fmu.handleEventIndicators = [1]
+fmu.handleEventIndicators = [UInt32(1)] 
 
 x0_bb = [1.0, 0.0]
 numStates = length(x0_bb)
@@ -42,13 +42,14 @@ losssum = function(p)
     return FMIFlux.Losses.mse(posNet, posData)
 end
 
-solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rosenbrock23(autodiff=true)]
+solvers = [Tsit5(), FBDF(autodiff=false)] # , FBDF(autodiff=true)]
 for solver in solvers
     
     global nfmu
     @info "Solver: $(solver)"
     nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
     nfmu.modifiedState = false
+    nfmu.snapshots = true
 
     best_timing, best_gradient, best_sensealg = FMIFlux.checkSensalgs!(losssum, nfmu)
     @test best_timing != Inf

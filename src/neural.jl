@@ -9,9 +9,9 @@ import Optim
 import FMIImport.FMIBase.ProgressMeter
 import FMISensitivity.SciMLSensitivity.SciMLBase: CallbackSet, ContinuousCallback, ODESolution, ReturnCode, RightRootFind,
     VectorContinuousCallback, set_u!, terminate!, u_modified!, build_solution
-import OrdinaryDiffEq: isimplicit, alg_autodiff, AutoForwardDiff
+import OrdinaryDiffEq: isimplicit, alg_autodiff
 using FMISensitivity.ReverseDiff: TrackedArray
-import FMISensitivity.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP
+import FMISensitivity.SciMLSensitivity: InterpolatingAdjoint, ReverseDiffVJP, AutoForwardDiff
 import ThreadPools
 import FMIImport.FMIBase
 
@@ -453,6 +453,8 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # @assert left_x == new_left_x "Can't reproduce event (left_x)!"
     # @assert right_x == new_right_x "Can't reproduce event (right_x)!"
 
+    at_least_one_state_change = false
+    
     for i in 1:numStates
         
         #new_left_x[:] .= left_x
@@ -471,8 +473,11 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
         # handleEvents(c)
         new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
         statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+        at_least_one_state_change = statesChanged || at_least_one_state_change
         #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
         #@info "Sample P: t:$(t)   $(new_left_x) -> $(new_right_x)"
+
+        grad = (new_right_x .- right_x) ./ step # (left_x .- new_left_x)
         
         # choose other direction
         if !statesChanged 
@@ -490,11 +495,17 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
             #handleEvents(c)
             new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
             statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+            at_least_one_state_change = statesChanged || at_least_one_state_change
             #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
 
             #@info "Sample N: t:$(t)   $(new_left_x) -> $(new_right_x)"
 
-            @assert statesChanged "Sampling state change jacobian failed, can't find another state that triggers the event!"
+            if statesChanged
+                grad = (new_right_x .- right_x) ./ -step # (left_x .- new_left_x)
+            else
+                grad = (right_x .- right_x) # ... so zero, this state is not sensitive at all!
+            end
+            
         end
 
         # if length(c.solution.snapshots) > 0 # c.t != t 
@@ -509,10 +520,13 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
 
         #@info "t=$(t) idx=$(idx)\n    left_x: $(left_x)   ->       right_x: $(right_x)   [$(indicator_sign)]\nnew_left_x: $(new_left_x)   ->   new_right_x: $(new_right_x)   [$(new_indicator_sign)]"
 
-        grad = (new_right_x .- right_x) ./ step # (left_x .- new_left_x)
+        
 
         jac[i,:] = grad
     end
+
+    @assert at_least_one_state_change "Sampling state change jacobian failed, can't find another state that triggers the event!"
+
 
     # finally, jump back to the correct FMU state 
     # if length(c.solution.snapshots) > 0 # c.t != t 
@@ -1020,7 +1034,7 @@ function checkExecTime(integrator, nfmu::ME_NeuralFMU, c, max_execution_duration
     return 1.0
 end
 
-function getComponent(nfmu::NeuralFMU)
+function getInstance(nfmu::NeuralFMU)
     return hasCurrentInstance(nfmu.fmu) ? getCurrentInstance(nfmu.fmu) : nothing
 end
 
@@ -1032,8 +1046,6 @@ end
 Evaluates the ME_NeuralFMU `nfmu` in the timespan given during construction or in a custom timespan from `t_start` to `t_stop` for a given start state `x_start`.
 
 # Keyword arguments
-    - `reset`, the FMU is reset every time evaluation is started (default=`true`).
-    - `setup`, the FMU is set up every time evaluation is started (default=`true`).
 
 [ToDo]
 """
@@ -1100,7 +1112,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     callbacks = []
 
-    c = getComponent(nfmu)
+    c = getInstance(nfmu)
 
     @debug "ME_NeuralFMU: Starting callback..."
     c = startCallback(nothing, nfmu, c, t_start, writeSnapshot, readSnapshot)

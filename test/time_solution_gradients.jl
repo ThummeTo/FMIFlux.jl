@@ -39,8 +39,8 @@ x0_bb = [0.5, 0.0]
 numStates = 2
 solver = Tsit5()
 
-Wr = zeros(2,2) # rand(2,2)*1e-12
-br = zeros(2) #rand(2)*1e-12
+Wr = rand(2,2)*1e-6
+br = rand(2)*1e-6
 
 W1 = [1.0 0.0; 0.0 1.0]         - Wr
 b1 = [0.0, 0.0]                 - br
@@ -295,7 +295,7 @@ end
 condition_nfmu_check = function(x)
     buffer = similar(x, fmu.modelDescription.numberOfEventIndicators)
     inds = collect(UInt32(i) for i in 1:fmu.modelDescription.numberOfEventIndicators)
-    FMIFlux.condition!(prob, FMIFlux.getComponent(prob), buffer, x, t_start, nothing, inds)
+    FMIFlux.condition!(prob, FMIFlux.getInstance(prob), buffer, x, t_start, nothing, inds)
     return buffer 
 end
 jac_fwd1 = ForwardDiff.jacobian(condition_bb_check, x0_bb)
@@ -481,14 +481,15 @@ jac_fin_f = FiniteDiff.finite_difference_jacobian(p -> mysolve(p; sensealg=sense
 ###
 
 atol = 1e-3
-@test isapprox(jac_fin_f[:, inds], jac_fin_r[:, inds]; atol=atol)
-@test isapprox(jac_fin_f[:, inds], jac_fwd_f[:, inds]; atol=atol)
+
+@test isapprox(jac_fin_f, jac_fin_r; atol=atol)
+@test isapprox(jac_fin_f, jac_fwd_f; atol=atol)
 
 # [ToDo] whyever... but this is not required to work (but: too much atol here!)
-@test isapprox(jac_fin_f[:, inds], jac_rwd_f[:, inds]; atol=0.5)
+@test isapprox(jac_fin_f, jac_rwd_f; atol=0.5)
 
-@test isapprox(jac_fin_r[:, inds], jac_fwd_r[:, inds]; atol=atol)
-@test isapprox(jac_fin_r[:, inds], jac_rwd_r[:, inds]; atol=atol)
+@test isapprox(jac_fin_r, jac_fwd_r; atol=atol)
+@test isapprox(jac_fin_r, jac_rwd_r; atol=atol)
 
 ###
 
