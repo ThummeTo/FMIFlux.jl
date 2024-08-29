@@ -67,10 +67,10 @@ function runtests(exportingTool)
             include("solution_gradients.jl")
         end
 
-        # @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
-        # @testset "Time Event Solution Gradients" begin
-        #     include("time_solution_gradients.jl")
-        # end
+        @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
+        @testset "Time Event Solution Gradients" begin
+            include("time_solution_gradients.jl")
+        end
 
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             

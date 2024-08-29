@@ -425,6 +425,8 @@ end
 
 function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; step = 1e-8)
 
+    @debug "sampleStateChangeJacobian(x = $(left_x))"
+
     c.solution.evals_∂xr_∂xl += 1
     
     numStates = length(left_x)
@@ -438,15 +440,15 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # end
     # indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
 
-    # ONLY A TEST
-    new_left_x = copy(left_x)
-    if length(c.solution.snapshots) > 0 # c.t != t 
-        sn = getSnapshot(c.solution, t)
-        FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
-        #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-    end
-    new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
-    statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+    # [ToDo] ONLY A TEST
+    # new_left_x = copy(left_x)
+    # if length(c.solution.snapshots) > 0 # c.t != t 
+    #     sn = getSnapshot(c.solution, t)
+    #     FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
+    #     #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+    # end
+    # new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+    # statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
     
     # [ToDo: these tests should be included, but will drastically fail on FMUs with no support for get/setState]
     # @assert statesChanged "Can't reproduce event (statesChanged)!" 
@@ -454,7 +456,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # @assert right_x == new_right_x "Can't reproduce event (right_x)!"
 
     at_least_one_state_change = false
-    
+
     for i in 1:numStates
         
         #new_left_x[:] .= left_x
@@ -572,6 +574,10 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
     #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
     # end
 
+    # [ToDo]: Debugging, remove this!
+    @assert fmi2GetContinuousStates(c) == left_x "$(left_x) != $(fmi2GetContinuousStates(c))"
+    @debug "stateChange!, state is $(fmi2GetContinuousStates(c))"
+
     fmi2EnterEventMode(c)
     handleEvents(c)
 
@@ -591,9 +597,9 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
 
         ignore_derivatives() do 
             if idx == 0
-                @debug "affectFMU!(_, _, $idx): NeuralFMU time event with state change.\nt = $(t)\nleft_x = $(left_x)"
+                @debug "stateChange!($(idx)): NeuralFMU time event with state change.\nt = $(t)\nleft_x = $(left_x)"
             else
-                @debug "affectFMU!(_, _, $idx): NeuralFMU state event with state change by indicator $(idx).\nt = $(t)\nleft_x = $(left_x)"
+                @debug "stateChange!($(idx)): NeuralFMU state event with state change by indicator $(idx).\nt = $(t)\nleft_x = $(left_x)"
             end
         end
 
@@ -636,9 +642,9 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
 
         ignore_derivatives() do 
             if idx == 0
-                @debug "affectFMU!(_, _, $idx): NeuralFMU time event without state change.\nt = $(t)\nleft_x = $(left_x)"
+                @debug "stateChange!($(idx)): NeuralFMU time event without state change.\nt = $(t)\nx = $(left_x)"
             else
-                @debug "affectFMU!(_, _, $idx): NeuralFMU state event without state change by indicator $(idx).\nt = $(t)\nleft_x = $(left_x)"
+                @debug "stateChange!($(idx)): NeuralFMU state event without state change by indicator $(idx).\nt = $(t)\nx = $(left_x)"
             end
         end
 
