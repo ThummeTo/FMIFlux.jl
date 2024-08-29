@@ -36,7 +36,13 @@ jobs:
             arch: ${{ matrix.julia-arch }}
 
       - name: "Install dependencies"
-        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.update()'
+        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+
+      - name: "update dependencies"
+        run: julia --project=examples/ -e 'using Pkg; Pkg.update()'
+
+      - name: "print debug dependencies"
+        run: julia --project=examples/ -e 'using Pkg; Pkg.status(mode = PKGMODE_MANIFEST)'
 
       - name: "Install packages"
         run: pip install jupyter nbconvert
