@@ -35,14 +35,8 @@ jobs:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
 
-      - name: "Install dependencies"
-        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-
-      - name: "update dependencies"
-        run: julia --project=examples/ -e 'using Pkg; Pkg.update()'
-
-      - name: "print debug dependencies"
-        run: julia --project=examples/ -e 'using Pkg; Pkg.status(mode = PKGMODE_MANIFEST)'
+      - name: "Install dependencies" # remove Pkg.add(name="BoundaryValueDiffEq", version="5.6") as soon as no longer required!
+        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.add(name="BoundaryValueDiffEq", version="5.6"); Pkg.instantiate(); Pkg.update()'
 
       - name: "Install packages"
         run: pip install jupyter nbconvert
