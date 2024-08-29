@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
+using DifferentialEquations
 
 import Random 
 Random.seed!(1234);
@@ -54,11 +54,11 @@ numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
@@ -67,14 +67,14 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all))
 push!(nets, net)
@@ -82,12 +82,12 @@ push!(nets, net)
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, tanh, init=init),
-            Dense(16, 1, identity, init=init),
+            Dense(16, 1, tanh, init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
@@ -96,7 +96,7 @@ net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -105,7 +105,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all),
             x -> c1(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -114,7 +114,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -123,7 +123,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
             x -> c1(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -131,7 +131,7 @@ push!(nets, net)
 net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
-solvers = [Tsit5()] # , Rodas5(autodiff=false)
+solvers = [Tsit5()]#, Rodas5(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
@@ -146,10 +146,10 @@ for solver in solvers
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
 
-                if i ∈ (3, 4, 6)
-                    @warn "Currently skipping nets ∈ (3, 4, 6)"
-                    continue
-                end
+                # if i ∈ (3, 4, 6)
+                #     @warn "Currently skipping nets ∈ (3, 4, 6)"
+                #     continue
+                # end
                 
                 # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
                 if i ∈ (1, 3, 4)

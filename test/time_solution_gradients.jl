@@ -7,10 +7,9 @@ using FMIFlux.Flux
 using DifferentialEquations
 using FMIFlux, FMIZoo, Test
 import FMIFlux.FMISensitivity.SciMLSensitivity.SciMLBase: RightRootFind, LeftRootFind
-import FMIFlux: unsense
+using FMIFlux.FMIImport.FMIBase: unsense
 using FMIFlux.FMISensitivity.SciMLSensitivity.ForwardDiff, FMIFlux.FMISensitivity.SciMLSensitivity.ReverseDiff, FMIFlux.FMISensitivity.SciMLSensitivity.FiniteDiff, FMIFlux.FMISensitivity.SciMLSensitivity.Zygote
 using FMIFlux.FMIImport, FMIFlux.FMIImport.FMICore, FMIZoo
-using FMIFlux.FMIImport.FMIBase: unsense
 import LinearAlgebra:I
 
 import Random 
@@ -33,7 +32,6 @@ NUMEVENTS = 4
 t_start = 0.0
 t_step = 0.05
 t_stop = 2.0
-tSave = 0.0:t_step:10.0
 tData = t_start:t_step:t_stop
 posData = ones(Float64, length(tData))
 x0_bb = [0.5, 0.0]
@@ -236,11 +234,16 @@ losssum_bb = function(p; sensealg=nothing, root=:Right)
 end
 
 mysolve = function(p; sensealg=nothing)
-    global solution, events
+    global solution, events # write
     global prob, x0_bb, posData, solver # read-only
     events = 0
 
-    solution = prob(x0_bb; p=p, solver=solver, saveat=tSave, parameters=fmu_params, sensealg=sensealg) # recordValues=["der(mass_v)"]
+    solution = prob(x0_bb; 
+        p=p, 
+        solver=solver, 
+        saveat=tData, 
+        parameters=fmu_params, 
+        sensealg=sensealg) # recordValues=["der(mass_v)"]
 
     return collect(u[1] for u in solution.states.u)
 end
@@ -260,7 +263,7 @@ mysolve_bb = function(p; sensealg=nothing, root=:Right)
     end
 
     GRAVITY_SIGN = -1
-    solution = solve(prob_bb, solver; u0=x0_bb, p=p, saveat=tSave, callback=callback, sensealg=sensealg)  #u0=x0_bb, 
+    solution = solve(prob_bb, solver; u0=x0_bb, p=p, saveat=tData, callback=callback, sensealg=sensealg)  #u0=x0_bb, 
 
     if !isa(solution, AbstractArray)
         if solution.retcode != FMIFlux.ReturnCode.Success
@@ -466,11 +469,11 @@ jac_fwd_r = ForwardDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
 jac_fwd_f = ForwardDiff.jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
 
 jac_rwd_r = ReverseDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
-#jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
+jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
 
 # [TODO] why this?!
 jac_rwd_r[2:end,:] = jac_rwd_r[2:end,:] .- jac_rwd_r[1:end-1,:]
-# jac_rwd_f[2:end,:] = jac_rwd_f[2:end,:] .- jac_rwd_f[1:end-1,:]
+jac_rwd_f[2:end,:] = jac_rwd_f[2:end,:] .- jac_rwd_f[1:end-1,:]
 
 jac_fin_r = FiniteDiff.finite_difference_jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
 jac_fin_f = FiniteDiff.finite_difference_jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
@@ -481,8 +484,8 @@ atol = 1e-3
 @test isapprox(jac_fin_f[:, inds], jac_fin_r[:, inds]; atol=atol)
 @test isapprox(jac_fin_f[:, inds], jac_fwd_f[:, inds]; atol=atol)
 
-# [ToDo] this NaNs on two rows... whyever... but this is not required to work
-# @test isapprox(jac_fin_f[:, inds], jac_rwd_f[:, inds]; atol=atol)
+# [ToDo] whyever... but this is not required to work (but: too much atol here!)
+@test isapprox(jac_fin_f[:, inds], jac_rwd_f[:, inds]; atol=0.5)
 
 @test isapprox(jac_fin_r[:, inds], jac_fwd_r[:, inds]; atol=atol)
 @test isapprox(jac_fin_r[:, inds], jac_rwd_r[:, inds]; atol=atol)

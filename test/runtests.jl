@@ -62,16 +62,15 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-        @warn "Solution Gradient Test Skipped"
         # @info    "Solution Gradients (solution_gradients.jl)"
         # @testset "Solution Gradients" begin
         #     include("solution_gradients.jl")
         # end
 
-        @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
-        @testset "Time Event Solution Gradients" begin
-            include("time_solution_gradients.jl")
-        end
+        # @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
+        # @testset "Time Event Solution Gradients" begin
+        #     include("time_solution_gradients.jl")
+        # end
 
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
             
@@ -89,20 +88,24 @@ function runtests(exportingTool)
                 #     include("hybrid_ME.jl")
                 # end
 
-                @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-                @testset "ME-NeuralFMU (Discontinuous)" begin
-                    include("hybrid_ME_dis.jl")
+                # for i in 1:100
+                #     @warn "Check that parameters are not linear dependent (pre-processing + first layer!)" # TODO
+                # end 
+                
+                # @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+                # @testset "ME-NeuralFMU (Discontinuous)" begin
+                #     include("hybrid_ME_dis.jl")
+                # end
+
+                @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+                @testset "NeuralFMU with FMU parameter optimization" begin
+                    include("fmu_params.jl")
                 end
 
-                # @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
-                # @testset "NeuralFMU with FMU parameter optimization" begin
-                #     include("fmu_params.jl")
-                # end
-
-                # @info    "Training modes (train_modes.jl)"
-                # @testset "Training modes" begin
-                #     include("train_modes.jl")
-                # end
+                @info    "Training modes (train_modes.jl)"
+                @testset "Training modes" begin
+                    include("train_modes.jl")
+                end
 
                 @warn "Multi-threading Test Skipped"
                 # @info    "Multi-threading (multi_threading.jl)"

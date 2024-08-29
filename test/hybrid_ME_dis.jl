@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
+using DifferentialEquations
 
 import Random 
 Random.seed!(5678);
@@ -55,76 +55,76 @@ numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
 net = Chain(x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 16, identity; init=init),
-            Dense(16, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates, 16, tanh; init=init),
+            Dense(16, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all))
 push!(nets, net)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
-            Dense(numStates, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 16, identity, init=init),
-            Dense(16, 1, identity, init=init),
+            Dense(numStates, 16, tanh, init=init),
+            Dense(16, 1, tanh, init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
             x -> c3(x),
-            Dense(numStates, 8, identity; init=init),
-            Dense(8, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates, 8, tanh; init=init),
+            Dense(8, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 6. NeuralFMU with additional getter 
 net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates+numGetVRs, 8, identity; init=init),
-            Dense(8, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates+numGetVRs, 8, tanh; init=init),
+            Dense(8, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
 net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 8, identity; init=init),
-            Dense(8, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates, 8, tanh; init=init),
+            Dense(8, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
 net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
             x -> c3(x),
-            Dense(numStates+numGetVRs, 8, identity; init=init),
-            Dense(8, 16, identity; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(numStates+numGetVRs, 8, tanh; init=init),
+            Dense(8, 16, tanh; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
@@ -132,7 +132,7 @@ push!(nets, net)
 net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
-solvers = [Tsit5()]
+solvers = [Tsit5()]#, Rodas5(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
@@ -147,7 +147,7 @@ for solver in solvers
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
 
                 if i ∈ (1, 3, 4)
-                    @warn "Currently skipping nets ∈ (1, 3, 4) for disc. FMUs"
+                    @warn "Currently skipping net $(i) ∈ (1, 3, 4) for disc. FMUs"
                     continue
                 end
                 

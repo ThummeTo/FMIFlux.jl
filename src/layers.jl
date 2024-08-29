@@ -21,7 +21,7 @@ struct FMUParameterRegistrator{T}
 
         fmu.default_p_refs = p_refs 
         fmu.default_p = p 
-        for c in fmu.components
+        for c in fmu.instances
             c.default_p_refs = p_refs
             c.default_p = p
         end
@@ -39,7 +39,7 @@ function (l::FMUParameterRegistrator)(x)
     
     l.fmu.default_p_refs = l.p_refs
     l.fmu.default_p = l.p 
-    for c in l.fmu.components
+    for c in l.fmu.instances
         c.default_p_refs = l.p_refs
         c.default_p = l.p
     end

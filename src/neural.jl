@@ -1054,6 +1054,7 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     sensealg=nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
     writeSnapshot::Union{FMUSnapshot, Nothing}=nothing,
     readSnapshot::Union{FMUSnapshot, Nothing}=nothing,
+    cleanSnapshots::Bool=true,
     solvekwargs...)
 
     if !isnothing(saveat)
@@ -1348,10 +1349,12 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
     stopCallback(nfmu, c, t_stop)
 
     # cleanup snapshots to release memory
-    for snapshot in c.solution.snapshots 
-        FMIBase.freeSnapshot!(snapshot)
+    if cleanSnapshots
+        for snapshot in c.solution.snapshots 
+            FMIBase.freeSnapshot!(snapshot)
+        end
+        c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
     end
-    c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
 
     return c.solution
 end
