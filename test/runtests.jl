@@ -102,10 +102,10 @@ function runtests(exportingTool)
                 #     include("fmu_params.jl")
                 # end
 
-                # @info    "Training modes (train_modes.jl)"
-                # @testset "Training modes" begin
-                #     include("train_modes.jl")
-                # end
+                @info    "Training modes (train_modes.jl)"
+                @testset "Training modes" begin
+                    include("train_modes.jl")
+                end
 
                 @warn "Multi-threading Test Skipped"
                 # @info    "Multi-threading (multi_threading.jl)"

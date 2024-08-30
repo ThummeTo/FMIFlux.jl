@@ -286,7 +286,7 @@ end
 function condition!(nfmu::ME_NeuralFMU, c::FMU2Component, out, x, t, integrator, handleEventIndicators) 
 
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition!(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
+    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition!(...):\n" * FMIBase.ERR_MSG_CONT_TIME_MODE
 
     # [ToDo] Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN.
     #        Basically only the layers from very top to FMU need to be evaluated here.
@@ -324,7 +324,7 @@ global lastIndicatorX = nothing
 global lastIndicatorT = nothing
 function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, integrator) 
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
+    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...):\n" * FMIBase.ERR_MSG_CONT_TIME_MODE
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     if c.fmu.handleEventIndicators != nothing && index ∉ c.fmu.handleEventIndicators
@@ -527,9 +527,11 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
         jac[i,:] = grad
     end
 
-    @assert at_least_one_state_change "Sampling state change jacobian failed, can't find another state that triggers the event!"
-
-
+    #@assert at_least_one_state_change "Sampling state change jacobian failed, can't find another state that triggers the event!"
+    if !at_least_one_state_change
+        @warn "Sampling state change jacobian failed, can't find another state that triggers the event!\nA common reason for that is that the FMU is not able to revisit events (which should be possible with fmiXGet/SetState).\nThis is printed only 3 times." maxlog=3
+    end
+    
     # finally, jump back to the correct FMU state 
     # if length(c.solution.snapshots) > 0 # c.t != t 
     #     @info "Reset snapshot @ t = $(t)"
@@ -689,7 +691,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     # assert_integrator_valid(integrator)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
+    @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...):\n" * FMIBase.ERR_MSG_CONT_TIME_MODE
 
     # [NOTE] Here unsensing is OK, because we just want to reset the FMU to the correct state!
     #        The values come directly from the integrator and are NOT function arguments!
@@ -864,7 +866,7 @@ end
 
 function saveEigenvalues(nfmu::ME_NeuralFMU, c::FMU2Component, _x, _t, integrator, sensitivity::Symbol)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "saveEigenvalues(...):\n" * FMICore.ERR_MSG_CONT_TIME_MODE
+    @assert c.state == fmi2ComponentStateContinuousTimeMode "saveEigenvalues(...):\n" * FMIBase.ERR_MSG_CONT_TIME_MODE
 
     c.solution.evals_saveeigenvalues += 1
 
