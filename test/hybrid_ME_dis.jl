@@ -132,7 +132,7 @@ push!(nets, net)
 net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
-solvers = [Tsit5()]#, Rodas5(autodiff=false)]
+solvers = [ Tsit5()]#, Rodas5(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin

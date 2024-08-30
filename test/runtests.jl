@@ -78,29 +78,25 @@ function runtests(exportingTool)
             @info    "Gradient: $(GRADIENT)"
             @testset "Gradient: $(GRADIENT)" begin
     
-                # @info    "Layers (layers.jl)"
-                # @testset "Layers" begin
-                #     include("layers.jl")
-                # end
+                @info    "Layers (layers.jl)"
+                @testset "Layers" begin
+                    include("layers.jl")
+                end
 
-                # @info    "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
-                # @testset "ME-NeuralFMU (Continuous)" begin
-                #     include("hybrid_ME.jl")
-                # end
+                @info    "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+                @testset "ME-NeuralFMU (Continuous)" begin
+                    include("hybrid_ME.jl")
+                end
 
-                # for i in 1:100
-                #     @warn "Check that parameters are not linear dependent (pre-processing + first layer!)" # TODO
-                # end 
-                
-                # @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-                # @testset "ME-NeuralFMU (Discontinuous)" begin
-                #     include("hybrid_ME_dis.jl")
-                # end
+                @info    "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+                @testset "ME-NeuralFMU (Discontinuous)" begin
+                    include("hybrid_ME_dis.jl")
+                end
 
-                # @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
-                # @testset "NeuralFMU with FMU parameter optimization" begin
-                #     include("fmu_params.jl")
-                # end
+                @info    "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+                @testset "NeuralFMU with FMU parameter optimization" begin
+                    include("fmu_params.jl")
+                end
 
                 @info    "Training modes (train_modes.jl)"
                 @testset "Training modes" begin
@@ -113,25 +109,25 @@ function runtests(exportingTool)
                 #     include("multi_threading.jl")
                 # end
 
-                # @info    "CS-NeuralFMU (hybrid_CS.jl)"
-                # @testset "CS-NeuralFMU" begin
-                #     include("hybrid_CS.jl")
-                # end
+                @info    "CS-NeuralFMU (hybrid_CS.jl)"
+                @testset "CS-NeuralFMU" begin
+                    include("hybrid_CS.jl")
+                end
 
-                # @info    "Multiple FMUs (multi.jl)"
-                # @testset "Multiple FMUs" begin
-                #     include("multi.jl")
-                # end
+                @info    "Multiple FMUs (multi.jl)"
+                @testset "Multiple FMUs" begin
+                    include("multi.jl")
+                end
 
-                # @info    "Batching (batching.jl)"
-                # @testset "Batching" begin
-                #     include("batching.jl")
-                # end
+                @info    "Batching (batching.jl)"
+                @testset "Batching" begin
+                    include("batching.jl")
+                end
 
-                # @info    "Optimizers from Optim.jl (optim.jl)"
-                # @testset "Optim" begin
-                #     include("optim.jl")
-                # end
+                @info    "Optimizers from Optim.jl (optim.jl)"
+                @testset "Optim" begin
+                    include("optim.jl")
+                end
         
             end
         end

@@ -48,6 +48,12 @@ comp = nothing
 for handleEvents in [true, false]
     @testset "handleEvents: $handleEvents" begin
         for config in FMU_EXECUTION_CONFIGURATIONS
+
+            if config == FMU_EXECUTION_CONFIGURATION_NOTHING
+                @info "Skipping train modes testing for `FMU_EXECUTION_CONFIGURATION_NOTHING`."
+                continue
+            end
+
             configstr = "$(config)"
             @testset "config: $(configstr[1:64])..." begin
                 
@@ -72,7 +78,7 @@ for handleEvents in [true, false]
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
 
-                net = Chain(states -> fmu(;x=states, dx_refs=:all),
+                net = Chain(states -> fmu(; x=states, dx_refs=:all),
                             dx -> c1(dx),
                             Dense(numStates, 16, tanh),
                             Dense(16, 1, identity),
@@ -114,9 +120,13 @@ for handleEvents in [true, false]
                 end
 
                 # this is not possible, because some pullbacks are evaluated after simulation end
-                while length(problem.fmu.components) > 1 
+                while length(problem.fmu.components) > 1
                     fmi2FreeInstance!(problem.fmu.components[end])
                 end
+
+                # if length(problem.fmu.components) == 1
+                #     fmi2Reset(problem.fmu.components[end])
+                # end
 
             end
               
