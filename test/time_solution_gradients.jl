@@ -36,11 +36,13 @@ tData = t_start:t_step:t_stop
 posData = ones(Float64, length(tData))
 x0_bb = [0.5, 0.0]
 
-numStates = 2
-solver = Tsit5()
+solvekwargs = Dict{Symbol, Any}(:saveat => tData, :abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
 
-Wr = rand(2,2)*1e-6
-br = rand(2)*1e-6
+numStates = 2
+solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
+
+Wr = rand(2,2)*1e-4
+br = rand(2)*1e-4
 
 W1 = [1.0 0.0; 0.0 1.0]         - Wr
 b1 = [0.0, 0.0]                 - br
@@ -215,42 +217,41 @@ net = Chain(#Dense(W1, b1, identity),
             Dense(W2, b2, identity))
 
 prob = ME_NeuralFMU(fmu, net, (t_start, t_stop)) 
-prob.snapshots = true # needed for correct snesitivities
+prob.snapshots = true # needed for correct sensitivities
 
 # ANNs 
 
-losssum = function(p; sensealg=nothing)
+losssum = function(p; sensealg=nothing, solver=nothing)
     global posData
-    posNet = mysolve(p; sensealg=sensealg)
+    posNet = mysolve(p; sensealg=sensealg, solver=solver)
 
     return Flux.Losses.mae(posNet, posData)
 end
 
-losssum_bb = function(p; sensealg=nothing, root=:Right)
+losssum_bb = function(p; sensealg=nothing, root=:Right, solver=nothing)
     global posData
-    posNet = mysolve_bb(p; sensealg=sensealg, root=root)
+    posNet = mysolve_bb(p; sensealg=sensealg, root=root, solver=solver)
     
     return Flux.Losses.mae(posNet, posData)
 end
 
-mysolve = function(p; sensealg=nothing)
+mysolve = function(p; sensealg=nothing, solver=nothing)
     global solution, events # write
-    global prob, x0_bb, posData, solver # read-only
+    global prob, x0_bb, posData # read-only
     events = 0
 
     solution = prob(x0_bb; 
         p=p, 
         solver=solver, 
-        saveat=tData, 
         parameters=fmu_params, 
-        sensealg=sensealg) # recordValues=["der(mass_v)"]
+        sensealg=sensealg, solvekwargs...)
 
     return collect(u[1] for u in solution.states.u)
 end
 
-mysolve_bb = function(p; sensealg=nothing, root=:Right)
+mysolve_bb = function(p; sensealg=nothing, root=:Right, solver=nothing)
     global solution, GRAVITY_SIGN
-    global prob_bb, solver, events # read
+    global prob_bb, events # read
     events = 0
 
     callback = nothing
@@ -263,7 +264,7 @@ mysolve_bb = function(p; sensealg=nothing, root=:Right)
     end
 
     GRAVITY_SIGN = -1
-    solution = solve(prob_bb, solver; u0=x0_bb, p=p, saveat=tData, callback=callback, sensealg=sensealg)  #u0=x0_bb, 
+    solution = solve(prob_bb, solver; u0=x0_bb, p=p, callback=callback, sensealg=sensealg, solvekwargs...)
 
     if !isa(solution, AbstractArray)
         if solution.retcode != FMIFlux.ReturnCode.Success
@@ -418,79 +419,87 @@ jac_con2 = ReverseDiff.jacobian(t -> affect_nfmu_check(x_event_left, t[1], 0), [
 
 NUMEVENTS=4
 
-# Solution (plain)
-GRAVITY_SIGN = -1
-losssum(p_net; sensealg=sensealg) 
-@test length(solution.events) == NUMEVENTS
+for solver in solvers 
 
-GRAVITY_SIGN = -1
-losssum_bb(p_net_bb; sensealg=sensealg) 
-@test events == NUMEVENTS
+    @info "Solver: $(solver)"
+    global GRAVITY_SIGN
 
-# Solution FWD (FMU)
-GRAVITY_SIGN = -1
-grad_fwd_f = ForwardDiff.gradient(p -> losssum(p; sensealg=sensealg), p_net)
-@test length(solution.events) == NUMEVENTS
+    # Solution (plain)
+    GRAVITY_SIGN = -1
+    losssum(p_net; sensealg=sensealg, solver=solver) 
+    @test length(solution.events) == NUMEVENTS
 
-# Solution FWD (right)
-GRAVITY_SIGN = -1
-root = :Right
-grad_fwd_r = ForwardDiff.gradient(p -> losssum_bb(p; sensealg=sensealg, root=root), p_net_bb)
-@test events == NUMEVENTS
+    GRAVITY_SIGN = -1
+    losssum_bb(p_net_bb; sensealg=sensealg, solver=solver) 
+    @test events == NUMEVENTS
 
-# Solution RWD (FMU)
-GRAVITY_SIGN = -1
-grad_rwd_f = ReverseDiff.gradient(p -> losssum(p; sensealg=sensealg), p_net)
-@test length(solution.events) == NUMEVENTS
+    # Solution FWD (FMU)
+    GRAVITY_SIGN = -1
+    grad_fwd_f = ForwardDiff.gradient(p -> losssum(p; sensealg=sensealg, solver=solver), p_net)
+    @test length(solution.events) == NUMEVENTS
 
-# Solution RWD (right)
-GRAVITY_SIGN = -1
-root = :Right
-grad_rwd_r = ReverseDiff.gradient(p -> losssum_bb(p; sensealg=sensealg, root=root), p_net_bb)
-@test events == NUMEVENTS
+    # Solution FWD (right)
+    GRAVITY_SIGN = -1
+    root = :Right
+    grad_fwd_r = ForwardDiff.gradient(p -> losssum_bb(p; sensealg=sensealg, root=root, solver=solver), p_net_bb)
+    @test events == NUMEVENTS
 
-# Ground Truth
-grad_fin_r = FiniteDiff.finite_difference_gradient(p -> losssum_bb(p; sensealg=sensealg, root=:Right), p_net_bb, Val{:central}; absstep=1e-6)
-grad_fin_f = FiniteDiff.finite_difference_gradient(p -> losssum(p; sensealg=sensealg), p_net, Val{:central}; absstep=1e-6)
+    # Solution RWD (FMU)
+    GRAVITY_SIGN = -1
+    grad_rwd_f = ReverseDiff.gradient(p -> losssum(p; sensealg=sensealg, solver=solver), p_net)
+    @test length(solution.events) == NUMEVENTS
 
-rtol = 1e-2
-inds = collect(1:length(p_net))
-#deleteat!(inds, 1:6)
+    # Solution RWD (right)
+    GRAVITY_SIGN = -1
+    root = :Right
+    grad_rwd_r = ReverseDiff.gradient(p -> losssum_bb(p; sensealg=sensealg, root=root, solver=solver), p_net_bb)
+    @test events == NUMEVENTS
 
-# check if finite differences match together
-@test isapprox(grad_fin_f[inds], grad_fin_r[inds]; rtol=rtol)
-@test isapprox(grad_fin_f[inds], grad_fwd_f[inds]; rtol=rtol)
-@test isapprox(grad_fin_f[inds], grad_rwd_f[inds]; rtol=rtol)
-@test isapprox(grad_fwd_r[inds], grad_rwd_r[inds]; rtol=rtol)
+    # Ground Truth
+    grad_fin_r = FiniteDiff.finite_difference_gradient(p -> losssum_bb(p; sensealg=sensealg, root=:Right, solver=solver), p_net_bb, Val{:central}; absstep=1e-6)
+    grad_fin_f = FiniteDiff.finite_difference_gradient(p -> losssum(p; sensealg=sensealg, solver=solver), p_net, Val{:central}; absstep=1e-6)
 
-# Jacobian Test
+    local atol = 1e-3
+    
+    # check if finite differences match together
+    @test isapprox(grad_fin_f, grad_fin_r; atol=atol)
+    @test isapprox(grad_fin_f, grad_fwd_f; atol=atol)
+    @test isapprox(grad_fin_f, grad_rwd_f; atol=atol)
+    @test isapprox(grad_fwd_r, grad_rwd_r; atol=atol)
 
-jac_fwd_r = ForwardDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
-jac_fwd_f = ForwardDiff.jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
+    # Jacobian Test
 
-jac_rwd_r = ReverseDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
-jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
+    jac_fwd_r = ForwardDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg, solver=solver), p_net)
+    @test !any(isnan.(jac_fwd_r))
+    jac_fwd_f = ForwardDiff.jacobian(p -> mysolve(p; sensealg=sensealg, solver=solver), p_net)
+    @test !any(isnan.(jac_fwd_f))
 
-# [TODO] why this?!
-jac_rwd_r[2:end,:] = jac_rwd_r[2:end,:] .- jac_rwd_r[1:end-1,:]
-jac_rwd_f[2:end,:] = jac_rwd_f[2:end,:] .- jac_rwd_f[1:end-1,:]
+    jac_rwd_r = ReverseDiff.jacobian(p -> mysolve_bb(p; sensealg=sensealg, solver=solver), p_net)
+    @test !any(isnan.(jac_rwd_r))
+    jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg=sensealg, solver=solver), p_net)
+    @test !any(isnan.(jac_rwd_f))
 
-jac_fin_r = FiniteDiff.finite_difference_jacobian(p -> mysolve_bb(p; sensealg=sensealg), p_net)
-jac_fin_f = FiniteDiff.finite_difference_jacobian(p -> mysolve(p; sensealg=sensealg), p_net)
+    # [TODO] why this?!
+    jac_rwd_r[2:end,:] = jac_rwd_r[2:end,:] .- jac_rwd_r[1:end-1,:]
+    jac_rwd_f[2:end,:] = jac_rwd_f[2:end,:] .- jac_rwd_f[1:end-1,:]
 
-###
+    jac_fin_r = FiniteDiff.finite_difference_jacobian(p -> mysolve_bb(p; sensealg=sensealg, solver=solver), p_net)
+    jac_fin_f = FiniteDiff.finite_difference_jacobian(p -> mysolve(p; sensealg=sensealg, solver=solver), p_net)
 
-atol = 1e-3
+    ###
 
-@test isapprox(jac_fin_f, jac_fin_r; atol=atol)
-@test isapprox(jac_fin_f, jac_fwd_f; atol=atol)
+    local atol = 1e-3
 
-# [ToDo] whyever... but this is not required to work (but: too much atol here!)
-@test isapprox(jac_fin_f, jac_rwd_f; atol=0.5)
+    @test isapprox(jac_fin_f, jac_fin_r; atol=atol)
+    @test isapprox(jac_fin_f, jac_fwd_f; atol=atol)
 
-@test isapprox(jac_fin_r, jac_fwd_r; atol=atol)
-@test isapprox(jac_fin_r, jac_rwd_r; atol=atol)
+    # [ToDo] whyever... but this is not required to work (but: too much atol here!)
+    @test isapprox(jac_fin_f, jac_rwd_f; atol=0.5)
 
-###
+    @test isapprox(jac_fin_r, jac_fwd_r; atol=atol)
+    @test isapprox(jac_fin_r, jac_rwd_r; atol=atol)
+
+    ###
+end
 
 unloadFMU(fmu)

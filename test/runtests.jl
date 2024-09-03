@@ -21,7 +21,7 @@ exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 20
-global ETA = 1e-6
+global ETA = 1e-5
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
@@ -38,6 +38,7 @@ callback = function(p)
     if loss >= LAST_LOSS
         FAILED_GRADIENTS += 1
     end
+    #@info "$(loss)"
     LAST_LOSS = loss
 end
 

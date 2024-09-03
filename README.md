@@ -38,14 +38,18 @@ You can evaluate FMUs inside of your loss function.
 ## What is currently supported in FMIFlux.jl?
 - building and training ME-NeuralFMUs (NeuralODEs) with support for event-handling (*DiffEqCallbacks.jl*) and discontinuous sensitivity analysis (*SciMLSensitivity.jl*)
 - building and training CS-NeuralFMUs 
-- building and training NeuralFMUs consisiting of multiple FMUs
+- building and training NeuralFMUs consisting of multiple FMUs
 - building and training FMUINNs (PINNs)
 - different AD-frameworks: ForwardDiff.jl (CI-tested), ReverseDiff.jl (CI-tested, default setting), FiniteDiff.jl (not CI-tested) and Zygote.jl (not CI-tested)
-- use `Flux.jl` optimisers as well as the ones from `Optim.jl`
-- using the entire *DifferentialEquations.jl* solver suite (`autodiff=false` for implicit solvers)
+- use `Flux.jl` optimizers as well as the ones from `Optim.jl`
+- using the entire *DifferentialEquations.jl* solver suite (`autodiff=false` for implicit solvers, not all are tested, see following section)
 - ...
 
 ## (Current) Limitations
+
+- Not all implicit solvers work for challenging, hybrid models (stiff FMUs with events), currently tested are: `Rosenbrock23(autodiff=false)`.
+
+- Implicit solvers using `autodiff=true` is not supported (now), but you can use implicit solvers with `autodiff=false`.
 
 - Sensitivity information over state change by event $\partial x^{+} / \partial x^{-}$ can't be accessed in FMI. 
 These sensitivities are simplified on basis of one of the following assumptions (defined by user):
@@ -55,12 +59,10 @@ The second is often correct for e.g. mechanical contacts, but may lead to wrong 
 However even if the gradient might not be 100% correct in any case, gradients are often usable for optimization tasks. 
 This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
 
-- Discontinuous systems with implicite solvers use continuous adjoints instead of automatic differentiation through the ODE solver.
-This might lead to issues, because FMUs are by design not simulatable backward in time. 
-On the other hand, many FMUs are capabale of doing so.
+- Discontinuous systems with implicit solvers use continuous adjoints instead of automatic differentiation through the ODE solver.
+This might lead to issues, because FMUs are by design not capable of being simulated backwards in time. 
+On the other hand, many FMUs are capable of doing so.
 This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
-
-- Implicit solvers using `autodiff=true` is not supported (now), but you can use implicit solvers with `autodiff=false`.
 
 - For now, only FMI version 2.0 is supported, but FMI 3.0 support is coming with the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
 
@@ -88,6 +90,12 @@ To keep dependencies nice and clean, the original package [*FMI.jl*](https://git
 - [*FMIBuild.jl*](https://github.com/ThummeTo/FMIBuild.jl): Compiler/Compilation dependencies for FMIExport.jl
 - [*FMIFlux.jl*](https://github.com/ThummeTo/FMIFlux.jl): Machine Learning with FMUs
 - [*FMIZoo.jl*](https://github.com/ThummeTo/FMIZoo.jl): A collection of testing and example FMUs
+
+## Video-Workshops
+### JuliaCon 2024 (Eindhoven University of Technology, Netherlands)
+[![YouTube Video of Workshop](https://img.youtube.com/vi/sQ2MXSswrSo/0.jpg)](https://www.youtube.com/watch?v=sQ2MXSswrSo)
+### JuliaCon 2023 (Massachusetts Institute of Technology, United States)
+[![YouTube Video of Workshop](https://img.youtube.com/vi/X_u0KlZizD4/0.jpg)](https://www.youtube.com/watch?v=X_u0KlZizD4)
 
 ## How to cite?
 Tobias Thummerer, Johannes Stoljar and Lars Mikelsons. 2022. **NeuralFMU: presenting a workflow for integrating hybrid NeuralODEs into real-world applications.** Electronics 11, 19, 3202. [DOI: 10.3390/electronics11193202](https://doi.org/10.3390/electronics11193202)

@@ -18,8 +18,9 @@ tspan = (t_start, t_stop)
 posData = ones(Float64, length(tData))
 
 # load FMU for NeuralFMU
-fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-fmu.handleEventIndicators = [UInt32(1)] 
+#fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
+#fmu.handleEventIndicators = [UInt32(1)] 
 
 x0_bb = [1.0, 0.0]
 numStates = length(x0_bb)
@@ -42,7 +43,7 @@ losssum = function(p)
     return FMIFlux.Losses.mse(posNet, posData)
 end
 
-solvers = [Tsit5(), FBDF(autodiff=false)] # , FBDF(autodiff=true)]
+solvers = [Tsit5(), FBDF(autodiff=false)] # Tsit5(), , FBDF(autodiff=true)]
 for solver in solvers
     
     global nfmu

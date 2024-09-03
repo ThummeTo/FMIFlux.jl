@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -72,9 +72,21 @@ html"""
 <iframe width="560" height="315" src="https://www.youtube.com/embed/ryIwLLr6yRA?si=ncr1IXlnuNhWPWgl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 """
 
-# ╔═╡ 6fc16c34-c0c8-48ce-87b3-011a9a0f4e7c
+# ╔═╡ 10cb63ad-03d7-47e9-bc33-16c7786b9f6a
 md"""
 This video is by *Alexandru Babaian* on YouTube.
+
+## Workshop Video
+"""
+
+# ╔═╡ 1e0fa041-a592-42fb-bafd-c7272e346e46
+html"""
+<iframe width="560" height="315" src="https://www.youtube.com/embed/sQ2MXSswrSo?si=XcEoe1Ai7U6hqnp5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+"""
+
+# ╔═╡ 6fc16c34-c0c8-48ce-87b3-011a9a0f4e7c
+md"""
+This video is from JuliaCon 2024 (Eindhoven, Netherlands).
 
 ## Requirements
 To follow this workshop, you should ...
@@ -4433,6 +4445,8 @@ version = "1.4.1+1"
 # ╔═╡ Cell order:
 # ╟─1470df0f-40e1-45d5-a4cc-519cc3b28fb8
 # ╟─7d694be0-cd3f-46ae-96a3-49d07d7cf65a
+# ╟─10cb63ad-03d7-47e9-bc33-16c7786b9f6a
+# ╟─1e0fa041-a592-42fb-bafd-c7272e346e46
 # ╟─6fc16c34-c0c8-48ce-87b3-011a9a0f4e7c
 # ╟─8a82d8c7-b781-4600-8780-0a0a003b676c
 # ╟─a02f77d1-00d2-46a3-91ba-8a7f5b4bbdc9

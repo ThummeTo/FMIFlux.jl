@@ -22,7 +22,7 @@ fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 losssum = function(p)
-    global problem, X0, posData #, solution
+    global problem, X0, posData
     solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
@@ -131,13 +131,13 @@ push!(nets, net)
 net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
-solvers = [Tsit5()]#, FBDF(autodiff=false)]
+solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
         for i in 1:length(nets)
             @testset "Net setup $(i)/$(length(nets)) (Continuous NeuralFMU)" begin
-                global nets, problem, lastLoss, iterCB
+                global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
                 optim = OPTIMISER(ETA)
@@ -159,8 +159,6 @@ for solver in solvers
                 # train it ...
                 p_net = Flux.params(problem)
                 @test length(p_net) == 1
-
-                lossBefore = losssum(p_net[1])
 
                 solutionBefore = problem(X0; p=p_net[1], saveat=tData)
                 if solutionBefore.success

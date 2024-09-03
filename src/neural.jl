@@ -441,14 +441,14 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
 
     # [ToDo] ONLY A TEST
-    # new_left_x = copy(left_x)
-    # if length(c.solution.snapshots) > 0 # c.t != t 
-    #     sn = getSnapshot(c.solution, t)
-    #     FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
-    #     #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-    # end
-    # new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
-    # statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+    new_left_x = copy(left_x)
+    if length(c.solution.snapshots) > 0 # c.t != t 
+        sn = getSnapshot(c.solution, t)
+        FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
+        #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+    end
+    new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
+    statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
     
     # [ToDo: these tests should be included, but will drastically fail on FMUs with no support for get/setState]
     # @assert statesChanged "Can't reproduce event (statesChanged)!" 
@@ -522,14 +522,12 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
 
         #@info "t=$(t) idx=$(idx)\n    left_x: $(left_x)   ->       right_x: $(right_x)   [$(indicator_sign)]\nnew_left_x: $(new_left_x)   ->   new_right_x: $(new_right_x)   [$(new_indicator_sign)]"
 
-        
-
         jac[i,:] = grad
     end
 
     #@assert at_least_one_state_change "Sampling state change jacobian failed, can't find another state that triggers the event!"
     if !at_least_one_state_change
-        @warn "Sampling state change jacobian failed, can't find another state that triggers the event!\nA common reason for that is that the FMU is not able to revisit events (which should be possible with fmiXGet/SetState).\nThis is printed only 3 times." maxlog=3
+        @warn "Sampling state change jacobian failed, can't find another state that triggers the event!\ncommon reasons for that are:\n(a) The FMU is not able to revisit events (which should be possible with fmiXGet/SetState).\n(b) The state change is not dependent on the previous state (hard reset).\nThis is printed only 3 times." maxlog=3
     end
     
     # finally, jump back to the correct FMU state 
@@ -577,8 +575,8 @@ function stateChange!(nfmu, c, left_x::AbstractArray{<:Float64}, t::Float64, idx
     # end
 
     # [ToDo]: Debugging, remove this!
-    @assert fmi2GetContinuousStates(c) == left_x "$(left_x) != $(fmi2GetContinuousStates(c))"
-    @debug "stateChange!, state is $(fmi2GetContinuousStates(c))"
+    #@assert fmi2GetContinuousStates(c) == left_x "$(left_x) != $(fmi2GetContinuousStates(c))"
+    #@debug "stateChange!, state is $(fmi2GetContinuousStates(c))"
 
     fmi2EnterEventMode(c)
     handleEvents(c)
@@ -1297,18 +1295,18 @@ function (nfmu::ME_NeuralFMU)(x_start::Union{Array{<:Real}, Nothing} = nfmu.x0,
 
     # [TODO] that (using ReverseDiffAdjoint) should work now with `autodiff=false` 
     if isnothing(sensealg)
-        if isnothing(solver)
+        #if isnothing(solver)
 
-            logWarning(nfmu.fmu, "No solver keyword detected for NeuralFMU.\nOnly relevant if you use AD: Continuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
-            sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
-        elseif isimplicit(solver)
-            @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword.\nExample: `Rosenbrock23(autodiff=false)` instead of `Rosenbrock23()`."
+        #     logWarning(nfmu.fmu, "No solver keyword detected for NeuralFMU.\nOnly relevant if you use AD: Continuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
+        #     sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
+        # elseif isimplicit(solver)
+        #     @assert !(alg_autodiff(solver) isa AutoForwardDiff) "Implicit solver using `autodiff=true` detected for NeuralFMU.\nThis is currently not supported, please use `autodiff=false` as solver keyword.\nExample: `Rosenbrock23(autodiff=false)` instead of `Rosenbrock23()`."
 
-            logWarning(nfmu.fmu, "Implicit solver detected for NeuralFMU.\nOnly relevant if you use AD: Continuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
-            sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
-        else
+        #     logWarning(nfmu.fmu, "Implicit solver detected for NeuralFMU.\nOnly relevant if you use AD: Continuous adjoint method is applied, which requires solving backward in time.\nThis might be not supported by every FMU.", 1)
+        #     sensealg = InterpolatingAdjoint(; autojacvec=ReverseDiffVJP(true), checkpointing=true)
+        # else
             sensealg = ReverseDiffAdjoint() 
-        end
+        #end
     end
 
     args = Vector{Any}()
@@ -1434,7 +1432,7 @@ function (nfmu::CS_NeuralFMU{F, C})(inputFct,
     end
 
     valueStack = simStep.(model_input)
-
+   
     ignore_derivatives() do
         c.solution.success = true
     end
@@ -1654,7 +1652,7 @@ function trainStep(loss, params, gradient, chunk_size, optim::FMIFlux.AbstractOp
 
     global lk_TrainApply
     
-    try
+    #try
                 
         for j in 1:length(params)
 
@@ -1672,16 +1670,16 @@ function trainStep(loss, params, gradient, chunk_size, optim::FMIFlux.AbstractOp
 
         end    
 
-    catch e
+    # catch e
 
-        if proceed_on_assert
-            msg = "$(e)"
-            msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
-            @error "Training asserted, but continuing: $(msg)"
-        else
-            throw(e)
-        end
-    end
+    #     if proceed_on_assert
+    #         msg = "$(e)"
+    #         msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
+    #         @error "Training asserted, but continuing: $(msg)"
+    #     else
+    #         throw(e)
+    #     end
+    # end
 
     if cb != nothing 
         if isa(cb, AbstractArray)
