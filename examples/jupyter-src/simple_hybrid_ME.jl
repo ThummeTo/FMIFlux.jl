@@ -1,106 +1,109 @@
-# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
 # Licensed under the MIT license. 
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 # imports
-using FMI
-using FMIFlux
-using FMIFlux.Flux
-using FMIZoo
-using DifferentialEquations: Tsit5
-import Plots
+using FMI                       # for importing and simulating FMUs
+using FMIFlux                   # for building neural FMUs
+using FMIFlux.Flux              # the default machine learning library in Julia
+using FMIZoo                    # a collection of demo FMUs
+using DifferentialEquations     # the (O)DE solver suite in Julia
+using Plots                     # for plotting some results
 
-# set seed
-import Random
-Random.seed!(42);
+import Random                   # for random variables (and random initialization)
+Random.seed!(1234)              # makes our program deterministic
 
 tStart = 0.0
 tStep = 0.01
 tStop = 5.0
 tSave = collect(tStart:tStep:tStop)
 
-realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
-fmiInfo(realFMU)
+# let's load the FMU in ME-mode (some FMUs support multiple simulation modes)
+fmu_gt = loadFMU("SpringFrictionPendulum1D", "Dymola", "2022x"; type=:ME)  
 
-initStates = ["s0", "v0"]
-x₀ = [0.5, 0.0]
-params = Dict(zip(initStates, x₀))
-vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
+# and print some info
+info(fmu_gt)   
 
-realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordValues=vrs, saveat=tSave)
-fmiPlot(realSimData)
+# the initial state we start our simulation with, position (0.5 m) and velocity (0.0 m/s) of the pendulum
+x0 = [0.5, 0.0] 
 
-velReal = fmi2GetSolutionValue(realSimData, "mass.v")
-posReal = fmi2GetSolutionValue(realSimData, "mass.s")
+# some variables we are interested in, so let's record them: position, velocity and acceleration
+vrs = ["mass.s", "mass.v", "mass.a"]  
 
-fmiUnload(realFMU)
+# simulate the FMU ...
+sol_gt = simulate(fmu_gt, (tStart, tStop); recordValues=vrs, saveat=tSave, x0=x0)    
 
-simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
-fmiInfo(simpleFMU)
+# ... and plot it! (but only the recorded values, not the states)
+plot(sol_gt; states=false)                                                                    
 
-vrs = ["mass.s", "mass.v", "mass.a"]
-simpleSimData = fmiSimulate(simpleFMU, (tStart, tStop); recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(simpleSimData)
+pos_gt = getValue(sol_gt, "mass.s")
 
-velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
-posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
+unloadFMU(fmu_gt)
 
-# loss function for training
-function lossSum(p)
-    global posReal
-    solution = neuralFMU(x₀; p=p)
+fmu = loadFMU("SpringPendulum1D", "Dymola", "2022x"; type=:ME)
+info(fmu)
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    
-    FMIFlux.Losses.mse(posReal, posNet) 
-end
+sol_fmu = simulate(fmu, (tStart, tStop); recordValues=vrs, saveat=tSave)
+plot(sol_fmu)
 
-# callback function for training
-global counter = 0
-function callb(p)
-    global counter += 1
-    if counter % 20 == 1
-        avgLoss = lossSum(p[1])
-        @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
-    end
-end
+# get number of states
+numStates = getNumberOfStates(fmu)
 
-# NeuralFMU setup
-numStates = fmiGetNumberOfStates(simpleFMU)
-
-net = Chain(x -> simpleFMU(x=x, dx_refs=:all),
-            Dense(numStates, 16, tanh),
+net = Chain(x -> fmu(x=x, dx_refs=:all),    # we can use the FMU just like any other neural network layer!
+            Dense(numStates, 16, tanh),     # some additional dense layers ...
             Dense(16, 16, tanh),
             Dense(16, numStates))
 
-neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
+# the neural FMU is constructed by providing the FMU, the net topology, start and stop time and a solver (here: Tsit5)
+neuralFMU = ME_NeuralFMU(fmu, net, (tStart, tStop), Tsit5(); saveat=tSave);
 
-solutionBefore = neuralFMU(x₀)
-fmiPlot(solutionBefore)
+solutionBefore = neuralFMU(x0)
+plot(solutionBefore)
 
-# train
-paramsNet = FMIFlux.params(neuralFMU)
+plot!(sol_gt; values=false)
+
+function loss(p)
+    # simulate the neural FMU by calling it
+    sol_nfmu = neuralFMU(x0; p=p)
+
+    # we use the first state, because we know that's the position
+    pos_nfmu = getState(sol_nfmu, 1; isIndex=true)
+
+    # we could also identify the position state by its name
+    #pos_nfmu = getState(solution, "mass.s")
+    
+    FMIFlux.Losses.mse(pos_gt, pos_nfmu) 
+end
+
+global counter = 0
+function callback(p)
+    global counter += 1
+    if counter % 20 == 1
+        lossVal = loss(p[1])
+        @info "Loss [$(counter)]: $(round(lossVal, digits=6))"
+    end
+end
 
 optim = Adam()
-FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
 
-# plot results mass.s
-solutionAfter = neuralFMU(x₀)
+p = FMIFlux.params(neuralFMU)
 
-fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
-                 xtickfontsize=12, ytickfontsize=12,
-                 xguidefontsize=12, yguidefontsize=12,
-                 legendfontsize=8, legend=:topright)
+FMIFlux.train!(
+    loss, 
+    neuralFMU,
+    Iterators.repeated((), 500), 
+    optim; 
+    cb=()->callback(p)
+) 
 
-Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
-Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
-Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (300 epochs)", linewidth=2)
-fig 
+solutionAfter = neuralFMU(x0)
 
-FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1200), optim; cb=()->callb(paramsNet)) 
-# plot results mass.s
-solutionAfter = neuralFMU(x₀)
-Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (1500 epochs)", linewidth=2)
-fig 
+fig = plot(solutionBefore; stateIndices=1:1, label="Neural FMU (before)", ylabel="position [m]")
+plot!(fig, solutionAfter; stateIndices=1:1, label="Neural FMU (after)")
+plot!(fig, tSave, pos_gt; label="ground truth")
+fig
 
-fmiUnload(simpleFMU)
+unloadFMU(fmu)
+
+# check package build information for reproducibility
+import Pkg; Pkg.status()

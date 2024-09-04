@@ -1,81 +1,137 @@
-# Creation and training of ME-NeuralFMUs
-Tutorial by Johannes Stoljar, Tobias Thummerer
+# Neural FMUs in model exchange (ME) mode
+Tutorial by Tobias Thummerer
 
-*Last edit: 15.11.2023*
+*Last edit: 03.09.2024*
 
 ## License
 
 
 ```julia
-# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
 # Licensed under the MIT license. 
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 ```
 
-## Motivation
-The Julia Package *FMIFlux.jl* is motivated by the application of hybrid modeling. This package enables the user to integrate his simulation model between neural networks (NeuralFMU). For this, the simulation model must be exported as FMU (functional mock-up unit), which corresponds to a widely used standard. The big advantage of hybrid modeling with artificial neural networks is, that effects that are difficult to model (because they might be unknown) can be easily learned by the neural networks. For this purpose, the NeuralFMU is trained with measurement data containing the not modeled physical effect. The final product is a simulation model including the originally not modeled effects. Another big advantage of the NeuralFMU is that it works with little data, because the FMU already contains the characteristic functionality of the simulation and only the missing effects are added.
+## Introduction
+Functional mock-up units (FMUs) can easily be seen as containers for simulation models. 
 
-NeuralFMUs do not need to be as easy as in this example. Basically a NeuralFMU can combine different ANN topologies that manipulate any FMU-input (system state, system inputs, time) and any FMU-output (system state derivative, system outputs, other system variables). However, for this example a NeuralFMU topology as shown in the following picture is used.
+This example shows how to build a very easy neural FMU by combining a model exchange (ME) FMU and an artificial neural network (ANN).
+The goal is, to train the hybrid model based on a very simple simulation model.
 
-![NeuralFMU.svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/NeuralFMU.svg?raw=true)
-
-*NeuralFMU (ME) from* [[1]](#Source).
-
-## Introduction to the example
-In this example, simplified modeling of a one-dimensional spring pendulum (without friction) is compared to a model of the same system that includes a nonlinear friction model. The FMU with the simplified model will be named *simpleFMU* in the following and the model with the friction will be named *realFMU*. At the beginning, the actual state of both simulations is shown, whereby clear deviations can be seen in the graphs. The *realFMU* serves as a reference graph. The *simpleFMU* is then integrated into a NeuralFMU architecture and a training of the entire network is performed. After the training the final state is compared again to the *realFMU*. It can be clearly seen that by using the NeuralFMU, learning of the friction process has taken place.  
-
-
-## Target group
-The example is primarily intended for users who work in the field of first principle and/or hybrid modeling and are further interested in hybrid model building. The example wants to show how simple it is to combine FMUs with machine learning and to illustrate the advantages of this approach.
-
-
-## Other formats
-Besides, this [Jupyter Notebook](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_ME.ipynb) there is also a [Julia file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_ME.jl) with the same name, which contains only the code cells and for the documentation there is a [Markdown file](https://github.com/thummeto/FMIFlux.jl/blob/examples/examples/src/simple_hybrid_ME.md) corresponding to the notebook.  
-
-
-## Getting started
-
-### Installation prerequisites
-|     | Description                       | Command                   |    
-|:----|:----------------------------------|:--------------------------|
-| 1.  | Enter Package Manager via         | ]                         |
-| 2.  | Install FMI via                   | add FMI                   |
-| 3.  | Install FMIFlux via               | add FMIFlux               |
-| 4.  | Install FMIZoo via                | add FMIZoo                |
-| 5.  | Install DifferentialEquations via | add DifferentialEquations |
-| 6.  | Install Plots via                 | add Plots                 |
-| 7.  | Install Random via                | add Random                |
-
-## Code section
-
-To run the example, the previously installed packages must be included. 
+## Packages
+First, import the packages needed:
 
 
 ```julia
 # imports
-using FMI
-using FMIFlux
-using FMIFlux.Flux
-using FMIZoo
-using DifferentialEquations: Tsit5
-import Plots
+using FMI                       # for importing and simulating FMUs
+using FMIFlux                   # for building neural FMUs
+using FMIFlux.Flux              # the default machine learning library in Julia
+using FMIZoo                    # a collection of demo FMUs
+using DifferentialEquations     # the (O)DE solver suite in Julia
+using Plots                     # for plotting some results
 
-# set seed
-import Random
-Random.seed!(42);
+import Random                   # for random variables (and random initialization)
+Random.seed!(1234)              # makes our program deterministic
 ```
 
-After importing the packages, the path to the *Functional Mock-up Units* (FMUs) is set. The FMU is a model exported meeting the *Functional Mock-up Interface* (FMI) Standard. The FMI is a free standard ([fmi-standard.org](http://fmi-standard.org/)) that defines a container and an interface to exchange dynamic models using a combination of XML files, binaries and C code zipped into a single file. 
+    [33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mError requiring `Enzyme` from `LinearSolve`
+    [33m[1m│ [22m[39m  exception =
+    [33m[1m│ [22m[39m   LoadError: ArgumentError: Package LinearSolve does not have Enzyme in its dependencies:
+    [33m[1m│ [22m[39m   - You may have a partially installed environment. Try `Pkg.instantiate()`
+    [33m[1m│ [22m[39m     to ensure all packages in the environment are installed.
+    [33m[1m│ [22m[39m   - Or, if you have LinearSolve checked out for development and have
+    [33m[1m│ [22m[39m     added Enzyme as a dependency but haven't updated your primary
+    [33m[1m│ [22m[39m     environment's manifest file, try `Pkg.resolve()`.
+    [33m[1m│ [22m[39m   - Otherwise you may need to report an issue with LinearSolve
+    [33m[1m│ [22m[39m   Stacktrace:
+    [33m[1m│ [22m[39m     [1] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mloading.jl:1167[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m     [2] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mlock.jl:223[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m     [3] [0m[1mrequire[22m[0m[1m([22m[90minto[39m::[0mModule, [90mmod[39m::[0mSymbol[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1144[24m[39m
+    [33m[1m│ [22m[39m     [4] [0m[1minclude[22m[0m[1m([22m[90mmod[39m::[0mModule, [90m_path[39m::[0mString[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mBase.jl:419[24m[39m
+    [33m[1m│ [22m[39m     [5] [0m[1minclude[22m[0m[1m([22m[90mx[39m::[0mString[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4mLinearSolve.jl:1[24m[39m
+    [33m[1m│ [22m[39m     [6] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mRequires.jl:40[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m     [7] top-level scope
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4minit.jl:16[24m[39m
+    [33m[1m│ [22m[39m     [8] [0m[1meval[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mboot.jl:368[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m     [9] [0m[1meval[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mC:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\src\[39m[90m[4mLinearSolve.jl:1[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [10] [0m[1m(::LinearSolve.var"#88#97")[22m[0m[1m([22m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:101[24m[39m
+    [33m[1m│ [22m[39m    [11] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m[4mtiming.jl:382[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [12] [0m[1merr[22m[0m[1m([22m[90mf[39m::[0mAny, [90mlistener[39m::[0mModule, [90mmodname[39m::[0mString, [90mfile[39m::[0mString, [90mline[39m::[0mAny[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:47[24m[39m
+    [33m[1m│ [22m[39m    [13] [0m[1m(::LinearSolve.var"#87#96")[22m[0m[1m([22m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:100[24m[39m
+    [33m[1m│ [22m[39m    [14] [0m[1mwithpath[22m[0m[1m([22m[90mf[39m::[0mAny, [90mpath[39m::[0mString[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:37[24m[39m
+    [33m[1m│ [22m[39m    [15] [0m[1m(::LinearSolve.var"#86#95")[22m[0m[1m([22m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[35mLinearSolve[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:99[24m[39m
+    [33m[1m│ [22m[39m    [16] [0m[1m#invokelatest#2[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [17] [0m[1minvokelatest[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [18] [0m[1mforeach[22m[0m[1m([22m[90mf[39m::[0mtypeof(Base.invokelatest), [90mitr[39m::[0mVector[90m{Function}[39m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mabstractarray.jl:2774[24m[39m
+    [33m[1m│ [22m[39m    [19] [0m[1mloadpkg[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[36mRequires[39m [90mC:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\[39m[90m[4mrequire.jl:27[24m[39m
+    [33m[1m│ [22m[39m    [20] [0m[1m#invokelatest#2[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [21] [0m[1minvokelatest[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [22] [0m[1mrun_package_callbacks[22m[0m[1m([22m[90mmodkey[39m::[0mBase.PkgId[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:869[24m[39m
+    [33m[1m│ [22m[39m    [23] [0m[1m_tryrequire_from_serialized[22m[0m[1m([22m[90mmodkey[39m::[0mBase.PkgId, [90mpath[39m::[0mString, [90msourcepath[39m::[0mString, [90mdepmods[39m::[0mVector[90m{Any}[39m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:944[24m[39m
+    [33m[1m│ [22m[39m    [24] [0m[1m_require_search_from_serialized[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId, [90msourcepath[39m::[0mString, [90mbuild_id[39m::[0mUInt64[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1028[24m[39m
+    [33m[1m│ [22m[39m    [25] [0m[1m_require[22m[0m[1m([22m[90mpkg[39m::[0mBase.PkgId[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1315[24m[39m
+    [33m[1m│ [22m[39m    [26] [0m[1m_require_prelocked[22m[0m[1m([22m[90muuidkey[39m::[0mBase.PkgId[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1200[24m[39m
+    [33m[1m│ [22m[39m    [27] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mloading.jl:1180[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [28] [0m[1mmacro expansion[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mlock.jl:223[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [29] [0m[1mrequire[22m[0m[1m([22m[90minto[39m::[0mModule, [90mmod[39m::[0mSymbol[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1144[24m[39m
+    [33m[1m│ [22m[39m    [30] [0m[1meval[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4mboot.jl:368[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [31] [0m[1minclude_string[22m[0m[1m([22m[90mmapexpr[39m::[0mtypeof(REPL.softscope), [90mmod[39m::[0mModule, [90mcode[39m::[0mString, [90mfilename[39m::[0mString[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90mBase[39m [90m.\[39m[90m[4mloading.jl:1428[24m[39m
+    [33m[1m│ [22m[39m    [32] [0m[1msoftscope_include_string[22m[0m[1m([22m[90mm[39m::[0mModule, [90mcode[39m::[0mString, [90mfilename[39m::[0mString[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[32mSoftGlobalScope[39m [90mC:\Users\runneradmin\.julia\packages\SoftGlobalScope\u4UzH\src\[39m[90m[4mSoftGlobalScope.jl:65[24m[39m
+    [33m[1m│ [22m[39m    [33] [0m[1mexecute_request[22m[0m[1m([22m[90msocket[39m::[0mZMQ.Socket, [90mmsg[39m::[0mIJulia.Msg[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90mC:\Users\runneradmin\.julia\packages\IJulia\bHdNn\src\[39m[90m[4mexecute_request.jl:67[24m[39m
+    [33m[1m│ [22m[39m    [34] [0m[1m#invokelatest#2[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:729[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [35] [0m[1minvokelatest[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[90m.\[39m[90m[4messentials.jl:726[24m[39m[90m [inlined][39m
+    [33m[1m│ [22m[39m    [36] [0m[1meventloop[22m[0m[1m([22m[90msocket[39m::[0mZMQ.Socket[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90mC:\Users\runneradmin\.julia\packages\IJulia\bHdNn\src\[39m[90m[4meventloop.jl:8[24m[39m
+    [33m[1m│ [22m[39m    [37] [0m[1m(::IJulia.var"#15#18")[22m[0m[1m([22m[0m[1m)[22m
+    [33m[1m│ [22m[39m   [90m    @ [39m[33mIJulia[39m [90m.\[39m[90m[4mtask.jl:484[24m[39m
+    [33m[1m│ [22m[39m   in expression starting at C:\Users\runneradmin\.julia\packages\LinearSolve\qCLK7\ext\LinearSolveEnzymeExt.jl:1
+    [33m[1m└ [22m[39m[90m@ Requires C:\Users\runneradmin\.julia\packages\Requires\Z8rfN\src\require.jl:51[39m
+    
 
-The object-orientated structure of the *SpringPendulum1D* (*simpleFMU*) can be seen in the following graphic and corresponds to a simple modeling.
 
-![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/SpringPendulum1D.svg?raw=true)
 
-In contrast, the model *SpringFrictionPendulum1D* (*realFMU*) is somewhat more accurate, because it includes a friction component. 
 
-![svg](https://github.com/thummeto/FMIFlux.jl/blob/main/docs/src/examples/img/SpringFrictionPendulum1D.svg?raw=true)
+    Random.TaskLocalRNG()
 
-Next, the start time and end time of the simulation are set. Finally, a step size is specified to store the results of the simulation at these time steps.
+
+
+## Code
+Next, start and stop time are set for the simulation, as well as some intermediate time points `tSave` to record simulation results.
 
 
 ```julia
@@ -85,199 +141,476 @@ tStop = 5.0
 tSave = collect(tStart:tStep:tStop)
 ```
 
-### RealFMU
 
-In the next lines of code the FMU of the *realFMU* model from *FMIZoo.jl* is loaded and the information about the FMU is shown.
+
+
+    501-element Vector{Float64}:
+     0.0
+     0.01
+     0.02
+     0.03
+     0.04
+     0.05
+     0.06
+     0.07
+     0.08
+     0.09
+     0.1
+     0.11
+     0.12
+     ⋮
+     4.89
+     4.9
+     4.91
+     4.92
+     4.93
+     4.94
+     4.95
+     4.96
+     4.97
+     4.98
+     4.99
+     5.0
+
+
+
+### Complex FMU (ground truth training data)
+First, let's load a model from the *FMIZoo.jl*, an easy pendulum including some friction. We will use that to generate training data.
 
 
 ```julia
-realFMU = fmiLoad("SpringFrictionPendulum1D", "Dymola", "2022x")
-fmiInfo(realFMU)
+# let's load the FMU in ME-mode (some FMUs support multiple simulation modes)
+fmu_gt = loadFMU("SpringFrictionPendulum1D", "Dymola", "2022x"; type=:ME)  
+
+# and print some info
+info(fmu_gt)   
 ```
 
-In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initilized with $0.5𝑚$. The second parameter is the initial velocity of the mass, which is initialized with $0\frac{m}{s}$. The FMU hase two states: The first state is the position of the mass and the second state is the velocity. In the function fmiSimulate() the *realFMU* is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the *realFMU* can be plotted. This plot also serves as a reference for the other model (*simpleFMU*).
+    #################### Begin information for FMU ####################
+    	Model name:			SpringFrictionPendulum1D
+    	FMI-Version:			2.0
+    	GUID:				{2e178ad3-5e9b-48ec-a7b2-baa5669efc0c}
+    	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
+    	Generation time:		2022-05-19T06:54:12Z
+    	Var. naming conv.:		structured
+    	Event indicators:		24
+    	Inputs:				0
+    	Outputs:			0
+    	States:				2
+    		33554432 ["mass.s"]
+    		33554433 ["mass.v", "mass.v_relfric"]
+    	Parameters:			12
 
-
-```julia
-initStates = ["s0", "v0"]
-x₀ = [0.5, 0.0]
-params = Dict(zip(initStates, x₀))
-vrs = ["mass.s", "mass.v", "mass.a", "mass.f"]
-
-realSimData = fmiSimulate(realFMU, (tStart, tStop); parameters=params, recordValues=vrs, saveat=tSave)
-fmiPlot(realSimData)
-```
-
-The data from the simulation of the *realFMU*, are divided into position and velocity data. These data will be needed later. 
-
-
-```julia
-velReal = fmi2GetSolutionValue(realSimData, "mass.v")
-posReal = fmi2GetSolutionValue(realSimData, "mass.s")
-```
-
-After extracting the data, the FMU is cleaned-up.
-
-
-```julia
-fmiUnload(realFMU)
-```
-
-### SimpleFMU
-
-The following lines load, simulate and plot the *simpleFMU* just like the *realFMU*. The differences between both systems can be clearly seen from the plots. In the plot for the *realFMU* it can be seen that the oscillation continues to decrease due to the effect of the friction. If you simulate long enough, the oscillation would come to a standstill in a certain time. The oscillation in the *simpleFMU* behaves differently, since the friction was not taken into account here. The oscillation in this model would continue to infinity with the same oscillation amplitude. From this observation the desire of an improvement of this model arises.     
-
-
-```julia
-simpleFMU = fmiLoad("SpringPendulum1D", "Dymola", "2022x")
-fmiInfo(simpleFMU)
-
-vrs = ["mass.s", "mass.v", "mass.a"]
-simpleSimData = fmiSimulate(simpleFMU, (tStart, tStop); recordValues=vrs, saveat=tSave, reset=false)
-fmiPlot(simpleSimData)
-```
-
-The data from the simulation of the *simpleFMU*, are divided into position and velocity data. These data will be needed later to plot the results. 
-
-
-```julia
-velSimple = fmi2GetSolutionValue(simpleSimData, "mass.v")
-posSimple = fmi2GetSolutionValue(simpleSimData, "mass.s")
-```
-
-## NeuralFMU
-
-#### Loss function
-
-In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.
-
-The loss function in this implementation consists of the mean squared error (mse) from the real position of the *realFMU* simulation (posReal) and the position data of the network (posNet).
-$$ e_{mse} = \frac{1}{n} \sum\limits_{i=0}^n (posReal[i] - posNet[i])^2 $$
-
-As it is indicated with the comments, one could also additionally consider the mse from the real velocity (velReal) and the velocity from the network (velNet). The error in this case would be calculated from the sum of both errors.
-
-
-```julia
-# loss function for training
-function lossSum(p)
-    global posReal
-    solution = neuralFMU(x₀; p=p)
-
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
     
-    FMIFlux.Losses.mse(posReal, posNet) 
+    		16777216 ["fricScale"]
+    		16777217 ["s0"]
+    		16777218 ["v0"]
+    		16777219 ["fixed.s0"]
+    		...
+    		16777223 ["mass.smin"]
+    		16777224 ["mass.v_small"]
+    		16777225 ["mass.L"]
+    		16777226 ["mass.m"]
+    		16777227 ["mass.fexp"]
+    	Supports Co-Simulation:		true
+    		Model identifier:	SpringFrictionPendulum1D
+    		Get/Set State:		true
+    		Serialize State:	true
+    		Dir. Derivatives:	true
+    		Var. com. steps:	true
+    		Input interpol.:	true
+    		Max order out. der.:	1
+    	Supports Model-Exchange:	true
+    		Model identifier:	SpringFrictionPendulum1D
+    		Get/Set State:		true
+    		Serialize State:	true
+    		Dir. Derivatives:	true
+    ##################### End information for FMU #####################
+    
+
+Next, the start state `x0` is defined, together with some variables to be recorded `vrs` (they are identified by the names that where used during export of the FMU). The FMU is simulated and the results are plotted.
+
+
+```julia
+# the initial state we start our simulation with, position (0.5 m) and velocity (0.0 m/s) of the pendulum
+x0 = [0.5, 0.0] 
+
+# some variables we are interested in, so let's record them: position, velocity and acceleration
+vrs = ["mass.s", "mass.v", "mass.a"]  
+
+# simulate the FMU ...
+sol_gt = simulate(fmu_gt, (tStart, tStop); recordValues=vrs, saveat=tSave, x0=x0)    
+
+# ... and plot it! (but only the recorded values, not the states)
+plot(sol_gt; states=false)                                                                    
+```
+
+    [34mSimulating ME-FMU ...   0%|█                             |  ETA: N/A[39m
+
+    [34mSimulating ME-FMU ...   1%|█                             |  ETA: 0:23:26[39m
+
+    [34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:14[39m
+    
+
+
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_10_3.svg)
+    
+
+
+
+After the simulation, specific variables can be extracted. We will use them for the later training - as training data!
+
+
+```julia
+pos_gt = getValue(sol_gt, "mass.s")
+```
+
+
+
+
+    501-element Vector{Float64}:
+     0.5
+     0.5002131418270838
+     0.5008548874900927
+     0.5019281657668402
+     0.5034351795297135
+     0.5053774247131727
+     0.5077556973251283
+     0.5105701111001967
+     0.5138201164307998
+     0.5175045275661668
+     0.5216215240727116
+     0.5261686593336738
+     0.5311429007594967
+     ⋮
+     1.061677171628489
+     1.062785858618752
+     1.0637656726178903
+     1.0646146306270037
+     1.065330835834231
+     1.0659124803926967
+     1.0663578455194374
+     1.0666653010046905
+     1.0668333037012698
+     1.0668665063761098
+     1.0668658102298376
+     1.0668651140835657
+
+
+
+Now, we can release the FMU again - we don't need it anymore.
+
+
+```julia
+unloadFMU(fmu_gt)
+```
+
+### Simple FMU
+Now, we load an even more simple system, that we use as *core* for our neural FMU: A pendulum *without* friction. Again, we load, simulate and plot the FMU and its results.
+
+
+```julia
+fmu = loadFMU("SpringPendulum1D", "Dymola", "2022x"; type=:ME)
+info(fmu)
+
+sol_fmu = simulate(fmu, (tStart, tStop); recordValues=vrs, saveat=tSave)
+plot(sol_fmu)
+```
+
+    #################### Begin information for FMU ####################
+    	Model name:			SpringPendulum1D
+    	FMI-Version:			2.0
+    	GUID:				{fc15d8c4-758b-48e6-b00e-5bf47b8b14e5}
+    	Generation tool:		Dymola Version 2022x (64-bit), 2021-10-08
+    	Generation time:		2022-05-19T06:54:23Z
+    	Var. naming conv.:		structured
+    	Event indicators:		0
+    	Inputs:				0
+    	Outputs:			0
+    	States:				2
+    		33554432 ["mass.s"]
+    		33554433 ["mass.v"]
+    	Parameters:			7
+    		16777216 ["mass_s0"]
+    		16777217 ["mass_v0"]
+    		16777218 ["fixed.s0"]
+    		16777219 ["spring.c"]
+    		16777220 ["spring.s_rel0"]
+    		16777221 ["mass.m"]
+    		16777222 ["mass.L"]
+    	Supports Co-Simulation:		true
+    		Model identifier:	SpringPendulum1D
+    		Get/Set State:		true
+    		Serialize State:	true
+    		Dir. Derivatives:	true
+    		Var. com. steps:	true
+    		Input interpol.:	true
+    		Max order out. der.:	1
+    	Supports Model-Exchange:	true
+    		Model identifier:	SpringPendulum1D
+    		Get/Set State:		true
+    		Serialize State:	true
+    		Dir. Derivatives:	true
+    ##################### End information for FMU #####################
+    
+
+
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_16_1.svg)
+    
+
+
+
+### Neural FMU
+Now the fun begins, let's combine the loaded FMU and the ANN! 
+
+
+```julia
+# get number of states
+numStates = getNumberOfStates(fmu)
+
+net = Chain(x -> fmu(x=x, dx_refs=:all),    # we can use the FMU just like any other neural network layer!
+            Dense(numStates, 16, tanh),     # some additional dense layers ...
+            Dense(16, 16, tanh),
+            Dense(16, numStates))
+
+# the neural FMU is constructed by providing the FMU, the net topology, start and stop time and a solver (here: Tsit5)
+neuralFMU = ME_NeuralFMU(fmu, net, (tStart, tStop), Tsit5(); saveat=tSave);
+```
+
+Now, we can check how the neural FMU performs before the actual training!
+
+
+```julia
+solutionBefore = neuralFMU(x0)
+plot(solutionBefore)
+```
+
+
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_20_0.svg)
+    
+
+
+
+Not that ideal... let's add our ground truth data to compare!
+
+
+```julia
+plot!(sol_gt; values=false)
+```
+
+
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_22_0.svg)
+    
+
+
+
+Ufff... only the starting state for position and velocity is correct. Training seems a good idea here!
+
+### Loss function
+Before we can train the neural FMU, we need to define a loss function. We use the common mean-squared-error (MSE) here.
+
+
+```julia
+function loss(p)
+    # simulate the neural FMU by calling it
+    sol_nfmu = neuralFMU(x0; p=p)
+
+    # we use the first state, because we know that's the position
+    pos_nfmu = getState(sol_nfmu, 1; isIndex=true)
+
+    # we could also identify the position state by its name
+    #pos_nfmu = getState(solution, "mass.s")
+    
+    FMIFlux.Losses.mse(pos_gt, pos_nfmu) 
 end
 ```
 
-#### Callback
 
-To output the loss in certain time intervals, a callback is implemented as a function in the following. Here a counter is incremented, every twentieth pass the loss function is called and the average error is printed out.
+
+
+    loss (generic function with 1 method)
+
+
+
+### Callback
+Further, we define a simple logging function for our training.
 
 
 ```julia
-# callback function for training
 global counter = 0
-function callb(p)
+function callback(p)
     global counter += 1
     if counter % 20 == 1
-        avgLoss = lossSum(p[1])
-        @info "Loss [$counter]: $(round(avgLoss, digits=5))   Avg displacement in data: $(round(sqrt(avgLoss), digits=5))"
+        lossVal = loss(p[1])
+        @info "Loss [$(counter)]: $(round(lossVal, digits=6))"
     end
 end
 ```
 
-#### Structure of the NeuralFMU
-
-In the following, the topology of the NeuralFMU is constructed. It consists of an input layer, which then leads into the *simpleFMU* model. The ME-FMU computes the state derivatives for a given system state. Following the *simpleFMU* is a dense layer that has exactly as many inputs as the model has states (and therefore state derivatives). The output of this layer consists of 16 output nodes and a *tanh* activation function. The next layer has 16 input and output nodes with the same activation function. The last layer is again a dense layer with 16 input nodes and the number of states as outputs. Here, it is important that no *tanh*-activation function follows, because otherwise the pendulums state values would be limited to the interval $[-1;1]$.
 
 
-```julia
-# NeuralFMU setup
-numStates = fmiGetNumberOfStates(simpleFMU)
 
-net = Chain(x -> simpleFMU(x=x, dx_refs=:all),
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numStates))
-```
+    callback (generic function with 1 method)
 
-#### Definition of the NeuralFMU
 
-The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (*simpleFMU*), the structure of the network `net`, start `tStart` and end time `tStop`, the numerical solver `Tsit5()` and the time steps `tSave` for saving are specified.
+
+### Training
+For training, we only need to extract the parameters to optimize and pass it to a pre-build train command `FMIFlux.train!`.
 
 
 ```julia
-neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);
-```
-
-#### Plot before training
-
-Here the state trajectory of the *simpleFMU* is recorded. Doesn't really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.
-
-
-```julia
-solutionBefore = neuralFMU(x₀)
-fmiPlot(solutionBefore)
-```
-
-#### Training of the NeuralFMU
-
-For the training of the NeuralFMU the parameters are extracted. The known Adam optimizer for minimizing the gradient descent is used as further passing parameters. In addition, the previously defined loss and callback function, as well as the number of epochs are passed.
-
-
-```julia
-# train
-paramsNet = FMIFlux.params(neuralFMU)
-
 optim = Adam()
-FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 300), optim; cb=()->callb(paramsNet)) 
+
+p = FMIFlux.params(neuralFMU)
+
+FMIFlux.train!(
+    loss, 
+    neuralFMU,
+    Iterators.repeated((), 500), 
+    optim; 
+    cb=()->callback(p)
+) 
 ```
 
-#### Comparison of the plots
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 0.06117
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 0.04078
+    
 
-Here three plots are compared with each other and only the position of the mass is considered. The first plot represents the *simpleFMU*, the second represents the *realFMU* (reference) and the third plot represents the result after training the NeuralFMU. 
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [41]: 0.040447
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [61]: 0.039739
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [81]: 0.039083
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [101]: 0.038146
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [121]: 0.035553
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [141]: 0.021046
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [161]: 0.006623
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [181]: 0.004409
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [201]: 0.003957
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [221]: 0.003682
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [241]: 0.003449
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [261]: 0.003209
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [281]: 0.002994
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [301]: 0.002805
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [321]: 0.002576
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [341]: 0.00236
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [361]: 0.00215
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [381]: 0.001954
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [401]: 0.001787
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [421]: 0.001615
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [441]: 0.001452
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [461]: 0.0013
+    
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [481]: 0.001159
+    
+
+## Results
+Finally, we can compare the results before and after training, as well as the ground truth data:
 
 
 ```julia
-# plot results mass.s
-solutionAfter = neuralFMU(x₀)
+solutionAfter = neuralFMU(x0)
 
-fig = Plots.plot(xlabel="t [s]", ylabel="mass position [m]", linewidth=2,
-                 xtickfontsize=12, ytickfontsize=12,
-                 xguidefontsize=12, yguidefontsize=12,
-                 legendfontsize=8, legend=:topright)
-
-Plots.plot!(fig, tSave, posSimple, label="SimpleFMU", linewidth=2)
-Plots.plot!(fig, tSave, posReal, label="RealFMU", linewidth=2)
-Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (300 epochs)", linewidth=2)
-fig 
+fig = plot(solutionBefore; stateIndices=1:1, label="Neural FMU (before)", ylabel="position [m]")
+plot!(fig, solutionAfter; stateIndices=1:1, label="Neural FMU (after)")
+plot!(fig, tSave, pos_gt; label="ground truth")
+fig
 ```
 
-#### Continue training and plotting
 
-As can be seen from the previous figure, the plot of the NeuralFMU has not yet fully converged against the *realFMU*, so the training of the NeuralFMU is continued. After further training, the plot of *NeuralFMU* is added to the figure again. The effect of the longer training can be recognized well, since the plot of the NeuralFMU had further converged. 
+
+
+    
+![svg](simple_hybrid_ME_files/simple_hybrid_ME_31_0.svg)
+    
+
+
+
+Finally, the FMU is unloaded and memory released.
 
 
 ```julia
-FMIFlux.train!(lossSum, neuralFMU, Iterators.repeated((), 1200), optim; cb=()->callb(paramsNet)) 
-# plot results mass.s
-solutionAfter = neuralFMU(x₀)
-Plots.plot!(fig, solutionAfter; stateIndices=1:1, values=false, label="NeuralFMU (1500 epochs)", linewidth=2)
-fig 
+unloadFMU(fmu)
 ```
-
-Finally, the FMU is cleaned-up.
-
-
-```julia
-fmiUnload(simpleFMU)
-```
-
-### Summary
-
-Based on the plots, it can be seen that the NeuralFMU is able to adapt the friction model of the *realFMU*. After 300 runs, the curves do not overlap very well, but this can be achieved by longer training (1000 runs) or a better initialization.
 
 ### Source
 
 [1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. **NeuralFMU: towards structural integration of FMUs into neural networks.** Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. [DOI: 10.3384/ecp21181297](https://doi.org/10.3384/ecp21181297)
 
+
+## Build information
+
+
+```julia
+# check package build information for reproducibility
+import Pkg; Pkg.status()
+```
+
+    [32m[1mStatus[22m[39m `D:\a\FMIFlux.jl\FMIFlux.jl\examples\Project.toml`
+    [33m⌅[39m[90m [0c46a032] [39mDifferentialEquations v7.10.0
+     [90m [14a09403] [39mFMI v0.14.0
+     [90m [fabad875] [39mFMIFlux v0.13.0 `D:\a\FMIFlux.jl\FMIFlux.jl`
+     [90m [9fcbc62e] [39mFMIImport v1.0.5
+     [90m [724179cf] [39mFMIZoo v1.1.0
+    [33m⌅[39m[90m [587475ba] [39mFlux v0.13.17
+     [90m [7073ff75] [39mIJulia v1.25.0
+     [90m [033835bb] [39mJLD2 v0.4.53
+     [90m [b964fa9f] [39mLaTeXStrings v1.3.1
+     [90m [f0f68f2c] [39mPlotlyJS v0.18.13
+     [90m [91a5bcdd] [39mPlots v1.40.8
+     [90m [9a3f8284] [39mRandom
+    [36m[1mInfo[22m[39m Packages marked with [33m⌅[39m have new versions available but compatibility constraints restrict them from upgrading. To see why use `status --outdated`
+    

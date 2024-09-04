@@ -1,111 +1,134 @@
-# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons, Johannes Stoljar
+# Copyright (c) 2021 Tobias Thummerer, Lars Mikelsons
 # Licensed under the MIT license. 
 # See LICENSE (https://github.com/thummeto/FMIFlux.jl/blob/main/LICENSE) file in the project root for details.
 
 # imports
-using FMI
-using FMIFlux
-using FMIFlux.Flux
-using FMIZoo
-using DifferentialEquations: Tsit5
-import Plots
+using FMI                       # for importing and simulating FMUs
+using FMIFlux                   # for building neural FMUs
+using FMIFlux.Flux              # the default machine learning library in Julia
+using FMIZoo                    # a collection of demo FMUs
+using Plots                     # for plotting some results
 
-# set seed
-import Random
-Random.seed!(1234);
+import Random                   # for random variables (and random initialization)
+Random.seed!(1234)              # makes our program deterministic
 
 tStart = 0.0
 tStep = 0.01
 tStop = 5.0
-tSave = tStart:tStep:tStop
+tSave = collect(tStart:tStep:tStop)
 
-referenceFMU = fmiLoad("SpringPendulumExtForce1D", "Dymola", "2022x")
-fmiInfo(referenceFMU)
+# let's load the FMU in CS-mode (some FMUs support multiple simulation modes)
+fmu_gt = loadFMU("SpringPendulum1D", "Dymola", "2022x"; type=:CS)  
 
-param = Dict("mass_s0" => 1.3, "mass.v" => 0.0)   # increase amplitude, invert phase
-vrs = ["mass.s", "mass.v", "mass.a"]
-referenceSimData = fmiSimulate(referenceFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
-fmiPlot(referenceSimData)
+# and print some info
+info(fmu_gt)   
 
-posReference = fmi2GetSolutionValue(referenceSimData, vrs[1])
-velReference = fmi2GetSolutionValue(referenceSimData, vrs[2])
-accReference = fmi2GetSolutionValue(referenceSimData, vrs[3])
+# the initial state we start our simulation with, position (0.5 m) and velocity (0.0 m/s) of the pendulum
+x0 = [0.5, 0.0] 
 
-defaultFMU = referenceFMU
-param = Dict("mass_s0" => 0.5, "mass.v" => 0.0)
+# some variables we are interested in, so let's record them: position, velocity and acceleration
+vrs = ["mass.s", "mass.v", "mass.a"]  
 
-defaultSimData = fmiSimulate(defaultFMU, (tStart, tStop); parameters=param, recordValues=vrs, saveat=tSave)
-fmiPlot(defaultSimData)
+# set the start state via parameters 
+parameters = Dict("mass_s0" => x0[1], "mass_v0" => x0[2]) 
 
-posDefault = fmi2GetSolutionValue(defaultSimData, vrs[1])
-velDefault = fmi2GetSolutionValue(defaultSimData, vrs[2])
-accDefault = fmi2GetSolutionValue(defaultSimData, vrs[3])
+# simulate the FMU ...
+sol_gt = simulate(fmu_gt, (tStart, tStop); recordValues=vrs, saveat=tSave, parameters=parameters)    
+
+# ... and plot it!
+plot(sol_gt)                                                                    
+
+vel_gt = getValue(sol_gt, "mass.v")
+acc_gt = getValue(sol_gt, "mass.a")
+
+unloadFMU(fmu_gt)
+
+fmu = loadFMU("SpringPendulumExtForce1D", "Dymola", "2022x"; type=:CS)
+info(fmu)
+
+# set the start state via parameters 
+parameters = Dict("mass_s0" => x0[1], "mass.v" => x0[2])
+
+sol_fmu = simulate(fmu, (tStart, tStop); recordValues=vrs, saveat=tSave, parameters=parameters)
+plot(sol_fmu)
+
+# outputs
+println("Outputs:")
+y_refs = fmu.modelDescription.outputValueReferences 
+numOutputs = length(y_refs)
+for y_ref in y_refs 
+    name = valueReferenceToString(fmu, y_ref)
+    println("$(y_ref) -> $(name)")
+end
+
+# inputs
+println("\nInputs:")
+u_refs = fmu.modelDescription.inputValueReferences 
+numInputs = length(u_refs)
+for u_ref in u_refs 
+    name = valueReferenceToString(fmu, u_ref)
+    println("$(u_ref) -> $(name)")
+end
+
+net = Chain(u -> fmu(;u_refs=u_refs, u=u, y_refs=y_refs),   # we can use the FMU just like any other neural network layer!
+            Dense(numOutputs, 16, tanh),                    # some additional dense layers ...
+            Dense(16, 16, tanh),
+            Dense(16, numOutputs))
+
+# the neural FMU is constructed by providing the FMU, the net topology, start and stop time
+neuralFMU = CS_NeuralFMU(fmu, net, (tStart, tStop));
 
 function extForce(t)
     return [0.0]
 end 
 
-# loss function for training
-function lossSum(p)
-    solution = csNeuralFMU(extForce, tStep, (tStart, tStop); p=p) # saveat=tSave
+solutionBefore = neuralFMU(extForce, tStep, (tStart, tStop); parameters=parameters)
+plot(solutionBefore)
 
-    accNet = fmi2GetSolutionValue(solution, 2; isIndex=true)
+plot!(sol_gt)
+
+function loss(p)
+    # simulate the neural FMU by calling it
+    sol_nfmu = neuralFMU(extForce, tStep, (tStart, tStop); parameters=parameters, p=p)
+
+    # we use the second value, because we know that's the acceleration
+    acc_nfmu = getValue(sol_nfmu, 2; isIndex=true)
     
-    FMIFlux.Losses.mse(accReference, accNet)
+    # we could also identify the position state by its name
+    #acc_nfmu = getValue(sol_nfmu, "mass.a")
+    
+    FMIFlux.Losses.mse(acc_gt, acc_nfmu) 
 end
 
-# callback function for training
 global counter = 0
-function callb(p)
+function callback(p)
     global counter += 1
-
-    if counter % 25 == 1
-        avgLoss = lossSum(p[1])
-        @info "Loss [$counter]: $(round(avgLoss, digits=5))"
+    if counter % 20 == 1
+        lossVal = loss(p[1])
+        @info "Loss [$(counter)]: $(round(lossVal, digits=6))"
     end
 end
 
-# check outputs
-outputs = defaultFMU.modelDescription.outputValueReferences 
-numOutputs = length(outputs)
-display(outputs)
-
-# check inputs
-inputs = defaultFMU.modelDescription.inputValueReferences 
-numInputs = length(inputs)
-display(inputs)
-
-# NeuralFMU setup
-net = Chain(u -> defaultFMU(;u_refs=inputs, u=u, y_refs=outputs),
-            Dense(numOutputs, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, numOutputs))
-
-csNeuralFMU = CS_NeuralFMU(defaultFMU, net, (tStart, tStop));
-
-solutionBefore = csNeuralFMU(extForce, tStep, (tStart, tStop)) # ; saveat=tSave
-accNeuralFMU = fmi2GetSolutionValue(solutionBefore, 1; isIndex=true)
-Plots.plot(tSave, accNeuralFMU, label="acc CS-NeuralFMU", linewidth=2)
-
-# train
-paramsNet = FMIFlux.params(csNeuralFMU)
-
 optim = Adam()
-FMIFlux.train!(lossSum, csNeuralFMU, Iterators.repeated((), 250), optim; cb=()->callb(paramsNet))
 
-# plot results mass.a
-solutionAfter = csNeuralFMU(extForce, tStep, (tStart, tStop)) # saveat=tSave, p=paramsNet[1]
+p = FMIFlux.params(neuralFMU)
 
-fig = Plots.plot(xlabel="t [s]", ylabel="mass acceleration [m/s^2]", linewidth=2,
-                 xtickfontsize=12, ytickfontsize=12,
-                 xguidefontsize=12, yguidefontsize=12,
-                 legendfontsize=8, legend=:topright)
+FMIFlux.train!(
+    loss, 
+    neuralFMU,
+    Iterators.repeated((), 500), 
+    optim; 
+    cb=()->callback(p)
+) 
 
-accNeuralFMU = fmi2GetSolutionValue(solutionAfter, 2; isIndex=true)
+solutionAfter = neuralFMU(extForce, tStep, (tStart, tStop); parameters=parameters)
 
-Plots.plot!(fig, tSave, accDefault, label="defaultFMU", linewidth=2)
-Plots.plot!(fig, tSave, accReference, label="referenceFMU", linewidth=2)
-Plots.plot!(fig, tSave, accNeuralFMU, label="CS-NeuralFMU (1000 eps.)", linewidth=2)
-fig 
+fig = plot(solutionBefore; valueIndices=2:2, label="Neural FMU (before)", ylabel="acceleration [m/s^2]")
+plot!(fig, solutionAfter; valueIndices=2:2, label="Neural FMU (after)")
+plot!(fig, tSave, acc_gt; label="ground truth")
+fig
 
-fmiUnload(defaultFMU)
+unloadFMU(fmu)
+
+# check package build information for reproducibility
+import Pkg; Pkg.status()

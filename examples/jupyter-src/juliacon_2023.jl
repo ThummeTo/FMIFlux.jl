@@ -9,6 +9,7 @@ using FMI           # import FMUs into Julia
 using FMIFlux       # for NeuralFMUs
 using FMIZoo        # a collection of demo models, including the VLDM
 using FMIFlux.Flux  # Machine Learning in Julia
+using DifferentialEquations # for picking a NeuralFMU solver
 
 import JLD2         # data format for saving/loading parameters
 
@@ -56,18 +57,18 @@ x0 = FMIZoo.getStateVector(data,    # the data container
 display(data.params)
 
 # load our FMU of the VLDM (we take it from the FMIZoo.jl, exported with Dymola 2020x)
-fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME) 
+fmu = loadFMU("VLDM", "Dymola", "2020x"; type=:ME) 
 
 # let's have a look on the model meta data
-fmiInfo(fmu)
+info(fmu)
 
 # let's run a simulation from `tStart` to `tStop`, use the parameters we just viewed for the simulation run
-resultFMU = fmiSimulate(fmu,                        # the loaded FMU of the VLDM 
-                        (tStart, tStop);            # the simulation time range
-                        parameters=data.params,     # the parameters for the VLDM
-                        showProgress=showProgress,  # show (or don't) the progres bar
-                        recordValues=:derivatives,  # record all state derivatives
-                        saveat=tSave)               # save solution points at `tSave`
+resultFMU = simulate(fmu,                       # the loaded FMU of the VLDM 
+                    (tStart, tStop);            # the simulation time range
+                    parameters=data.params,     # the parameters for the VLDM
+                    showProgress=showProgress,  # show (or don't) the progres bar
+                    recordValues=:derivatives,  # record all state derivatives
+                    saveat=tSave)               # save solution points at `tSave`
 display(resultFMU)
 
 # Plot the simulation results
@@ -84,9 +85,9 @@ plot!(fig, data.cumconsumption_t, data.cumconsumption_val; label="Data", ribbon=
 manipulatedDerVars = ["der(dynamics.accelerationCalculation.integrator.y)",
                       "der(dynamics.accelerationCalculation.limIntegrator.y)",
                       "der(result.integrator.y)"]
-manipulatedDerVals = fmiGetSolutionValue(resultFMU, manipulatedDerVars)
+manipulatedDerVals = getValue(resultFMU, manipulatedDerVars)
 
-# what happens without propper transformation between FMU- and ANN-domain?
+# what happens without proper transformation between FMU- and ANN-domain?
 plot(resultFMU.values.t, manipulatedDerVals[1,:][1]; label="original", xlabel="t [s]", ylabel="velocity [m/s]")
 
 plot!(resultFMU.values.t, tanh.(manipulatedDerVals[1,:][1]); label="tanh(velocity)")
@@ -99,19 +100,19 @@ plot!(resultFMU.values.t,
       testVals; 
       label="tanh(preProcess(velocity))")
 
-# we add some additional "buffer" - this is not necessary but helps to preserve peakes
+# we add some additional "buffer" - this is not necessary but helps to preserve peaks
 preProcess.scale[:] *= 0.25;    
 
-# initialize the postPrcess as inverse of the preProcess, but only take indices 2 and 3 (we don't need 1, the vehcile velocity)
+# initialize the postProcess as inverse of the preProcess, but only take indices 2 and 3 (we don't need 1, the vehicle velocity)
 postProcess = ScaleShift(preProcess; indices=2:3);
 
 # function that builds the considered NeuralFMU on basis of a given FMU (FMI-Version 2.0) `f`
 function build_NFMU(f::FMU2)
     
     # pre- and post-processing
-    preProcess = ShiftScale(manipulatedDerVals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deivation of 1
+    preProcess = ShiftScale(manipulatedDerVals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
     preProcess.scale[:] *= 0.25                         # add some additional "buffer"
-    postProcess = ScaleShift(preProcess; indices=2:3)   # initialize the postPrcess as inverse of the preProcess, but only take indices 2 and 3 (we don't need 1, the vehcile velocity)
+    postProcess = ScaleShift(preProcess; indices=2:3)   # initialize the postProcess as inverse of the preProcess, but only take indices 2 and 3 (we don't need 1, the vehicle velocity)
 
     # cache
     cache = CacheLayer()                        # allocate a cache layer
@@ -122,7 +123,7 @@ function build_NFMU(f::FMU2)
     # (2) consumption  from FMU (gate=1.0 | open)
     # (3) acceleration from ANN (gate=0.0 | closed)
     # (4) consumption  from ANN (gate=0.0 | closed)
-    # the acelerations [1,3] and consumptions [2,4] are paired
+    # the accelerations [1,3] and consumptions [2,4] are paired
     gates = ScaleSum([1.0, 1.0, 0.0, 0.0], [[1,3], [2,4]]) # gates with sum
 
     # setup the NeuralFMU topology
@@ -168,7 +169,7 @@ plot!(fig, resultFMU; stateIndices=6:6, values=false, stateEvents=false, timeEve
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val, label="Data")
 
 # unload FMU / invalidate NeuralFMU
-fmiUnload(fmu)
+unloadFMU(fmu)
 neuralFMU = nothing
 
 # prepare training data 
@@ -177,14 +178,14 @@ train_t = data.consumption_t
 # data is as "array of arrays" required (often we have multidimensional data)
 train_data = collect([d] for d in data.cumconsumption_val)
 
-function _lossFct(solution::FMU2Solution, data::VLDM_Data, LOSS::Symbol, LASTWEIGHT::Real=1.0/length(data.consumption_t) )
+function _lossFct(solution::FMUSolution, data::VLDM_Data, LOSS::Symbol, LASTWEIGHT::Real=1.0/length(data.consumption_t) )
 
     # determine the start/end indices `ts` and `te` in the data array (sampled with 10Hz)
     ts = dataIndexForTime(solution.states.t[1])
     te = dataIndexForTime(solution.states.t[end])
     
     # retrieve the data from NeuralODE ("where we are") and data from measurements ("where we want to be") and an allowed deviation ("we are unsure about")
-    nfmu_cumconsumption = fmiGetSolutionState(solution, 6; isIndex=true)
+    nfmu_cumconsumption = getState(solution, 6; isIndex=true)
     cumconsumption = data.cumconsumption_val[ts:te]
     cumconsumption_dev = data.cumconsumption_dev[ts:te]
 
@@ -193,7 +194,7 @@ function _lossFct(solution::FMU2Solution, data::VLDM_Data, LOSS::Symbol, LASTWEI
         Δcumconsumption = FMIFlux.Losses.mae_last_element_rel_dev(nfmu_cumconsumption,  # NeuralFMU 
                                                                   cumconsumption,       # data target
                                                                   cumconsumption_dev,   # data uncertainty
-                                                                  LASTWEIGHT)           # how much do we scale the last point compared to the remaing ones?
+                                                                  LASTWEIGHT)           # how much do we scale the last point compared to the remaining ones?
     elseif LOSS == :MSE
         Δcumconsumption = FMIFlux.Losses.mse_last_element_rel_dev(nfmu_cumconsumption, 
                                                                   cumconsumption, 
@@ -206,32 +207,32 @@ function _lossFct(solution::FMU2Solution, data::VLDM_Data, LOSS::Symbol, LASTWEI
     return Δcumconsumption 
 end
 
-# ressource = training time horizon (duration of data seen)
-function train!(hyper_params, ressource, ind)
+# resource = training time horizon (duration of data seen)
+function train!(hyper_params, resource, ind)
 
-    # make the runs determinisitic by fixing the random seed
+    # make the runs deterministic by fixing the random seed
     Random.seed!(1234)
 
-    # training duration (in seconds) equals the given ressource
-    TRAINDUR = ressource
+    # training duration (in seconds) equals the given resource
+    TRAINDUR = resource
 
-    # unpack the hyperparemters
+    # unpack the hyperparameters
     ETA, BETA1, BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS = hyper_params
 
     # compute the number of training steps TRAINDUR / BATCHDUR, but do at least one step
     steps = max(round(Int, TRAINDUR/BATCHDUR), 1) 
 
     # print a bit of info
-    @info "--------------\nStarting run $(ind) with parameters: $(hyper_params) and ressource $(ressource) doing $(steps) step(s).\n--------------------"
+    @info "--------------\nStarting run $(ind) with parameters: $(hyper_params) and resource $(resource) doing $(steps) step(s).\n--------------------"
 
     # load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2020x)
-    fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME) 
+    fmu = loadFMU("VLDM", "Dymola", "2020x"; type=:ME) 
 
     # built the NeuralFMU on basis of the loaded FMU `fmu`
     neuralFMU = build_NFMU(fmu)
 
     # a more efficient execution mode
-    fmiSingleInstanceMode(fmu, true)
+    singleInstanceMode(fmu, true)
     
     # batch the data (time, targets), train only on model output index 6, plot batch elements
     batch = batchDataSolution(neuralFMU,                            # our NeuralFMU model
@@ -242,14 +243,14 @@ function train!(hyper_params, ressource, ind)
                               indicesModel=6:6,                     # model indices to train on (6 equals the state `cumulative consumption`)
                               plot=false,                           # don't show intermediate plots (try this outside of Jupyter)
                               parameters=data.params,               # use the parameters (map file paths) from *FMIZoo.jl*
-                              showProgress=showProgress)            # show or don't show progess bar, as specified at the very beginning
+                              showProgress=showProgress)            # show or don't show progress bar, as specified at the very beginning
 
     # limit the maximum number of solver steps to 1000 * BATCHDUR (longer batch elements get more steps)
     # this allows the NeuralFMU to do 10x more steps (average) than the original FMU, but more should not be tolerated (to stiff system)
     solverKwargsTrain = Dict{Symbol, Any}(:maxiters => round(Int, 1000*BATCHDUR)) 
     
     # a smaller dispatch for our custom loss function, only taking the solution object
-    lossFct = (solution::FMU2Solution) -> _lossFct(solution, data, LOSS, LASTWEIGHT)
+    lossFct = (solution::FMUSolution) -> _lossFct(solution, data, LOSS, LASTWEIGHT)
 
     # selecting a scheduler for training
     scheduler = nothing
@@ -274,9 +275,9 @@ function train!(hyper_params, ressource, ind)
     loss = p -> FMIFlux.Losses.loss(neuralFMU,                          # the NeuralFMU to simulate
                                     batch;                              # the batch to take an element from
                                     p=p,                                # the NeuralFMU training parameters (given as input)
-                                    parameters=data.params,             # the FMU paraemters
+                                    parameters=data.params,             # the FMU parameters
                                     lossFct=lossFct,                    # our custom loss function
-                                    batchIndex=scheduler.elementIndex,  # the index of the batch element to take, determined by the choosen scheduler
+                                    batchIndex=scheduler.elementIndex,  # the index of the batch element to take, determined by the chosen scheduler
                                     logLoss=true,                       # log losses after every evaluation
                                     showProgress=showProgress,          # show progress bar (or don't)
                                     solverKwargsTrain...)               # the solver kwargs defined above
@@ -292,16 +293,16 @@ function train!(hyper_params, ressource, ind)
    
     # the actual training
     FMIFlux.train!(loss,                            # the loss function for training
-                   neuralFMU,                          # the parameters to train
+                   neuralFMU,                       # the neural FMU including the parameters to train
                    Iterators.repeated((), steps),   # an iterator repeating `steps` times
                    optim;                           # the optimizer to train
-                   gradient=:ForwardDiff,           # currently, only ForwarDiff leads to good results for multi-event systems
+                   gradient=:ForwardDiff,           # currently, only ForwardDiff leads to good results for multi-event systems
                    chunk_size=32,                   # ForwardDiff chunk_size (=number of parameter estimations per run)
                    cb=() -> update!(scheduler),     # update the scheduler after every step 
                    proceed_on_assert=true)          # proceed, even if assertions are thrown, with the next step
     
     # the default execution mode
-    fmiSingleInstanceMode(fmu, false)
+    singleInstanceMode(fmu, false)
 
     # save our result parameters
     fmiSaveParameters(neuralFMU, joinpath(@__DIR__, "params", "$(ind).jld2"))
@@ -309,7 +310,7 @@ function train!(hyper_params, ressource, ind)
     # simulate the NeuralFMU on a validation trajectory
     resultNFMU = neuralFMU(x0, (data_validation.consumption_t[1], data_validation.consumption_t[end]); parameters=data_validation.params, showProgress=showProgress, maxiters=1e7, saveat=data_validation.consumption_t)
 
-    # determine loss on validation data (if the simulation was successfull)
+    # determine loss on validation data (if the simulation was successful)
     validation_loss = nothing 
     if resultNFMU.success
         # compute the loss on VALIDATION data 
@@ -319,24 +320,24 @@ function train!(hyper_params, ressource, ind)
     end        
 
     # unload FMU
-    fmiUnload(fmu)
+    unloadFMU(fmu)
 
     # return the loss (or `nothing` if no loss can be determined)
     return validation_loss
 end
 
 # check if the train function is working for a set of given (random) hyperparameters
-#     ([  ETA, BETA1,  BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS], RESSOURCE, INDEX)
+#     ([  ETA, BETA1,  BETA2, BATCHDUR, LASTWEIGHT, SCHEDULER, LOSS], RESOURCE, INDEX)
 train!([0.0001,  0.9,  0.999,      4.0,        0.7,   :Random, :MSE],      8.0,     1) 
 
 # load our FMU (we take one from the FMIZoo.jl, exported with Dymola 2020x)
-fmu = fmiLoad("VLDM", "Dymola", "2020x"; type=:ME)
+fmu = loadFMU("VLDM", "Dymola", "2020x"; type=:ME)
 
 # build NeuralFMU
 neuralFMU = build_NFMU(fmu)
 
 # load parameters from hyperparameter optimization
-fmiLoadParameters(neuralFMU, joinpath(@__DIR__, "juliacon_2023.jld2"))
+loadParameters(neuralFMU, joinpath(@__DIR__, "juliacon_2023.jld2"))
 
 # simulate and plot the NeuralFMU
 resultNFMU =   neuralFMU(x0,  (tStart, tStop); parameters=data.params, showProgress=showProgress, saveat=tSave) 
@@ -347,9 +348,9 @@ fig = plot(resultNFMU; stateIndices=6:6, stateEvents=false, timeEvents=false, la
 plot!(fig, resultFMU; stateIndices=6:6, values=false, stateEvents=false, timeEvents=false, label="FMU")
 plot!(fig, data.cumconsumption_t, data.cumconsumption_val, label="Data")
 
-plotCumulativeConsumption(resultNFMU, resultFMU, data; filename=joinpath(@__DIR__, "comparision_train_100.png"))
+plotCumulativeConsumption(resultNFMU, resultFMU, data; filename=joinpath(@__DIR__, "comparison_train_100.png"))
 
-plotCumulativeConsumption(resultNFMU, resultFMU, data; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparision_train_10.png"))
+plotCumulativeConsumption(resultNFMU, resultFMU, data; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparison_train_10.png"))
 
 # get start and stop for the validation cycle (full WLTC)
 tStart_validation = data_validation.cumconsumption_t[1]
@@ -357,17 +358,17 @@ tStop_validation = data_validation.cumconsumption_t[end]
 tSave_validation = data_validation.cumconsumption_t
 
 # simulate the NeuralFMU on validation data
-resultNFMU =   neuralFMU(x0,  (tStart_validation, tStop_validation); parameters=data_validation.params, showProgress=showProgress, saveat=tSave_validation) 
-resultFMU  = fmiSimulate(fmu, (tStart_validation, tStop_validation); parameters=data_validation.params, showProgress=showProgress, saveat=tSave_validation) 
+resultNFMU = neuralFMU(x0,  (tStart_validation, tStop_validation); parameters=data_validation.params, showProgress=showProgress, saveat=tSave_validation) 
+resultFMU  =  simulate(fmu, (tStart_validation, tStop_validation); parameters=data_validation.params, showProgress=showProgress, saveat=tSave_validation) 
 
-plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; filename=joinpath(@__DIR__, "comparision_validation_100.png"))
+plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; filename=joinpath(@__DIR__, "comparison_validation_100.png"))
 
-plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparision_validation_10.png"))
+plotCumulativeConsumption(resultNFMU, resultFMU, data_validation; range=(0.9, 1.0), filename=joinpath(@__DIR__, "comparison_validation_10.png"))
 
-plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "gif_1.gif"))
+plotEnhancements(neuralFMU, fmu, data; filename=joinpath(@__DIR__, "result.gif"))
 
 # unload FMU / invalidate NeuralFMU
-fmiUnload(fmu)
+unloadFMU(fmu)
 neuralFMU = nothing
 
 # for hyper parameter optimization, place the code in a `module`

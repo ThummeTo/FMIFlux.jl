@@ -7,22 +7,21 @@ using LaTeXStrings
 import FMIFlux: roundToLength
 import FMIZoo: movavg
 
-import FMI: FMU2Solution
-import FMI.DifferentialEquations: Tsit5
+import FMI: FMUSolution
 import FMIZoo: VLDM, VLDM_Data
 
-function fmiSingleInstanceMode(fmu::FMU2, mode::Bool)
+function singleInstanceMode(fmu::FMU2, mode::Bool)
     if mode 
         # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
-        fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NOTHING
-        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type, true, false, false, false, true, data.params; x0=x0)
+        fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING
+        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate=true, setup=true, data.params, x0=x0)
     else
         c = FMI.getCurrentComponent(fmu)
         # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
-        fmu.executionConfig = FMI.FMIImport.FMU2_EXECUTION_CONFIGURATION_NO_RESET
-        FMIFlux.finishSolveFMU(fmu, c, false, true)
+        fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NO_RESET
+        FMIFlux.finishSolveFMU(fmu, c; freeInstance=false, terminate=true)
     end
     return nothing
 end
@@ -133,7 +132,7 @@ function plotEnhancements(neuralFMU::NeuralFMU, fmu::FMU2, data::FMIZoo.VLDM_Dat
     end
 end
 
-function plotCumulativeConsumption(solutionNFMU::FMU2Solution, solutionFMU::FMU2Solution, data::FMIZoo.VLDM_Data; range=(0.0,1.0), filename=nothing)
+function plotCumulativeConsumption(solutionNFMU::FMUSolution, solutionFMU::FMUSolution, data::FMIZoo.VLDM_Data; range=(0.0,1.0), filename=nothing)
 
     len = length(data.consumption_t)
     steps = (1+round(Int, range[1]*len)):(round(Int, range[end]*len))
