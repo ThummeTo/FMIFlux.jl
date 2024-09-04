@@ -6,8 +6,8 @@
 module Losses
 
 using Flux
-import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMU2Solution
-import ..FMIFlux.FMIImport.FMICore: unsense, logWarning
+import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMUSolution
+import ..FMIFlux.FMIImport.FMIBase: unsense, logWarning
 
 mse = Flux.Losses.mse
 mae = Flux.Losses.mae
@@ -80,8 +80,8 @@ function mse_last_element_rel_dev(a::AbstractArray, b::AbstractArray, dev::Abstr
     return Δ
 end
 
-function stiffness_corridor(solution::FMU2Solution, corridor::AbstractArray{<:AbstractArray{<:Tuple{Real, Real}}}; lossFct=Flux.Losses.mse)
-    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMU2Solution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
+function stiffness_corridor(solution::FMUSolution, corridor::AbstractArray{<:AbstractArray{<:Tuple{Real, Real}}}; lossFct=Flux.Losses.mse)
+    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
     eigs_over_time = solution.eigenvalues.saveval 
     num_eigs_over_time = length(eigs_over_time)
@@ -110,8 +110,8 @@ function stiffness_corridor(solution::FMU2Solution, corridor::AbstractArray{<:Ab
     return l
 end
 
-function stiffness_corridor(solution::FMU2Solution, corridor::AbstractArray{<:Tuple{Real, Real}}; lossFct=Flux.Losses.mse)
-    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMU2Solution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
+function stiffness_corridor(solution::FMUSolution, corridor::AbstractArray{<:Tuple{Real, Real}}; lossFct=Flux.Losses.mse)
+    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
     eigs_over_time = solution.eigenvalues.saveval 
     num_eigs_over_time = length(eigs_over_time)
@@ -140,8 +140,8 @@ function stiffness_corridor(solution::FMU2Solution, corridor::AbstractArray{<:Tu
     return l
 end
 
-function stiffness_corridor(solution::FMU2Solution, corridor::Tuple{Real, Real}; lossFct=Flux.Losses.mse)
-    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMU2Solution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
+function stiffness_corridor(solution::FMUSolution, corridor::Tuple{Real, Real}; lossFct=Flux.Losses.mse)
+    @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
     eigs_over_time = solution.eigenvalues.saveval 
     num_eigs_over_time = length(eigs_over_time)

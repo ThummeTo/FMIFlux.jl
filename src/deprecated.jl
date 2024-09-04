@@ -3,6 +3,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+using FMIImport.FMIBase: FMI2Struct
+
 """
 DEPRECATED:
 
@@ -46,7 +48,7 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2EvaluateME``` for more information.
 """
-function fmiEvaluateME(str::fmi2Struct, 
+function fmiEvaluateME(str::FMI2Struct, 
                      x::Array{<:Real}, 
                      t::Real = (typeof(str) == FMU2 ? str.components[end].t : str.t),
                      setValueReferences::Union{Array{fmi2ValueReference}, Nothing} = nothing, 
@@ -64,7 +66,7 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2DoStepCS``` for more information.
 """
-function fmiDoStepCS(str::fmi2Struct, 
+function fmiDoStepCS(str::FMI2Struct, 
                      dt::Real,
                      setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
                      setValues::Array{<:Real} = zeros(Real, 0),
@@ -78,7 +80,7 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2InputDoStepCSOutput``` for more information.
 """
-function fmiInputDoStepCSOutput(str::fmi2Struct, 
+function fmiInputDoStepCSOutput(str::FMI2Struct, 
                                 dt::Real, 
                                 u::Array{<:Real})
     fmi2InputDoStepCSOutput(str, dt, u)

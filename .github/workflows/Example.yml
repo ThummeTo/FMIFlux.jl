@@ -20,11 +20,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest] # , ubuntu-latest]
-        file-name: [growing_horizon_ME, modelica_conference_2021, simple_hybrid_CS, simple_hybrid_ME, mdpi_2022, juliacon_2023]
+        file-name: [simple_hybrid_CS, simple_hybrid_ME, juliacon_2023]
         julia-version: ['1.10'] 
         julia-arch: [x64]
         experimental: [false]
-
+        
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
@@ -34,9 +34,9 @@ jobs:
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
-
-      - name: "Install dependencies" # remove Pkg.add(name="BoundaryValueDiffEq", version="5.6") as soon as no longer required! ; Pkg.update() could be added at the end, right now not possible, as it updates BoundryvaluediffEQ to an incompatible version
-        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.add(name="BoundaryValueDiffEq", version="5.6"); Pkg.instantiate()'
+            
+      - name: "Install dependencies"
+        run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: "Install packages"
         run: pip install jupyter nbconvert
@@ -48,7 +48,7 @@ jobs:
           jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-${{ matrix.julia-version }}" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
-
+          
       - name: "Fix GIFs"
         run: |
           echo "starting gif fixing"
@@ -102,7 +102,7 @@ jobs:
         uses: julia-actions/setup-julia@latest
         with:
             version: '1.10'
-
+            
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
 

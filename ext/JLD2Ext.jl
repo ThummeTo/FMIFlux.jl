@@ -3,14 +3,19 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-function fmiSaveParameters(nfmu::NeuralFMU, path::String; keyword="parameters")
+module JLD2Ext
+
+using FMIFlux, JLD2
+
+function FMIFlux.saveParameters(nfmu::NeuralFMU, path::String; keyword="parameters")
 
     params = Flux.params(nfmu)
 
     JLD2.save(path, Dict(keyword=>params[1]))
 end
+export saveParameters
 
-function fmiLoadParameters(nfmu::NeuralFMU, path::String; flux_model=nothing, keyword="parameters")
+function FMIFlux.loadParameters(nfmu::NeuralFMU, path::String; flux_model=nothing, keyword="parameters")
 
     paramsLoad = JLD2.load(path, keyword) 
     
@@ -41,3 +46,6 @@ function fmiLoadParameters(nfmu::NeuralFMU, path::String; flux_model=nothing, ke
 
     return nothing
 end
+export loadParameters
+
+end # JLD2Ext

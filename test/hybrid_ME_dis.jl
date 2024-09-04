@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5, Rosenbrock23
+using DifferentialEquations
 
 import Random 
 Random.seed!(5678);
@@ -15,26 +15,24 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 
 # generate training data
-posData, velData, accData = syntTrainingData(tData)
+posData = collect(abs(cos(u .* 1.0)) for u in tData) * 2.0
 
-fmu = fmi2Load("BouncingBall", "ModelicaReferenceFMUs", "0.0.25")
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
 
 # loss function for training
 losssum = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, saveat=tData)
+    solution = problem(X0; p=p, saveat=tData)#, sensealg=...)
 
     if !solution.success
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    #velNet = getState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(posNet, posData) + FMIFlux.Losses.mse(velNet, velData) 
+    return Flux.Losses.mse(posNet, posData) #+ FMIFlux.Losses.mse(velNet, velData) 
 end
-
-vr = fmi2StringToValueReference(fmu, "g")
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
@@ -47,92 +45,111 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "h")]
+getVRs = [stringToValueReference(fmu, "mass_s")]
 y = zeros(fmi2Real, length(getVRs))
 numGetVRs = length(getVRs)
-setVRs = [fmi2StringToValueReference(fmu, "v")]
+setVRs = [stringToValueReference(fmu, "damping")]
 numSetVRs = length(setVRs)
+setVal = [0.8]
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net = Chain(x -> c1(x),
-            Dense(numStates, 1, identity; init=init),
-            x -> c2(x[1], 1),
-            x -> fmu(;x=x, dx_refs=:all), 
-            x -> c3(x),
-            Dense(numStates, 1, identity; init=init),
-            x -> c4(1, x[1]))
-push!(nets, net)
+net1 = function()
+    net = Chain(x -> c1(x),
+                Dense(numStates, 1, tanh; init=init),
+                x -> c2(x[1], 1),
+                x -> fmu(;x=x, dx_refs=:all), 
+                x -> c3(x),
+                Dense(numStates, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net1)
 
 # 2. default ME-NeuralFMU (learn dynamics)
-net = Chain(x -> fmu(;x=x, dx_refs=:all), 
-            x -> c1(x),
-            Dense(numStates, 16, tanh; init=init),
-            Dense(16, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(1, x[1]))
-push!(nets, net)
+net2 = function()
+    net = Chain(x -> fmu(;x=x, dx_refs=:all), 
+                x -> c3(x),
+                Dense(numStates, 16, tanh; init=init),
+                Dense(16, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net2)
 
 # 3. default ME-NeuralFMU (learn states)
-net = Chain(x -> c1(x),
-            Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(x[1], 1),
-            x -> fmu(;x=x, dx_refs=:all))
-push!(nets, net)
+net3 = function()
+    net = Chain(x -> c1(x),
+                Dense(numStates, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c2(x[1], 1),
+                x -> fmu(;x=x, dx_refs=:all))
+end
+push!(nets, net3)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
-net = Chain(x -> c1(x),
-            Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(x[1], 1),
-            x -> fmu(;x=x, dx_refs=:all), 
-            x -> c3(x),
-            Dense(numStates, 16, tanh, init=init),
-            Dense(16, 1, identity, init=init),
-            x -> c4(1, x[1]))
-push!(nets, net)
+net4 = function()
+    net = Chain(x -> c1(x),
+                Dense(numStates, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c2(x[1], 1),
+                x -> fmu(;x=x, dx_refs=:all), 
+                x -> c3(x),
+                Dense(numStates, 16, tanh, init=init),
+                Dense(16, 1, tanh, init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net4)
 
 # 5. NeuralFMU with hard setting time to 0.0
-net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
-            x -> c1(x),
-            Dense(numStates, 8, tanh; init=init),
-            Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(1, x[1]))
-push!(nets, net)
+net5 = function()
+    net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
+                x -> c3(x),
+                Dense(numStates, 8, tanh; init=init),
+                Dense(8, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net5)
 
 # 6. NeuralFMU with additional getter 
-net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all), 
-            x -> c1(x),
-            Dense(numStates+numGetVRs, 8, tanh; init=init),
-            Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(1, x[1]))
-push!(nets, net)
+net6 = function()
+    net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all), 
+                x -> c3(x),
+                Dense(numStates+numGetVRs, 8, tanh; init=init),
+                Dense(8, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net6)
 
 # 7. NeuralFMU with additional setter 
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all), 
-            x -> c1(x),
-            Dense(numStates, 8, tanh; init=init),
-            Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(1, x[1]))
-push!(nets, net)
+net7 = function()
+    net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, dx_refs=:all), 
+                x -> c3(x),
+                Dense(numStates, 8, tanh; init=init),
+                Dense(8, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net7)
 
 # 8. NeuralFMU with additional setter and getter
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
-            x -> c1(x),
-            Dense(numStates+numGetVRs, 8, tanh; init=init),
-            Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
-            x -> c2(1, x[1]))
-push!(nets, net)
+net8 = function()
+    net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, y_refs=getVRs, dx_refs=:all),
+                x -> c3(x),
+                Dense(numStates+numGetVRs, 8, tanh; init=init),
+                Dense(8, 16, tanh; init=init),
+                Dense(16, 1, tanh; init=init),
+                x -> c4(1, x[1]))
+end
+push!(nets, net8)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)
-net = Chain(x -> fmu(x=x, dx_refs=:all))
-push!(nets, net)
+net9 = function()
+    net = Chain(x -> fmu(x=x, dx_refs=:all))
+end
+push!(nets, net9)
 
-solvers = [Tsit5()]
+solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
@@ -141,18 +158,40 @@ for solver in solvers
                 global nets, problem, lastLoss, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
-                optim = OPTIMISER(ETA)
-
-                net = nets[i]
-                problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
-
-                if i ∈ (1, 2, 3, 4, 6)
-                    @warn "Currently skipping nets ∈ (1, 2, 3, 4, 6)"
+                if i ∈ (1, 3, 4)
+                    @warn "Currently skipping net $(i) ∈ (1, 3, 4) for disc. FMUs (ANN before FMU)"
                     continue
                 end
-                
-                if i ∈ (1, 3, 4)
-                    problem.modifiedState = true
+
+                optim = OPTIMISER(ETA)
+
+                net_constructor = nets[i]
+                problem = nothing
+                p_net = nothing
+
+                tries = 0
+                maxtries = 1000
+                while true
+                    net = net_constructor()
+                    problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
+                    
+                    if i ∈ (1, 3, 4)
+                        problem.modifiedState = true
+                    end
+
+                    p_net = Flux.params(problem)
+                    solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+                    ne = length(solutionBefore.events)
+
+                    if ne > 0 && ne <= 10
+                        break 
+                    else
+                        if tries >= maxtries
+                            @warn "Solution before did not trigger an acceptable event count (=$(ne) ∉ [1,10]) for net $(i)! Can't find a valid start configuration ($(maxtries) tries)!"
+                            break 
+                        end
+                        tries += 1
+                    end
                 end
 
                 # train it ...
@@ -187,13 +226,15 @@ for solver in solvers
                     @test solutionAfter.states.t[1] == t_start
                     @test solutionAfter.states.t[end] == t_stop
                 end
+                
+                # fig = plot(solutionAfter; title="Net $(i) - $(FAILED_GRADIENTS) / $(FAILED_GRADIENTS_QUOTA * NUMSTEPS)")
+                # plot!(fig, tData, posData)
+                # display(fig)
             end
         end
     end
 end
 
-# [TODO] check that events are triggered!!!
-
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

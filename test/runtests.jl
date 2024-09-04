@@ -12,16 +12,16 @@ using FMIFlux.Flux
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
-using FMIFlux.FMIImport: fmi2StringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
-using FMIFlux.FMIImport: FMU2_EXECUTION_CONFIGURATIONS
-using FMIFlux: fmi2GetSolutionState, fmi2GetSolutionValue, fmi2GetSolutionTime
+using FMIFlux.FMIImport: stringToValueReference, fmi2ValueReference, prepareSolveFMU, fmi2Real
+using FMIFlux.FMIImport: FMU_EXECUTION_CONFIGURATIONS
+using FMIFlux.FMIImport: getState, getValue, getTime
 
 exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0.25")]
 exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 20
-global ETA = 1e-6
+global ETA = 1e-5
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
@@ -38,6 +38,7 @@ callback = function(p)
     if loss >= LAST_LOSS
         FAILED_GRADIENTS += 1
     end
+    #@info "$(loss)"
     LAST_LOSS = loss
 end
 
@@ -50,7 +51,7 @@ function syntTrainingData(tData)
 end
 
 # enable assertions for warnings/errors for all default execution configurations - we want strict tests here
-for exec in FMU2_EXECUTION_CONFIGURATIONS
+for exec in FMU_EXECUTION_CONFIGURATIONS
     exec.assertOnError = true
     exec.assertOnWarning = true
 end
@@ -62,11 +63,10 @@ function runtests(exportingTool)
     @info    "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))"
     @testset "Testing FMUs exported from $(EXPORTINGTOOL) ($(EXPORTINGVERSION))" begin
 
-        @warn "Solution Gradient Test Skipped"
-        # @info    "Solution Gradients (solution_gradients.jl)"
-        # @testset "Solution Gradients" begin
-        #     include("solution_gradients.jl")
-        # end
+        @info    "Solution Gradients (solution_gradients.jl)"
+        @testset "Solution Gradients" begin
+            include("solution_gradients.jl")
+        end
 
         @info    "Time Event Solution Gradients (time_solution_gradients.jl)"
         @testset "Time Event Solution Gradients" begin
@@ -104,6 +104,7 @@ function runtests(exportingTool)
                     include("train_modes.jl")
                 end
 
+                @warn "Multi-threading Test Skipped"
                 # @info    "Multi-threading (multi_threading.jl)"
                 # @testset "Multi-threading" begin
                 #     include("multi_threading.jl")
@@ -132,6 +133,7 @@ function runtests(exportingTool)
             end
         end
 
+        @info "Checking supported sensitivities skipped"
         # @info    "Benchmark: Supported sensitivities (supported_sensitivities.jl)"
         # @testset "Benchmark: Supported sensitivities " begin
         #     include("supported_sensitivities.jl")
