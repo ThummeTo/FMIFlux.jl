@@ -17,7 +17,7 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
@@ -25,27 +25,27 @@ using FMIFlux.FMIImport.FMICore
 # loss function for training
 losssum_single = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
     
     return Flux.Losses.mse(posNet, posData)
 end
 
 losssum_multi = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return [Inf, Inf]
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return [Flux.Losses.mse(posNet, posData), Flux.Losses.mse(velNet, velData)]
 end
@@ -85,4 +85,4 @@ lossAfter = losssum_single(p_net[1])
 
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)

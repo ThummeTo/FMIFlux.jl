@@ -3,9 +3,9 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-import FMIImport.FMICore: FMUSnapshot
+import FMIImport.FMIBase: FMUSnapshot
 import FMIImport: fmi2Real, fmi2FMUstate, fmi2EventInfo, fmi2ComponentState
-using DifferentialEquations.DiffEqCallbacks: FunctionCallingCallback
+using FMIImport.FMIBase.DiffEqCallbacks: FunctionCallingCallback
 
 abstract type FMU2BatchElement end
 
@@ -66,7 +66,7 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
     
     indicesModel
 
-    solution::FMU2Solution
+    solution::FMUSolution
 
     scalarLoss::Bool
     # canGetSetState::Bool
@@ -139,21 +139,21 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
 end
 
 function pasteFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
-    c = getCurrentComponent(fmu)
-    FMICore.apply!(c, batchElement.snapshot)
+    c = getCurrentInstance(fmu)
+    FMIBase.apply!(c, batchElement.snapshot)
     @info "Pasting snapshot @$(batchElement.snapshot.t)"
     return nothing
 end
 
 function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
-    c = getCurrentComponent(fmu)
+    c = getCurrentInstance(fmu)
     if isnothing(batchElement.snapshot)
-        batchElement.snapshot = FMICore.snapshot!(c)
+        batchElement.snapshot = FMIBase.snapshot!(c)
         #batchElement.snapshot.t = batchElement.tStart
         @debug "New snapshot @$(batchElement.snapshot.t)"
     else
         #tBefore = batchElement.snapshot.t
-        FMICore.update!(c, batchElement.snapshot)
+        FMIBase.update!(c, batchElement.snapshot)
         #batchElement.snapshot.t = batchElement.tStart
         #tAfter = batchElement.snapshot.t
 
@@ -186,8 +186,8 @@ function run!(neuralFMU::ME_NeuralFMU, batchElement::FMU2SolutionBatchElement; n
 
     # on first run of the element, there is no snapshot
     if isnothing(batchElement.snapshot) 
-        c = getCurrentComponent(neuralFMU.fmu)
-        batchElement.snapshot = FMICore.snapshot!(c)
+        c = getCurrentInstance(neuralFMU.fmu)
+        batchElement.snapshot = snapshot!(c)
         writeSnapshot = batchElement.snapshot # needs to be updated, therefore write
     else
         readSnapshot = batchElement.snapshot
@@ -309,10 +309,10 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool=fa
 
     loss = 0.0 # will be incremented
 
-    if hasmethod(lossFct, Tuple{FMU2Solution})
+    if hasmethod(lossFct, Tuple{FMUSolution})
         loss = lossFct(batchElement.solution)
 
-    elseif hasmethod(lossFct, Tuple{FMU2Solution, Union{}})
+    elseif hasmethod(lossFct, Tuple{FMUSolution, Union{}})
         loss = lossFct(batchElement.solution, batchElement.targets)
 
     else # hasmethod(lossFct, Tuple{Union{}, Union{}})
@@ -395,7 +395,7 @@ function _batchDataSolution!(batch::AbstractArray{<:FMIFlux.FMU2SolutionBatchEle
 
     @assert length(train_t) == length(targets) "Timepoints in `train_t` ($(length(train_t))) must match number of `targets` ($(length(targets)))"
 
-    canGetSetState = fmi2CanGetSetState(neuralFMU.fmu)
+    canGetSetState = canGetSetFMUState(neuralFMU.fmu)
     if !canGetSetState
         logWarning(neuralFMU.fmu, "This FMU can't set/get a FMU state. This is suboptimal for batched training.")
     end

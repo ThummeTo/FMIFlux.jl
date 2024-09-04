@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations: Tsit5
+using DifferentialEquations
 using FMIFlux.Optim
 
 import Random 
@@ -19,19 +19,19 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = fmi2Load("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 
 # loss function for training
 losssum = function(p)
-    global problem, X0
+    global problem, X0, posData
     solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
 end
@@ -47,19 +47,19 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
-getVRs = [fmi2StringToValueReference(fmu, "mass.s")]
+getVRs = [stringToValueReference(fmu, "mass.s")]
 numGetVRs = length(getVRs)
 y = zeros(fmi2Real, numGetVRs)
-setVRs = [fmi2StringToValueReference(fmu, "mass.m")]
+setVRs = [stringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
-            Dense(numStates, 1, identity; init=init),
+            Dense(numStates, 1, tanh; init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
@@ -68,14 +68,14 @@ net = Chain(x -> fmu(;x=x, dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all))
 push!(nets, net)
@@ -83,12 +83,12 @@ push!(nets, net)
 # 4. default ME-NeuralFMU (learn dynamics and states)
 net = Chain(x -> c1(x),
             Dense(numStates, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(x[1], 1),
             x -> fmu(;x=x, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 16, tanh, init=init),
-            Dense(16, 1, identity, init=init),
+            Dense(16, 1, tanh, init=init),
             x -> c4(1, x[1]))
 push!(nets, net)
 
@@ -97,7 +97,7 @@ net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -106,7 +106,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all),
             x -> c1(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -115,7 +115,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all),
             x -> c1(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -124,7 +124,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
             x -> c1(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
-            Dense(16, 1, identity; init=init),
+            Dense(16, 1, tanh; init=init),
             x -> c2(1, x[1]))
 push!(nets, net)
 
@@ -132,61 +132,68 @@ push!(nets, net)
 net = Chain(x -> fmu(x=x, dx_refs=:all))
 push!(nets, net)
 
-for i in 1:length(nets)
-    @testset "Net setup #$i" begin
-        global nets, problem, iterCB
-        global LAST_LOSS, FAILED_GRADIENTS
+solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
-        optim = GradientDescent(; alphaguess=ETA, linesearch=Optim.LineSearches.Static()) # BFGS()
-        solver = Tsit5()
+for solver in solvers
+    @testset "Solver: $(solver)" begin
+        for i in 1:length(nets)
+            @testset "Net setup $(i)/$(length(nets))" begin
+                global nets, problem, iterCB
+                global LAST_LOSS, FAILED_GRADIENTS
 
-        net = nets[i]
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
-        @test problem != nothing
+                optim = GradientDescent(; alphaguess=ETA, linesearch=Optim.LineSearches.Static()) # BFGS()
 
-        if i ∈ (3, 4, 6)
-            @warn "Currently skipping nets ∈ (3, 4, 6)"
-            continue
+                net = nets[i]
+                problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
+                @test problem != nothing
+
+                # if i ∈ (3, 4, 6)
+                #     @warn "Currently skipping nets ∈ (3, 4, 6)"
+                #     continue
+                # end
+                
+                # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
+                if i ∈ (1, 3, 4)
+                    problem.modifiedState = true
+                end
+
+                # train it ...
+                p_net = Flux.params(problem)
+                @test length(p_net) == 1
+
+                solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+                if solutionBefore.success
+                    @test length(solutionBefore.states.t) == length(tData)
+                    @test solutionBefore.states.t[1] == t_start
+                    @test solutionBefore.states.t[end] == t_stop
+                end
+
+                LAST_LOSS = losssum(p_net[1])
+                @info "Start-Loss for net #$i: $(LAST_LOSS)"
+
+                if length(p_net[1]) == 0
+                    @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
+                end
+                
+                FAILED_GRADIENTS = 0
+                FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, cb=()->callback(p_net))
+                @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
+                @test FAILED_GRADIENTS <= FAILED_GRADIENTS_QUOTA * NUMSTEPS
+
+                # check results
+                solutionAfter = problem(X0; p=p_net[1], saveat=tData)
+                if solutionAfter.success
+                    @test length(solutionAfter.states.t) == length(tData)
+                    @test solutionAfter.states.t[1] == t_start
+                    @test solutionAfter.states.t[end] == t_stop
+                end
+
+            end
         end
-        
-        # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
-        if i ∈ (1, 3, 4)
-            problem.modifiedState = true
-        end
 
-        # train it ...
-        p_net = Flux.params(problem)
-        @test length(p_net) == 1
-
-        solutionBefore = problem(X0; p=p_net[1], showProgress=true, saveat=tData)
-        if solutionBefore.success
-            @test length(solutionBefore.states.t) == length(tData)
-            @test solutionBefore.states.t[1] == t_start
-            @test solutionBefore.states.t[end] == t_stop
-        end
-
-        LAST_LOSS = losssum(p_net[1])
-        @info "Start-Loss for net #$i: $(LAST_LOSS)"
-
-        if length(p_net[1]) == 0
-            @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
-        end
-        
-        FAILED_GRADIENTS = 0
-        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, cb=()->callback(p_net))
-        @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
-        @test FAILED_GRADIENTS <= FAILED_GRADIENTS_QUOTA * NUMSTEPS
-
-        # check results
-        solutionAfter = problem(X0; p=p_net[1], showProgress=true, saveat=tData)
-        if solutionAfter.success
-            @test length(solutionAfter.states.t) == length(tData)
-            @test solutionAfter.states.t[1] == t_start
-            @test solutionAfter.states.t[end] == t_stop
-        end
     end
 end
 
 @test length(fmu.components) <= 1
 
-fmi2Unload(fmu)
+unloadFMU(fmu)
