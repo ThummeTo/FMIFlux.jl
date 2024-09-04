@@ -13,6 +13,7 @@ function FMIFlux.saveParameters(nfmu::NeuralFMU, path::String; keyword="paramete
 
     JLD2.save(path, Dict(keyword=>params[1]))
 end
+export saveParameters
 
 function FMIFlux.loadParameters(nfmu::NeuralFMU, path::String; flux_model=nothing, keyword="parameters")
 
@@ -45,5 +46,6 @@ function FMIFlux.loadParameters(nfmu::NeuralFMU, path::String; flux_model=nothin
 
     return nothing
 end
+export loadParameters
 
 end # JLD2Ext

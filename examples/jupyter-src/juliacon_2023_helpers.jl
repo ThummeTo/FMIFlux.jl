@@ -15,13 +15,13 @@ function singleInstanceMode(fmu::FMU2, mode::Bool)
         # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
         fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING
-        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type, true, false, false, false, true, data.params; x0=x0)
+        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate=true, setup=true, data.params, x0=x0)
     else
         c = FMI.getCurrentComponent(fmu)
         # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
         fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NO_RESET
-        FMIFlux.finishSolveFMU(fmu, c, false, true)
+        FMIFlux.finishSolveFMU(fmu, c; freeInstance=false, terminate=true)
     end
     return nothing
 end

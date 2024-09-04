@@ -25,7 +25,7 @@ using FMIFlux.FMIImport.FMICore
 # loss function for training
 losssum_single = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -38,14 +38,14 @@ end
 
 losssum_multi = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p=p, showProgress=false, saveat=tData)
 
     if !solution.success
         return [Inf, Inf]
     end
 
-    posNet = fmi2GetSolutionState(solution, 1; isIndex=true)
-    velNet = fmi2GetSolutionState(solution, 2; isIndex=true)
+    posNet = getState(solution, 1; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
     return [Flux.Losses.mse(posNet, posData), Flux.Losses.mse(velNet, velData)]
 end
