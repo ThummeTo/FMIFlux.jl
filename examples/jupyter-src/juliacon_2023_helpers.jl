@@ -15,7 +15,7 @@ function singleInstanceMode(fmu::FMU2, mode::Bool)
         # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
         fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING
-        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate=true, setup=true, data.params, x0=x0)
+        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate=true, setup=true, parameters=data.params, x0=x0)
     else
         c = FMI.getCurrentComponent(fmu)
         # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
@@ -40,7 +40,7 @@ function plotEnhancements(neuralFMU::NeuralFMU, fmu::FMU2, data::FMIZoo.VLDM_Dat
     tStop = data.consumption_t[end]
     x0 = FMIZoo.getStateVector(data, tStart)
     resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=data.params, showProgress=false, recordValues=:derivatives, saveat=data.consumption_t)
-    resultFMU = fmiSimulate(fmu, (tStart, tStop); parameters=data.params, showProgress=false, recordValues=:derivatives, saveat=data.consumption_t) 
+    resultFMU = simulate(fmu, (tStart, tStop); parameters=data.params, showProgress=false, recordValues=:derivatives, saveat=data.consumption_t) 
 
     # Finite differences for acceleration
     dt = data.consumption_t[2]-data.consumption_t[1]
@@ -49,13 +49,13 @@ function plotEnhancements(neuralFMU::NeuralFMU, fmu::FMU2, data::FMIZoo.VLDM_Dat
     acceleration_dev = (data.speed_dev[2:end] - data.speed_dev[1:end-1]) / dt
     acceleration_dev = [acceleration_dev..., 0.0]
 
-    ANNInputs = fmiGetSolutionValue(resultNFMU, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
+    ANNInputs = getValue(resultNFMU, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
     ANNInputs = collect([ANNInputs[1][i], ANNInputs[2][i], ANNInputs[3][i], ANNInputs[4][i], ANNInputs[5][i], ANNInputs[6][i]] for i in 1:length(ANNInputs[1]))
     
-    ANNOutputs = fmiGetSolutionDerivative(resultNFMU, 5:6; isIndex=true)
+    ANNOutputs = getStateDerivative(resultNFMU, 5:6; isIndex=true)
     ANNOutputs = collect([ANNOutputs[1][i], ANNOutputs[2][i]] for i in 1:length(ANNOutputs[1]))
 
-    FMUOutputs = fmiGetSolutionDerivative(resultFMU, 5:6; isIndex=true)
+    FMUOutputs = getStateDerivative(resultFMU, 5:6; isIndex=true)
     FMUOutputs = collect([FMUOutputs[1][i], FMUOutputs[2][i]] for i in 1:length(FMUOutputs[1]))
 
     ANN_consumption = collect(o[2] for o in ANNOutputs) 
@@ -138,8 +138,8 @@ function plotCumulativeConsumption(solutionNFMU::FMUSolution, solutionFMU::FMUSo
     steps = (1+round(Int, range[1]*len)):(round(Int, range[end]*len))
 
     t        = data.consumption_t
-    nfmu_val = fmiGetSolutionState(solutionNFMU, 6; isIndex=true)
-    fmu_val  = fmiGetSolutionState(solutionFMU,  6; isIndex=true)
+    nfmu_val = getState(solutionNFMU, 6; isIndex=true)
+    fmu_val  = getState(solutionFMU,  6; isIndex=true)
     data_val = data.cumconsumption_val
     data_dev = data.cumconsumption_dev
     
@@ -171,7 +171,7 @@ function simPlotCumulativeConsumption(cycle::Symbol, filename=nothing; kwargs...
     tSave = d.consumption_t
     
     resultNFMU = neuralFMU(x0, (tStart, tStop); parameters=d.params, showProgress=false, saveat=tSave, maxiters=1e7) 
-    resultFMU = fmiSimulate(fmu, (tStart, tStop), parameters=d.params, showProgress=false, saveat=tSave)
+    resultFMU = simulate(fmu, (tStart, tStop), parameters=d.params, showProgress=false, saveat=tSave)
 
     fig = plotCumulativeConsumption(resultNFMU, resultFMU, d, kwargs...)
     if !isnothing(filename)

@@ -24,16 +24,16 @@ fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 # loss function for training
 losssum = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=false, saveat=tData)
+    solution = problem(X0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
     end
 
     posNet = getState(solution, 1; isIndex=true)
-    velNet = getState(solution, 2; isIndex=true)
+    #velNet = getState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
+    return Flux.Losses.mse(posNet, posData) #+ Flux.Losses.mse(velNet, velData)
 end
 
 numStates = length(fmu.modelDescription.stateValueReferences)
@@ -52,6 +52,7 @@ numGetVRs = length(getVRs)
 y = zeros(fmi2Real, numGetVRs)
 setVRs = [stringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
+setVal = [1.1]
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
@@ -65,11 +66,11 @@ push!(nets, net)
 
 # 2. default ME-NeuralFMU (learn dynamics)
 net = Chain(x -> fmu(;x=x, dx_refs=:all), 
-            x -> c1(x),
+            x -> c3(x),
             Dense(numStates, 16, tanh; init=init),
             Dense(16, 16, tanh; init=init),
             Dense(16, 1, tanh; init=init),
-            x -> c2(1, x[1]))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 3. default ME-NeuralFMU (learn states)
@@ -94,38 +95,38 @@ push!(nets, net)
 
 # 5. NeuralFMU with hard setting time to 0.0
 net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
-            x -> c1(x),
+            x -> c3(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, tanh; init=init),
-            x -> c2(1, x[1]))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 6. NeuralFMU with additional getter 
 net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all), 
-            x -> c1(x),
+            x -> c3(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, tanh; init=init),
-            x -> c2(1, x[1]))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all), 
-            x -> c1(x),
+net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, dx_refs=:all), 
+            x -> c3(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, tanh; init=init),
-            x -> c2(1, x[1]))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
-            x -> c1(x),
+net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, y_refs=getVRs, dx_refs=:all),
+            x -> c3(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
             Dense(16, 1, tanh; init=init),
-            x -> c2(1, x[1]))
+            x -> c4(1, x[1]))
 push!(nets, net)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)
@@ -141,16 +142,16 @@ for solver in solvers
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
+                # if i ∈ (1, 3, 4)
+                #     @warn "Currently skipping $(i) nets ∈ (1, 3, 4)"
+                #     continue
+                # end
+
                 optim = GradientDescent(; alphaguess=ETA, linesearch=Optim.LineSearches.Static()) # BFGS()
 
                 net = nets[i]
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
-
-                # if i ∈ (3, 4, 6)
-                #     @warn "Currently skipping nets ∈ (3, 4, 6)"
-                #     continue
-                # end
                 
                 # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
                 if i ∈ (1, 3, 4)
@@ -190,7 +191,6 @@ for solver in solvers
 
             end
         end
-
     end
 end
 

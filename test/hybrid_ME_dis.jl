@@ -7,7 +7,7 @@ using Flux
 using DifferentialEquations
 
 import Random 
-Random.seed!(5678);
+Random.seed!(1234);
 
 t_start = 0.0
 t_step = 0.01
@@ -22,7 +22,7 @@ fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
 # loss function for training
 losssum = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, saveat=tData)#, sensealg=...)
+    solution = problem(X0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -31,7 +31,7 @@ losssum = function(p)
     posNet = getState(solution, 1; isIndex=true)
     #velNet = getState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(posNet, posData) #+ FMIFlux.Losses.mse(velNet, velData) 
+    return Flux.Losses.mse(posNet, posData) #+ Flux.Losses.mse(velNet, velData) 
 end
 
 numStates = length(fmu.modelDescription.stateValueReferences)
@@ -46,8 +46,8 @@ c4 = CacheRetrieveLayer(c3)
 
 init = Flux.glorot_uniform
 getVRs = [stringToValueReference(fmu, "mass_s")]
-y = zeros(fmi2Real, length(getVRs))
 numGetVRs = length(getVRs)
+y = zeros(fmi2Real, numGetVRs)
 setVRs = [stringToValueReference(fmu, "damping")]
 numSetVRs = length(setVRs)
 setVal = [0.8]
@@ -155,7 +155,7 @@ for solver in solvers
     @testset "Solver: $(solver)" begin
         for i in 1:length(nets)
             @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
-                global nets, problem, lastLoss, iterCB
+                global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
                 if i ∈ (1, 3, 4)
@@ -194,11 +194,11 @@ for solver in solvers
                     end
                 end
 
+                @test !isnothing(problem)
+
                 # train it ...
                 p_net = Flux.params(problem)
                 @test length(p_net) == 1
-                
-                @test problem !== nothing
 
                 solutionBefore = problem(X0; p=p_net[1], saveat=tData)
                 if solutionBefore.success
