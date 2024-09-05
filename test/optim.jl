@@ -31,9 +31,9 @@ losssum = function(p)
     end
 
     posNet = getState(solution, 1; isIndex=true)
-    #velNet = getState(solution, 2; isIndex=true)
+    velNet = getState(solution, 2; isIndex=true)
     
-    return Flux.Losses.mse(posNet, posData) #+ Flux.Losses.mse(velNet, velData)
+    return Flux.Losses.mse(posNet, posData) + Flux.Losses.mse(velNet, velData)
 end
 
 numStates = length(fmu.modelDescription.stateValueReferences)
@@ -138,12 +138,12 @@ solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 for solver in solvers
     @testset "Solver: $(solver)" begin
         for i in 1:length(nets)
-            @testset "Net setup $(i)/$(length(nets))" begin
+            @testset "Net setup $(i)/$(length(nets)) (Continuous NeuralFMU)" begin
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
                 # if i ∈ (1, 3, 4)
-                #     @warn "Currently skipping $(i) nets ∈ (1, 3, 4)"
+                #     @warn "Currently skipping nets $(i) ∈ (1, 3, 4)"
                 #     continue
                 # end
 

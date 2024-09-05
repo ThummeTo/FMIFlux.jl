@@ -23,7 +23,7 @@ fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
 # loss function for training
 losssum = function(p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=false, saveat=tData)
+    solution = problem(X0; p=p, saveat=tData)
 
     if !solution.success
         return Inf 
@@ -51,6 +51,7 @@ numGetVRs = length(getVRs)
 y = zeros(fmi2Real, numGetVRs)
 setVRs = [stringToValueReference(fmu, "mass.m")]
 numSetVRs = length(setVRs)
+setVal = [1.1]
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
 net = Chain(x -> c1(x),
@@ -110,7 +111,7 @@ net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all),
 push!(nets, net)
 
 # 7. NeuralFMU with additional setter 
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all), 
+net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, dx_refs=:all), 
             x -> c3(x),
             Dense(numStates, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
@@ -119,7 +120,7 @@ net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], dx_refs=:all),
 push!(nets, net)
 
 # 8. NeuralFMU with additional setter and getter
-net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=[1.1], y_refs=getVRs, dx_refs=:all),
+net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, y_refs=getVRs, dx_refs=:all),
             x -> c3(x),
             Dense(numStates+numGetVRs, 8, tanh; init=init),
             Dense(8, 16, tanh; init=init),
@@ -140,16 +141,16 @@ for solver in solvers
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
+                # if i ∈ (1, 3, 4)
+                #     @warn "Currently skipping nets $(i) ∈ (1, 3, 4)"
+                #     continue
+                # end
+                
                 optim = OPTIMISER(ETA)
 
                 net = nets[i]
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
-
-                # if i ∈ (1, 3, 4)
-                #     @warn "Currently skipping nets ∈ (1, 3, 4)"
-                #     continue
-                # end
                 
                 # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
                 if i ∈ (1, 3, 4)
@@ -189,7 +190,6 @@ for solver in solvers
 
             end
         end
-
     end
 end
 

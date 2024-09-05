@@ -16,18 +16,30 @@ t_stop = 5.0
 tData = t_start:t_step:t_stop
 tspan = (t_start, t_stop)
 posData = ones(Float64, length(tData))
+nfmu = nothing
 
 # load FMU for NeuralFMU
-#fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
-fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
-#fmu.handleEventIndicators = [UInt32(1)] 
+fmus = []
+
+# this is a non-simultaneous event system (one event per time instant)
+f = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
+@assert f.modelDescription.numberOfEventIndicators == 1 "Wrong number of event indicators: $(f.modelDescription.numberOfEventIndicators) != 1"
+push!(fmus, f) 
+
+# this is a simultaneous event system (two events per time instant) 
+f = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)          
+@assert f.modelDescription.numberOfEventIndicators == 2 "Wrong number of event indicators: $(f.modelDescription.numberOfEventIndicators) != 2"
+push!(fmus, f) 
 
 x0_bb = [1.0, 0.0]
 numStates = length(x0_bb)
 
-net = Chain(x -> fmu(;x=x, dx_refs=:all), 
-            Dense(2, 16, tanh),
-            Dense(16, 2, identity))
+function net_const(fmu)
+    net = Chain(x -> fmu(;x=x, dx_refs=:all), 
+                Dense(2, 16, tanh),
+                Dense(16, 2, identity))
+    return net
+end
 
 # loss function for training
 losssum = function(p)
@@ -43,17 +55,22 @@ losssum = function(p)
     return FMIFlux.Losses.mse(posNet, posData)
 end
 
-solvers = [Tsit5(), FBDF(autodiff=false)] # Tsit5(), , FBDF(autodiff=true)]
-for solver in solvers
-    
-    global nfmu
-    @info "Solver: $(solver)"
-    nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
-    nfmu.modifiedState = false
-    nfmu.snapshots = true
+for fmu in fmus
+    @info "##### CHECKING FMU WITH $(fmu.modelDescription.numberOfEventIndicators) SIMULTANEOUS EVENT INDICATOR(S) #####"
+    solvers = [Tsit5(), Rosenbrock23(autodiff=false), Rodas5(autodiff=false), FBDF(autodiff=false)] 
+    for solver in solvers
+        
+        global nfmu
+        @info "##### SOLVER: $(solver) #####"
+        
+        net = net_const(fmu)
+        nfmu = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData) 
+        nfmu.modifiedState = false
+        nfmu.snapshots = true
 
-    best_timing, best_gradient, best_sensealg = FMIFlux.checkSensalgs!(losssum, nfmu)
-    @test best_timing != Inf
+        best_timing, best_gradient, best_sensealg = FMIFlux.checkSensalgs!(losssum, nfmu)
+        @test best_timing != Inf
+    end
 end
 
 unloadFMU(fmu)

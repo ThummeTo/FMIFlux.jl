@@ -12,7 +12,7 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
                         max_msg_len=192, 
                         chunk_size=DEFAULT_CHUNK_SIZE, 
                         OtD_autojacvecs=(false, true, TrackerVJP(), ZygoteVJP(), ReverseDiffVJP(false), ReverseDiffVJP(true)), # EnzymeVJP() deadlocks in the current release xD
-                        OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint),
+                        OtD_sensealgs=(BacksolveAdjoint, InterpolatingAdjoint, QuadratureAdjoint, GaussAdjoint),
                         OtD_checkpointings=(true, false),
                         DtO_sensealgs=(ReverseDiffAdjoint, ForwardDiffSensitivity, TrackerAdjoint), # TrackerAdjoint, ZygoteAdjoint freeze the REPL
                         multiObjective::Bool=false,
@@ -60,8 +60,8 @@ function checkSensalgs!(loss, neuralFMU::Union{ME_NeuralFMU, CS_NeuralFMU};
             for checkpointing ∈ OtD_checkpointings
                 printstyled("\t\t\tCheckpointing: $(checkpointing)\n")
 
-                if sensealg == QuadratureAdjoint && checkpointing 
-                    printstyled("\t\t\t\tQuadratureAdjoint doesn't implement checkpointing, skipping ...\n")
+                if sensealg ∈ (QuadratureAdjoint, GaussAdjoint) && checkpointing 
+                    printstyled("\t\t\t\t$(sensealg) doesn't implement checkpointing, skipping ...\n")
                     continue 
                 end
 
@@ -192,11 +192,11 @@ function _tryrun(loss, params, gradient, chunk_size, ts, max_msg_len, multiObjec
             tol = abs(1.0 - val / grad_gt_val)
             
             if tol > reltol
-                message = spacing * "WRONG $(round(tol*100;digits=2))% > $(round(reltol*100;digits=2))% | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
+                message = spacing * "WRONG   $(round(tol*100;digits=2))% > $(round(reltol*100;digits=2))% | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
                 color = :yellow
                 valid = false
             else
-                message = spacing * "SUCCESS | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
+                message = spacing * "SUCCESS $(round(tol*100;digits=2))% <= $(round(reltol*100;digits=2))% | $(round(timing; digits=3))s | GradAbsSum: $(round.(val; digits=6))\n"
                 color = :green
                 valid = true
             end
