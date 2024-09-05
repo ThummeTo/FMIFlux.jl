@@ -12,23 +12,23 @@ on:
       - 'examples/pluto-src/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
-  
+
 jobs:
-  jypiter:
+  jupyter:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest] # , ubuntu-latest]
         file-name: [simple_hybrid_CS, simple_hybrid_ME, juliacon_2023]
-        julia-version: ['1.8'] 
+        julia-version: ['1.10'] 
         julia-arch: [x64]
         experimental: [false]
         
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
-        
+        uses: actions/checkout@v4
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
@@ -37,15 +37,15 @@ jobs:
             
       - name: "Install dependencies"
         run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-        
+
       - name: "Install packages"
         run: pip install jupyter nbconvert
-                        
-      - name: "Execute and synchronize all files"
+
+      - name: "Execute notebook"
         env:
           FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
         run: |
-          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-1.8" --to notebook --inplace --execute ${{ env.FILE }}
+          jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-${{ matrix.julia-version }}" --to notebook --inplace --execute ${{ env.FILE }}
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
           
@@ -57,20 +57,47 @@ jobs:
           awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ matrix.file-name }}.md > examples/jupyter-src/tmp_${{ matrix.file-name }}.md
           mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
           echo "gifs should be fixed"
-          
-      - name: Archive examples artifacts (success)
-        if: success() && matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+
+      - name: "run generated jl script to determine success of example building"
+        run: julia --project=examples/ examples/jupyter-src/${{ matrix.file-name }}.jl
+
+      - name: "auto-commit (retry on merge)"
+        if: success() && github.event_name != 'pull_request' && github.branch == 'main'
+        uses: nick-fields/retry@v3
+        env: 
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
+          CI_COMMIT_AUTHOR: github-actions[bot]
+          EXAMPLES_PATH: examples
+        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples folder. 
+        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
         with:
-          name: jupyter-examples
-          path: examples/jupyter-src/${{ matrix.file-name }}*
-          
+          timeout_minutes: 999
+          max_attempts: 10
+          warning_on_retry: false
+          shell: bash
+          command: |
+            git fetch --all
+            git stash clear
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+            git switch examples
+            git reset --hard origin/examples
+            git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+            git stash apply --index
+            git stash drop
+            git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+            git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+            git config --global core.autocrlf false
+            git add ${{ env.EXAMPLES_PATH }}
+            git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+            git push origin examples || (git reset --soft HEAD~1 && (exit 1))
+
   pluto:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
-        
+        uses: actions/checkout@v4
+
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
@@ -78,84 +105,42 @@ jobs:
             
       - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
-      
-      - name: Archive examples artifacts (success)
-        if: success()
-        uses: actions/upload-artifact@v3
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/*
-          
-  filecheck: 
-    needs: [jypiter, pluto]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download jupyter examples
-        uses: actions/download-artifact@v3
-        with:
-          name: jupyter-examples
-          path: examples/jupyter-src/
-          
-      - name: Download pluto examples
-        uses: actions/download-artifact@v3
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/
-          
-      - name: Check if the example files generated are valid (if jupyter-examples failed, svgs are missing; jupyter command does not fail even if examples fail)
-        uses: andstor/file-existence-action@v3
-        with: 
-          files: "examples/jupyter-src/*/*.svg"
-          fail: true
-          
-  auto-commit:
-    needs: [jypiter, pluto, filecheck]
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
-        
-      - name: Download jupyter examples
-        uses: actions/download-artifact@v3
-        with:
-          name: jupyter-examples
-          path: examples/jupyter-src/
-      
-      - name: Download pluto examples
-        uses: actions/download-artifact@v3
-        with:
-          name: pluto-examples
-          path: examples/pluto-src/
-          
-      - name: auto-commit
+
+      - name: "auto-commit (retry on merge)"
+        if: success() && github.event_name != 'pull_request' && github.branch == 'main'
+        uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: Jupyter modified .ipynb & exported md files; Pluto static html exported files
+          CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples
-        # Fetch all and clear the stash list. Include all files from the examples/jupyter-src folder to the stash and switch the branch.
-        # Reset the branch and remove all current files in the examples/jupyter-src folder. 
+        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
+        # Reset the branch and remove all current files in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
-        run: |
-          git fetch --all
-          git stash clear
-          git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
-          git switch examples
-          git reset --hard origin/examples
-          rm -rf ${{ env.EXAMPLES_PATH }}
-          git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
-          git stash apply --index
-          git stash drop
-          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
-          git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
-          git config --global core.autocrlf false
-          git add ${{ env.EXAMPLES_PATH }}
-          git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
-          git push origin examples 
-          
+        with:
+          timeout_minutes: 999
+          max_attempts: 10
+          warning_on_retry: false
+          shell: bash
+          command: |
+            git fetch --all
+            git stash clear
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+            git switch examples
+            git reset --hard origin/examples
+            git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
+            git stash apply --index
+            git stash drop
+            git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+            git config --global user.email "${{ env.CI_COMMIT_AUTHOR }}@users.noreply.github.com"
+            git config --global core.autocrlf false
+            git pull
+            git add ${{ env.EXAMPLES_PATH }}
+            git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
+            git push origin examples || (git reset --soft HEAD~1 && (exit 1))
+
   call-docu:
-    needs: auto-commit
-    if: github.event_name != 'pull_request'
+    needs: [jupyter, pluto]
+    if: github.event_name != 'pull_request' && github.branch == 'main'
     runs-on: ubuntu-latest
     steps:
       # Trigger an repoisitory dispath event
