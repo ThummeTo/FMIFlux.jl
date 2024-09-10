@@ -23,12 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ''
 
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@latest
         with:
           version: '1' # 1.6
           arch: x64
@@ -47,7 +47,7 @@ jobs:
           cp ./README.md ./docs/src/index.md
 
       - name: "Install dependencies"
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.update()'
 
       - name: "Build and deploy"
         env:
