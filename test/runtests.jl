@@ -20,14 +20,14 @@ exportingToolsWindows =  [("Dymola", "2022x")] # [("ModelicaReferenceFMUs", "0.0
 exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
-global NUMSTEPS = 20
-global ETA = 1e-6
+global NUMSTEPS = 30
+global ETA = 1e-5
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
 global OPTIMISER = Descent
-global FAILED_GRADIENTS_QUOTA = 7/20
+global FAILED_GRADIENTS_QUOTA = 0.3
 
 # callback for bad optimization steps counter
 global FAILED_GRADIENTS = 0
