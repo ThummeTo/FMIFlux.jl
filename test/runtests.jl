@@ -21,7 +21,7 @@ exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 20
-global ETA = 1e-5
+global ETA = 1e-6
 global GRADIENT = nothing 
 global EXPORTINGTOOL = nothing 
 global EXPORTINGVERSION = nothing

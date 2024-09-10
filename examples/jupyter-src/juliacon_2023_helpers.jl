@@ -17,7 +17,7 @@ function singleInstanceMode(fmu::FMU2, mode::Bool)
         fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING
         c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate=true, setup=true, parameters=data.params, x0=x0)
     else
-        c = FMI.getCurrentComponent(fmu)
+        c = FMI.getCurrentInstance(fmu)
         # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
         fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NO_RESET
