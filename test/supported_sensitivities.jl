@@ -73,4 +73,4 @@ for fmu in fmus
     end
 end
 
-unloadFMU(fmu)
+unloadFMU.(fmus)
