@@ -152,7 +152,7 @@ mutable struct CS_NeuralFMU{F,C} <: NeuralFMU
     tspan::Any
 
     p::Union{AbstractArray{<:Real},Nothing}
-    re::Any # restrucure function
+    re::Any # restructure function
 
     snapshots::Bool
 
