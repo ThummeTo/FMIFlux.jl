@@ -18,21 +18,21 @@ s = ShiftScale(shift, scale)
 s = ShiftScale(inputArray)
 @test s(input) == [2.5, -0.8, -1.0]
 
-s = ShiftScale(inputArray; range=-1:1)
-for i in 1:length(inputArray)
-    res = s(collect(inputArray[j][i] for j in 1:length(inputArray[i])))
+s = ShiftScale(inputArray; range = -1:1)
+for i = 1:length(inputArray)
+    res = s(collect(inputArray[j][i] for j = 1:length(inputArray[i])))
     @test max(res...) <= 1
     @test min(res...) >= -1
 end
 
-s = ShiftScale(inputArray; range=-2:2)
-for i in 1:length(inputArray)
-    res = s(collect(inputArray[j][i] for j in 1:length(inputArray[i])))
+s = ShiftScale(inputArray; range = -2:2)
+for i = 1:length(inputArray)
+    res = s(collect(inputArray[j][i] for j = 1:length(inputArray[i])))
     @test max(res...) <= 2
     @test min(res...) >= -2
 end
 
-s = ShiftScale(inputArray; range=:NormalDistribution)
+s = ShiftScale(inputArray; range = :NormalDistribution)
 # ToDo: Test for :NormalDistribution
 
 # ScaleShift
@@ -44,8 +44,8 @@ s = ScaleShift(inputArray)
 
 p = ShiftScale(inputArray)
 s = ScaleShift(p)
-for i in 1:length(inputArray)
-    in = collect(inputArray[j][i] for j in 1:length(inputArray[i]))
+for i = 1:length(inputArray)
+    in = collect(inputArray[j][i] for j = 1:length(inputArray[i]))
     @test p(in) != in
     @test s(p(in)) == in
 end

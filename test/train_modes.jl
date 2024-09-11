@@ -7,7 +7,7 @@ using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 import FMIFlux.FMIImport: fmi2FreeInstance!
 
-import Random 
+import Random
 Random.seed!(5678);
 
 t_start = 0.0
@@ -19,20 +19,20 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type = :ME)
 
 # loss function for training
-losssum = function(p)
+losssum = function (p)
     global problem, X0, posData
-    solution = problem(X0; p=p, saveat=tData)
+    solution = problem(X0; p = p, saveat = tData)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
     #posNet = getState(solution, 1; isIndex=true)
-    velNet = getState(solution, 2; isIndex=true)
-    
+    velNet = getState(solution, 2; isIndex = true)
+
     return Flux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
@@ -41,7 +41,7 @@ vr = stringToValueReference(fmu, "mass.m")
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 # some NeuralFMU setups
-nets = [] 
+nets = []
 
 global comp
 comp = nothing
@@ -56,7 +56,7 @@ for handleEvents in [true, false]
 
             configstr = "$(config)"
             @testset "config: $(configstr[1:64])..." begin
-                
+
                 global problem, lastLoss, iterCB, comp
 
                 fmu.executionConfig = config
@@ -78,19 +78,21 @@ for handleEvents in [true, false]
                 c1 = CacheLayer()
                 c2 = CacheRetrieveLayer(c1)
 
-                net = Chain(states -> fmu(; x=states, dx_refs=:all),
-                            dx -> c1(dx),
-                            Dense(numStates, 16, tanh),
-                            Dense(16, 1, identity),
-                            dx -> c2(1, dx[1]) )
-                
+                net = Chain(
+                    states -> fmu(; x = states, dx_refs = :all),
+                    dx -> c1(dx),
+                    Dense(numStates, 16, tanh),
+                    Dense(16, 1, identity),
+                    dx -> c2(1, dx[1]),
+                )
+
                 optim = OPTIMISER(ETA)
                 solver = Tsit5()
 
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
-                
-                solutionBefore = problem(X0; saveat=tData)
+
+                solutionBefore = problem(X0; saveat = tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)
                     @test solutionBefore.states.t[1] == t_start
@@ -106,13 +108,19 @@ for handleEvents in [true, false]
                 @info "Start-Loss for net: $lastLoss"
 
                 lossBefore = losssum(p_net[1])
-                FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+                FMIFlux.train!(
+                    losssum,
+                    problem,
+                    Iterators.repeated((), NUMSTEPS),
+                    optim;
+                    gradient = GRADIENT,
+                )
                 lossAfter = losssum(p_net[1])
 
                 @test lossAfter < lossBefore
 
                 # check results
-                solutionAfter = problem(X0; saveat=tData)
+                solutionAfter = problem(X0; saveat = tData)
                 if solutionAfter.success
                     @test length(solutionAfter.states.t) == length(tData)
                     @test solutionAfter.states.t[1] == t_start
@@ -129,7 +137,7 @@ for handleEvents in [true, false]
                 # end
 
             end
-              
+
         end
     end
 end

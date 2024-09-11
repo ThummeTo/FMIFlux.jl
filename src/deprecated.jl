@@ -17,28 +17,30 @@ Optional, additional FMU-values can be retrieved by keyword argument `getValueRe
 Function takes the current system state array ("x") and returns an array with state derivatives ("x dot") and optionally the FMU-values for `getValueReferences`.
 Setting the FMU time via argument `t` is optional, if not set, the current time of the ODE solver around the NeuralFMU is used.
 """
-function fmi2EvaluateME(fmu::FMU2,
-        x::Array{<:Real},
-        t,#::Real,
-        setValueReferences::Union{Array{fmi2ValueReference}, Nothing}=nothing,
-        setValues::Union{Array{<:Real}, Nothing}=nothing,
-        getValueReferences::Union{Array{fmi2ValueReference}, Nothing}=nothing) 
+function fmi2EvaluateME(
+    fmu::FMU2,
+    x::Array{<:Real},
+    t,#::Real,
+    setValueReferences::Union{Array{fmi2ValueReference},Nothing} = nothing,
+    setValues::Union{Array{<:Real},Nothing} = nothing,
+    getValueReferences::Union{Array{fmi2ValueReference},Nothing} = nothing,
+)
 
     y = nothing
     y_refs = getValueReferences
     u = setValues
     u_refs = setValueReferences
-    
+
     if y_refs != nothing
         y = zeros(length(y_refs))
     end
-    
+
     dx = zeros(length(x))
 
     c = fmu.components[end]
 
-    y, dx = c(dx=dx, y=y, y_refs=y_refs, x=x, u=u, u_refs=u_refs, t=t)
-    
+    y, dx = c(dx = dx, y = y, y_refs = y_refs, x = x, u = u, u_refs = u_refs, t = t)
+
     return [(dx == nothing ? [] : dx)..., (y == nothing ? [] : y)...]
 end
 export fmi2EvaluateME
@@ -48,16 +50,15 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2EvaluateME``` for more information.
 """
-function fmiEvaluateME(str::FMI2Struct, 
-                     x::Array{<:Real}, 
-                     t::Real = (typeof(str) == FMU2 ? str.components[end].t : str.t),
-                     setValueReferences::Union{Array{fmi2ValueReference}, Nothing} = nothing, 
-                     setValues::Union{Array{<:Real}, Nothing} = nothing, 
-                     getValueReferences::Union{Array{fmi2ValueReference}, Nothing} = nothing )
-    fmi2EvaluateME(str, x, t,
-                setValueReferences,
-                setValues,
-                getValueReferences)
+function fmiEvaluateME(
+    str::FMI2Struct,
+    x::Array{<:Real},
+    t::Real = (typeof(str) == FMU2 ? str.components[end].t : str.t),
+    setValueReferences::Union{Array{fmi2ValueReference},Nothing} = nothing,
+    setValues::Union{Array{<:Real},Nothing} = nothing,
+    getValueReferences::Union{Array{fmi2ValueReference},Nothing} = nothing,
+)
+    fmi2EvaluateME(str, x, t, setValueReferences, setValues, getValueReferences)
 end
 export fmiEvaluateME
 
@@ -66,11 +67,13 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2DoStepCS``` for more information.
 """
-function fmiDoStepCS(str::FMI2Struct, 
-                     dt::Real,
-                     setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0), 
-                     setValues::Array{<:Real} = zeros(Real, 0),
-                     getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
+function fmiDoStepCS(
+    str::FMI2Struct,
+    dt::Real,
+    setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
+    setValues::Array{<:Real} = zeros(Real, 0),
+    getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
+)
     fmi2DoStepCS(str, dt, setValueReferences, setValues, getValueReferences)
 end
 export fmiDoStepCS
@@ -80,9 +83,7 @@ DEPRECATED:
 
 Wrapper. Call ```fmi2InputDoStepCSOutput``` for more information.
 """
-function fmiInputDoStepCSOutput(str::FMI2Struct, 
-                                dt::Real, 
-                                u::Array{<:Real})
+function fmiInputDoStepCSOutput(str::FMI2Struct, dt::Real, u::Array{<:Real})
     fmi2InputDoStepCSOutput(str, dt, u)
 end
 export fmiInputDoStepCSOutput
@@ -96,11 +97,11 @@ DEPRECATED:
 
 Sets all FMU inputs to `u`, performs a ´´´fmi2DoStep´´´ and returns all FMU outputs.
 """
-function fmi2InputDoStepCSOutput(fmu::FMU2, 
-                                 dt::Real, 
-                                 u::Array{<:Real})
-                                 
-    @assert fmi2IsCoSimulation(fmu) ["fmi2InputDoStepCSOutput(...): As in the name, this function only supports CS-FMUs."]
+function fmi2InputDoStepCSOutput(fmu::FMU2, dt::Real, u::Array{<:Real})
+
+    @assert fmi2IsCoSimulation(fmu) [
+        "fmi2InputDoStepCSOutput(...): As in the name, this function only supports CS-FMUs.",
+    ]
 
     # fmi2DoStepCS(fmu, dt,
     #              fmu.modelDescription.inputValueReferences,
@@ -112,8 +113,8 @@ function fmi2InputDoStepCSOutput(fmu::FMU2,
     y = zeros(length(y_refs))
 
     c = fmu.components[end]
-    
-    y, _ = c(y=y, y_refs=y_refs, u=u, u_refs=u_refs)
+
+    y, _ = c(y = y, y_refs = y_refs, u = u, u_refs = u_refs)
 
     # ignore_derivatives() do
     #     fmi2DoStep(c, dt)
@@ -123,11 +124,13 @@ function fmi2InputDoStepCSOutput(fmu::FMU2,
 end
 export fmi2InputDoStepCSOutput
 
-function fmi2DoStepCS(fmu::FMU2, 
+function fmi2DoStepCS(
+    fmu::FMU2,
     dt::Real,
     setValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
     setValues::Array{<:Real} = zeros(Real, 0),
-    getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0))
+    getValueReferences::Array{fmi2ValueReference} = zeros(fmi2ValueReference, 0),
+)
 
     y_refs = setValueReferences
     u_refs = getValueReferences
@@ -135,8 +138,8 @@ function fmi2DoStepCS(fmu::FMU2,
     u = setValues
 
     c = fmu.components[end]
-    
-    y, _ = c(y=y, y_refs=y_refs, u=u, u_refs=u_refs)
+
+    y, _ = c(y = y, y_refs = y_refs, u = u, u_refs = u_refs)
 
     # ignore_derivatives() do
     #     fmi2DoStep(c, dt)
