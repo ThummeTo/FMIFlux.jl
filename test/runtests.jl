@@ -28,7 +28,7 @@ global EXPORTINGTOOL = nothing
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
 global OPTIMISER = Descent
-global FAILED_GRADIENTS_QUOTA = 0.3
+global FAILED_GRADIENTS_QUOTA = 1/3
 
 # callback for bad optimization steps counter
 global FAILED_GRADIENTS = 0

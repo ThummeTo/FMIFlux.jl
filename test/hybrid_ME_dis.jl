@@ -71,8 +71,8 @@ net2 = function ()
     net = Chain(
         x -> fmu(; x = x, dx_refs = :all),
         x -> c3(x),
-        Dense(numStates, 16, tanh; init = init),
-        Dense(16, 16, tanh; init = init),
+        Dense(numStates, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
         Dense(16, 1, tanh; init = init),
         x -> c4(1, x[1]),
     )

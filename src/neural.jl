@@ -631,7 +631,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
 
     #@assert at_least_one_state_change "Sampling state change jacobian failed, can't find another state that triggers the event!"
     if !at_least_one_state_change
-        @warn "Sampling state change jacobian failed, can't find another state that triggers the event!\ncommon reasons for that are:\n(a) The FMU is not able to revisit events (which should be possible with fmiXGet/SetState).\n(b) The state change is not dependent on the previous state (hard reset).\nThis is printed only 3 times." maxlog =
+        @info "Sampling state change jacobian failed, can't find another state that triggers the event!\ncommon reasons for that are:\n(a) The FMU is not able to revisit events (which should be possible with fmiXGet/SetState).\n(b) The state change is not dependent on the previous state (hard reset).\nThis is printed only 3 times." maxlog =
             3
     end
 
