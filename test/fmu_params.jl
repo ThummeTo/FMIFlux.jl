@@ -6,7 +6,7 @@
 using Flux
 using DifferentialEquations: Tsit5
 
-import Random 
+import Random
 Random.seed!(1234);
 
 t_start = 0.0
@@ -19,7 +19,7 @@ posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
 # [TODO] Replace by a suitable discontinuous FMU
-fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type = :ME)
 
 using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
@@ -33,25 +33,24 @@ p_refs = fmu.modelDescription.parameterValueReferences
 p = fmi2GetReal(c, p_refs)
 
 # loss function for training
-losssum = function(p)
+losssum = function (p)
     #@info "$p"
     global problem, X0, posData, solution
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p = p, showProgress = true, saveat = tData)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
-    posNet = getState(solution, 1; isIndex=true)
-    
+    posNet = getState(solution, 1; isIndex = true)
+
     return Flux.Losses.mse(posNet, posData)
 end
 
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 # the "Chain" for training
-net = Chain(FMUParameterRegistrator(fmu, p_refs, p),
-            x -> fmu(x=x, dx_refs=:all)) # , fmuLayer(p))
+net = Chain(FMUParameterRegistrator(fmu, p_refs, p), x -> fmu(x = x, dx_refs = :all)) # , fmuLayer(p))
 
 optim = OPTIMISER(ETA)
 solver = Tsit5()
@@ -60,7 +59,7 @@ problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
 problem.modifiedState = false
 @test problem != nothing
 
-solutionBefore = problem(X0; saveat=tData)
+solutionBefore = problem(X0; saveat = tData)
 @test solutionBefore.success
 @test length(solutionBefore.states.t) == length(tData)
 @test solutionBefore.states.t[1] == t_start
@@ -79,10 +78,16 @@ lossBefore = losssum(p_net[1])
 # j_fwd = ForwardDiff.gradient(losssum, p_net[1])
 # j_rwd = ReverseDiff.gradient(losssum, p_net[1])
 
-FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(
+    losssum,
+    problem,
+    Iterators.repeated((), NUMSTEPS),
+    optim;
+    gradient = GRADIENT,
+)
 
 # check results
-solutionAfter = problem(X0; saveat=tData)
+solutionAfter = problem(X0; saveat = tData)
 @test solutionAfter.success
 @test length(solutionAfter.states.t) == length(tData)
 @test solutionAfter.states.t[1] == t_start

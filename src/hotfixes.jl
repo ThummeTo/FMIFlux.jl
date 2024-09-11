@@ -24,24 +24,41 @@ end
 # https://github.com/SciML/DiffEqBase.jl/blob/c7d949e062d9f382e6ef289d6d28e3c53e7202bc/src/internal_itp.jl#L13
 using FMISensitivity.SciMLSensitivity.SciMLBase
 using FMISensitivity.SciMLSensitivity.DiffEqBase
-using FMISensitivity.SciMLSensitivity.DiffEqBase: InternalITP, nextfloat_tdir, prevfloat_tdir, ReturnCode
+using FMISensitivity.SciMLSensitivity.DiffEqBase:
+    InternalITP, nextfloat_tdir, prevfloat_tdir, ReturnCode
 import FMISensitivity.SciMLSensitivity.SciMLBase: solve
-function SciMLBase.solve(prob::IntervalNonlinearProblem{IP, Tuple{T, T2}}, alg::InternalITP,
+function SciMLBase.solve(
+    prob::IntervalNonlinearProblem{IP,Tuple{T,T2}},
+    alg::InternalITP,
     args...;
-    maxiters = 1000, kwargs...) where {IP, T, T2}
+    maxiters = 1000,
+    kwargs...,
+) where {IP,T,T2}
 
     f = Base.Fix2(prob.f, prob.p)
     left, right = prob.tspan # a and b
     fl, fr = f(left), f(right)
     ϵ = eps(T)
     if iszero(fl)
-        return SciMLBase.build_solution(prob, alg, left, fl;
-            retcode = ReturnCode.ExactSolutionLeft, left = left,
-            right = right)
+        return SciMLBase.build_solution(
+            prob,
+            alg,
+            left,
+            fl;
+            retcode = ReturnCode.ExactSolutionLeft,
+            left = left,
+            right = right,
+        )
     elseif iszero(fr)
-        return SciMLBase.build_solution(prob, alg, right, fr;
-            retcode = ReturnCode.ExactSolutionRight, left = left,
-            right = right)
+        return SciMLBase.build_solution(
+            prob,
+            alg,
+            right,
+            fr;
+            retcode = ReturnCode.ExactSolutionRight,
+            left = left,
+            right = right,
+        )
     end
     #defining variables/cache
     k1 = T(alg.k1)
@@ -96,20 +113,39 @@ function SciMLBase.solve(prob::IntervalNonlinearProblem{IP, Tuple{T, T2}}, alg::
         else
             left = prevfloat_tdir(xp, prob.tspan...)
             right = xp
-            return SciMLBase.build_solution(prob, alg, left, f(left);
-                retcode = ReturnCode.Success, left = left,
-                right = right)
+            return SciMLBase.build_solution(
+                prob,
+                alg,
+                left,
+                f(left);
+                retcode = ReturnCode.Success,
+                left = left,
+                right = right,
+            )
         end
         i += 1
         mid = (left + right) / 2
         ϵ_s /= 2
 
         if nextfloat_tdir(left, prob.tspan...) == right
-            return SciMLBase.build_solution(prob, alg, left, fl;
-                retcode = ReturnCode.FloatingPointLimit, left = left,
-                right = right)
+            return SciMLBase.build_solution(
+                prob,
+                alg,
+                left,
+                fl;
+                retcode = ReturnCode.FloatingPointLimit,
+                left = left,
+                right = right,
+            )
         end
     end
-    return SciMLBase.build_solution(prob, alg, left, fl; retcode = ReturnCode.MaxIters,
-        left = left, right = right)
+    return SciMLBase.build_solution(
+        prob,
+        alg,
+        left,
+        fl;
+        retcode = ReturnCode.MaxIters,
+        left = left,
+        right = right,
+    )
 end

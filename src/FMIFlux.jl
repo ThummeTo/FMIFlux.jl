@@ -14,7 +14,8 @@ import FMISensitivity.FiniteDiff
 @debug "Debugging messages enabled for FMIFlux ..."
 
 if VERSION < v"1.7.0"
-    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer." maxlog=1
+    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer." maxlog =
+        1
 end
 
 import FMIImport.FMIBase: hasCurrentInstance, getCurrentInstance, unsense
@@ -57,7 +58,8 @@ export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
 export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # scheduler.jl
-export WorstElementScheduler, WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler
+export WorstElementScheduler,
+    WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler
 
 # batch.jl 
 export batchDataSolution, batchDataEvaluation

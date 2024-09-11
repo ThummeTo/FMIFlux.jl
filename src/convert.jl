@@ -6,8 +6,8 @@
 function is64(model::Flux.Chain)
     params = Flux.params(model)
 
-    for i in 1:length(params)
-        for j in 1:length(params[i])
+    for i = 1:length(params)
+        for j = 1:length(params[i])
             if !isa(params[i][j], Float64)
                 return false
             end

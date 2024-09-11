@@ -6,7 +6,7 @@
 using Flux
 using DifferentialEquations: Tsit5, Rosenbrock23
 
-import Random 
+import Random
 Random.seed!(5678);
 
 t_start = 0.0
@@ -18,27 +18,27 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for training
-fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringFrictionPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type = :ME)
 
 # loss function for training
-losssum = function(p)
+losssum = function (p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=true, saveat=tData)
+    solution = problem(X0; p = p, showProgress = true, saveat = tData)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
     # posNet = getState(solution, 1; isIndex=true)
-    velNet = getState(solution, 2; isIndex=true)
-    
+    velNet = getState(solution, 2; isIndex = true)
+
     return FMIFlux.Losses.mse(velNet, velData) # Flux.Losses.mse(posNet, posData)
 end
 
 # callback function for training
 global iterCB = 0
 global lastLoss = 0.0
-callb = function(p)
+callb = function (p)
     global iterCB += 1
     global lastLoss
 
@@ -63,26 +63,28 @@ c3 = CacheLayer()
 c4 = CacheRetrieveLayer(c3)
 
 # 1. Discontinuous ME-NeuralFMU (learn dynamics and states)
-net = Chain(x -> c1(x),
-            Dense(numStates, 16, tanh),
-            Dense(16, 1, identity),
-            x -> c2(x[1], 1),
-            x -> fmu(;x=x, dx_refs=:all), 
-            x -> c3(x),
-            Dense(numStates, 16, tanh),
-            Dense(16, 16, tanh),
-            Dense(16, 1, identity),
-            x -> c4(1, x[1]))
+net = Chain(
+    x -> c1(x),
+    Dense(numStates, 16, tanh),
+    Dense(16, 1, identity),
+    x -> c2(x[1], 1),
+    x -> fmu(; x = x, dx_refs = :all),
+    x -> c3(x),
+    Dense(numStates, 16, tanh),
+    Dense(16, 16, tanh),
+    Dense(16, 1, identity),
+    x -> c4(1, x[1]),
+)
 push!(nets, net)
 
-for i in 1:length(nets)
+for i = 1:length(nets)
     @testset "Net setup $(i)/$(length(nets))" begin
         global nets, problem, lastLoss, iterCB
 
         net = nets[i]
         solver = Tsit5()
-        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
-        
+        problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat = tData)
+
         @test problem !== nothing
 
         solutionBefore = problem(X0)
@@ -105,20 +107,36 @@ for i in 1:length(nets)
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
-        dt = round(time()-st; digits=2)
+        FMIFlux.train!(
+            losssum,
+            problem,
+            Iterators.repeated((), NUMSTEPS),
+            optim;
+            cb = () -> callb(p_net),
+            multiThreading = false,
+            gradient = GRADIENT,
+        )
+        dt = round(time() - st; digits = 2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
         p_net[1][:] = p_start[:]
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
-        FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; cb=()->callb(p_net), multiThreading=false, gradient=GRADIENT)
-        dt = round(time()-st; digits=2)
+        FMIFlux.train!(
+            losssum,
+            problem,
+            Iterators.repeated((), NUMSTEPS),
+            optim;
+            cb = () -> callb(p_net),
+            multiThreading = false,
+            gradient = GRADIENT,
+        )
+        dt = round(time() - st; digits = 2)
         @info "Training time single threaded (pre-compiled): $(dt)s"
 
         # [ToDo] currently not implemented 
-        
+
         # p_net[1][:] = p_start[:]
         # lastLoss = startLoss
         # st = time()

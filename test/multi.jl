@@ -6,7 +6,7 @@
 using Flux
 using DifferentialEquations: Tsit5
 
-import Random 
+import Random
 Random.seed!(1234);
 
 t_start = 0.0
@@ -18,45 +18,49 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # setup traing data
-extForce = function(t)
+extForce = function (t)
     return [sin(t), cos(t)]
 end
 
 # loss function for training
-losssum = function(p)
-    solution = problem(extForce, t_step; p=p)
+losssum = function (p)
+    solution = problem(extForce, t_step; p = p)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
-    accNet = getValue(solution, 1; isIndex=true)
+    accNet = getValue(solution, 1; isIndex = true)
 
     FMIFlux.Losses.mse(accNet, accData)
 end
 
 # Load FMUs
 fmus = Vector{FMU2}()
-for i in 1:2 # how many FMUs do you want?
-    _fmu = loadFMU("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:CS)
+for i = 1:2 # how many FMUs do you want?
+    _fmu = loadFMU("SpringPendulumExtForce1D", EXPORTINGTOOL, EXPORTINGVERSION; type = :CS)
     push!(fmus, _fmu)
 end
 
 # NeuralFMU setup
-total_fmu_outdim = sum(map(x->length(x.modelDescription.outputValueReferences), fmus))
+total_fmu_outdim = sum(map(x -> length(x.modelDescription.outputValueReferences), fmus))
 
-evalFMU = function(i, u)
-    fmus[i](;u_refs=fmus[i].modelDescription.inputValueReferences, u=u, y_refs=fmus[i].modelDescription.outputValueReferences)
+evalFMU = function (i, u)
+    fmus[i](;
+        u_refs = fmus[i].modelDescription.inputValueReferences,
+        u = u,
+        y_refs = fmus[i].modelDescription.outputValueReferences,
+    )
 end
 net = Chain(
-    Parallel(
-        vcat,
-        inputs -> evalFMU(1, inputs[1:1]),
-        inputs -> evalFMU(2, inputs[2:2])
+    Parallel(vcat, inputs -> evalFMU(1, inputs[1:1]), inputs -> evalFMU(2, inputs[2:2])),
+    Dense(total_fmu_outdim, 16, tanh; init = Flux.identity_init),
+    Dense(16, 16, tanh; init = Flux.identity_init),
+    Dense(
+        16,
+        length(fmus[1].modelDescription.outputValueReferences);
+        init = Flux.identity_init,
     ),
-    Dense(total_fmu_outdim, 16, tanh; init=Flux.identity_init),
-    Dense(16, 16, tanh; init=Flux.identity_init),
-    Dense(16, length(fmus[1].modelDescription.outputValueReferences); init=Flux.identity_init),
 )
 
 problem = CS_NeuralFMU(fmus, net, (t_start, t_stop))
@@ -70,13 +74,19 @@ p_net = Flux.params(problem)
 optim = OPTIMISER(ETA)
 
 lossBefore = losssum(p_net[1])
-FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(
+    losssum,
+    problem,
+    Iterators.repeated((), NUMSTEPS),
+    optim;
+    gradient = GRADIENT,
+)
 lossAfter = losssum(p_net[1])
 @test lossAfter < lossBefore
 
 # check results
 solutionAfter = problem(extForce, t_step)
 
-for i in 1:length(fmus)
+for i = 1:length(fmus)
     unloadFMU(fmus[i])
 end

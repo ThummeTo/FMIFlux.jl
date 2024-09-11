@@ -6,7 +6,7 @@
 using Flux
 using DifferentialEquations
 
-import Random 
+import Random
 Random.seed!(1234);
 
 t_start = 0.0
@@ -17,20 +17,20 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData = collect(abs(cos(u .* 1.0)) for u in tData) * 2.0
 
-fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type=:ME)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME)
 
 # loss function for training
-losssum = function(p)
+losssum = function (p)
     global problem, X0, posData
-    solution = problem(X0; p=p, saveat=tData)
+    solution = problem(X0; p = p, saveat = tData)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
-    posNet = getState(solution, 1; isIndex=true)
+    posNet = getState(solution, 1; isIndex = true)
     #velNet = getState(solution, 2; isIndex=true)
-    
+
     return Flux.Losses.mse(posNet, posData) #+ Flux.Losses.mse(velNet, velData) 
 end
 
@@ -53,99 +53,117 @@ numSetVRs = length(setVRs)
 setVal = [0.8]
 
 # 1. default ME-NeuralFMU (learn dynamics and states, almost-neutral setup, parameter count << 100)
-net1 = function()
-    net = Chain(x -> c1(x),
-                Dense(numStates, 1, tanh; init=init),
-                x -> c2(x[1], 1),
-                x -> fmu(;x=x, dx_refs=:all), 
-                x -> c3(x),
-                Dense(numStates, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net1 = function ()
+    net = Chain(
+        x -> c1(x),
+        Dense(numStates, 1, tanh; init = init),
+        x -> c2(x[1], 1),
+        x -> fmu(; x = x, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net1)
 
 # 2. default ME-NeuralFMU (learn dynamics)
-net2 = function()
-    net = Chain(x -> fmu(;x=x, dx_refs=:all), 
-                x -> c3(x),
-                Dense(numStates, 16, tanh; init=init),
-                Dense(16, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net2 = function ()
+    net = Chain(
+        x -> fmu(; x = x, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates, 16, tanh; init = init),
+        Dense(16, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net2)
 
 # 3. default ME-NeuralFMU (learn states)
-net3 = function()
-    net = Chain(x -> c1(x),
-                Dense(numStates, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c2(x[1], 1),
-                x -> fmu(;x=x, dx_refs=:all))
+net3 = function ()
+    net = Chain(
+        x -> c1(x),
+        Dense(numStates, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c2(x[1], 1),
+        x -> fmu(; x = x, dx_refs = :all),
+    )
 end
 push!(nets, net3)
 
 # 4. default ME-NeuralFMU (learn dynamics and states)
-net4 = function()
-    net = Chain(x -> c1(x),
-                Dense(numStates, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c2(x[1], 1),
-                x -> fmu(;x=x, dx_refs=:all), 
-                x -> c3(x),
-                Dense(numStates, 16, tanh, init=init),
-                Dense(16, 1, tanh, init=init),
-                x -> c4(1, x[1]))
+net4 = function ()
+    net = Chain(
+        x -> c1(x),
+        Dense(numStates, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c2(x[1], 1),
+        x -> fmu(; x = x, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates, 8, tanh, init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh, init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net4)
 
 # 5. NeuralFMU with hard setting time to 0.0
-net5 = function()
-    net = Chain(states -> fmu(;x=states, t=0.0, dx_refs=:all),
-                x -> c3(x),
-                Dense(numStates, 8, tanh; init=init),
-                Dense(8, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net5 = function ()
+    net = Chain(
+        states -> fmu(; x = states, t = 0.0, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net5)
 
 # 6. NeuralFMU with additional getter 
-net6 = function()
-    net = Chain(x -> fmu(;x=x, y_refs=getVRs, dx_refs=:all), 
-                x -> c3(x),
-                Dense(numStates+numGetVRs, 8, tanh; init=init),
-                Dense(8, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net6 = function ()
+    net = Chain(
+        x -> fmu(; x = x, y_refs = getVRs, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates + numGetVRs, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net6)
 
 # 7. NeuralFMU with additional setter 
-net7 = function()
-    net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, dx_refs=:all), 
-                x -> c3(x),
-                Dense(numStates, 8, tanh; init=init),
-                Dense(8, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net7 = function ()
+    net = Chain(
+        x -> fmu(; x = x, u_refs = setVRs, u = setVal, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net7)
 
 # 8. NeuralFMU with additional setter and getter
-net8 = function()
-    net = Chain(x -> fmu(;x=x, u_refs=setVRs, u=setVal, y_refs=getVRs, dx_refs=:all),
-                x -> c3(x),
-                Dense(numStates+numGetVRs, 8, tanh; init=init),
-                Dense(8, 16, tanh; init=init),
-                Dense(16, 1, tanh; init=init),
-                x -> c4(1, x[1]))
+net8 = function ()
+    net = Chain(
+        x -> fmu(; x = x, u_refs = setVRs, u = setVal, y_refs = getVRs, dx_refs = :all),
+        x -> c3(x),
+        Dense(numStates + numGetVRs, 8, tanh; init = init),
+        Dense(8, 16, tanh; init = init),
+        Dense(16, 1, tanh; init = init),
+        x -> c4(1, x[1]),
+    )
 end
 push!(nets, net8)
 
 # 9. an empty NeuralFMU (this does only make sense for debugging)
-net9 = function()
-    net = Chain(x -> fmu(x=x, dx_refs=:all))
+net9 = function ()
+    net = Chain(x -> fmu(x = x, dx_refs = :all))
 end
 push!(nets, net9)
 
@@ -153,7 +171,7 @@ solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
-        for i in 1:length(nets)
+        for i = 1:length(nets)
             @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
@@ -173,22 +191,22 @@ for solver in solvers
                 maxtries = 1000
                 while true
                     net = net_constructor()
-                    problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver) 
-                    
+                    problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
+
                     if i ∈ (1, 3, 4)
                         problem.modifiedState = true
                     end
 
                     p_net = Flux.params(problem)
-                    solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+                    solutionBefore = problem(X0; p = p_net[1], saveat = tData)
                     ne = length(solutionBefore.events)
 
                     if ne > 0 && ne <= 10
-                        break 
+                        break
                     else
                         if tries >= maxtries
                             @warn "Solution before did not trigger an acceptable event count (=$(ne) ∉ [1,10]) for net $(i)! Can't find a valid start configuration ($(maxtries) tries)!"
-                            break 
+                            break
                         end
                         tries += 1
                     end
@@ -200,7 +218,7 @@ for solver in solvers
                 p_net = Flux.params(problem)
                 @test length(p_net) == 1
 
-                solutionBefore = problem(X0; p=p_net[1], saveat=tData)
+                solutionBefore = problem(X0; p = p_net[1], saveat = tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)
                     @test solutionBefore.states.t[1] == t_start
@@ -213,20 +231,27 @@ for solver in solvers
                 if length(p_net[1]) == 0
                     @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
                 end
-                
+
                 FAILED_GRADIENTS = 0
-                FMIFlux.train!(losssum, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, cb=()->callback(p_net))
+                FMIFlux.train!(
+                    losssum,
+                    problem,
+                    Iterators.repeated((), NUMSTEPS),
+                    optim;
+                    gradient = GRADIENT,
+                    cb = () -> callback(p_net),
+                )
                 @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
                 @test FAILED_GRADIENTS <= FAILED_GRADIENTS_QUOTA * NUMSTEPS
 
                 # check results
-                solutionAfter = problem(X0; p=p_net[1], saveat=tData)
+                solutionAfter = problem(X0; p = p_net[1], saveat = tData)
                 if solutionAfter.success
                     @test length(solutionAfter.states.t) == length(tData)
                     @test solutionAfter.states.t[1] == t_start
                     @test solutionAfter.states.t[end] == t_stop
                 end
-                
+
                 # fig = plot(solutionAfter; title="Net $(i) - $(FAILED_GRADIENTS) / $(FAILED_GRADIENTS_QUOTA * NUMSTEPS)")
                 # plot!(fig, tData, posData)
                 # display(fig)

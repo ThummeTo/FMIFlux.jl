@@ -7,7 +7,14 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local iv = try
+            Base.loaded_modules[Base.PkgId(
+                Base.UUID("6e696c72-6542-2067-7265-42206c756150"),
+                "AbstractPlutoDingetjes",
+            )].Bonds.initial_value
+        catch
+            b -> missing
+        end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
@@ -39,7 +46,7 @@ using ProgressLogging: @withprogress, @logprogress, @progressid, uuid4
 using BenchmarkTools # default benchmarking library
 
 # ╔═╡ 45c4b9dd-0b04-43ae-a715-cd120c571424
-using Plots 
+using Plots
 
 # ╔═╡ 1470df0f-40e1-45d5-a4cc-519cc3b28fb8
 md"""
@@ -185,146 +192,199 @@ data_train = FMIZoo.RobotRR(:train)
 
 # ╔═╡ 33223393-bfb9-4e9a-8ea6-a3ab6e2f22aa
 begin
-	
-# define the printing messages used at different places in this notebook
-LIVE_RESULTS_MESSAGE = md"""ℹ️ Live plotting is disabled to safe performance. Checkbox `Plot Results`."""
-LIVE_TRAIN_MESSAGE = md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
-BENCHMARK_MESSAGE = md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
-HIDDEN_CODE_MESSAGE = md"""> 👻 Hidden Code | You probably want to skip this code section on the first run."""
 
-import FMI.FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, FMU2Solution
-import Random 
-	
-function fmiSingleInstanceMode!(fmu::FMU2, 
-	mode::Bool, 
-	params=FMIZoo.getParameter(data_train, 0.0; friction=false), 
-	x0=FMIZoo.getState(data_train, 0.0))
+    # define the printing messages used at different places in this notebook
+    LIVE_RESULTS_MESSAGE =
+        md"""ℹ️ Live plotting is disabled to safe performance. Checkbox `Plot Results`."""
+    LIVE_TRAIN_MESSAGE =
+        md"""ℹ️ Live training is disabled to safe performance. Checkbox `Start Training`."""
+    BENCHMARK_MESSAGE =
+        md"""ℹ️ Live benchmarks are disabled to safe performance. Checkbox `Start Benchmark`."""
+    HIDDEN_CODE_MESSAGE =
+        md"""> 👻 Hidden Code | You probably want to skip this code section on the first run."""
 
-	fmu.executionConfig = deepcopy(FMU2_EXECUTION_CONFIGURATION_NO_RESET)
+    import FMI.FMIImport.FMICore: hasCurrentComponent, getCurrentComponent, FMU2Solution
+    import Random
 
-	# for this model, state events are generated but don't need to be handled,
-	# we can skip that to gain performance
-    fmu.executionConfig.handleStateEvents = false
+    function fmiSingleInstanceMode!(
+        fmu::FMU2,
+        mode::Bool,
+        params = FMIZoo.getParameter(data_train, 0.0; friction = false),
+        x0 = FMIZoo.getState(data_train, 0.0),
+    )
 
-	fmu.executionConfig.loggingOn = false
-	#fmu.executionConfig.externalCallbacks = true
+        fmu.executionConfig = deepcopy(FMU2_EXECUTION_CONFIGURATION_NO_RESET)
 
-    if mode 
-        # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
-        # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
-        fmu.executionConfig.terminate = true
-        fmu.executionConfig.instantiate = false
-        fmu.executionConfig.reset = true
-        fmu.executionConfig.setup = true
-        fmu.executionConfig.freeInstance = false
-        c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type, true, # instantiate 
-                                                    false, # free 
-                                                    true, # terminate 
-                                                     true, # reset 
-                                                     true, # setup
-                                                     params; x0=x0)
-    else
-		if !hasCurrentComponent(fmu)
-        	return nothing
-		end
-		c = getCurrentComponent(fmu)
-        # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
-        # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
-        fmu.executionConfig.terminate = true 
-        fmu.executionConfig.instantiate = true
-        fmu.executionConfig.reset = true
-        fmu.executionConfig.setup = true
-        fmu.executionConfig.freeInstance = true
-        FMIFlux.finishSolveFMU(fmu, c, true, # free 
-                                            true) # terminate
+        # for this model, state events are generated but don't need to be handled,
+        # we can skip that to gain performance
+        fmu.executionConfig.handleStateEvents = false
+
+        fmu.executionConfig.loggingOn = false
+        #fmu.executionConfig.externalCallbacks = true
+
+        if mode
+            # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
+            # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
+            fmu.executionConfig.terminate = true
+            fmu.executionConfig.instantiate = false
+            fmu.executionConfig.reset = true
+            fmu.executionConfig.setup = true
+            fmu.executionConfig.freeInstance = false
+            c, _ = FMIFlux.prepareSolveFMU(
+                fmu,
+                nothing,
+                fmu.type,
+                true, # instantiate 
+                false, # free 
+                true, # terminate 
+                true, # reset 
+                true, # setup
+                params;
+                x0 = x0,
+            )
+        else
+            if !hasCurrentComponent(fmu)
+                return nothing
+            end
+            c = getCurrentComponent(fmu)
+            # switch back to the default execution configuration, allocate a new FMU instance for every run, see:
+            # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
+            fmu.executionConfig.terminate = true
+            fmu.executionConfig.instantiate = true
+            fmu.executionConfig.reset = true
+            fmu.executionConfig.setup = true
+            fmu.executionConfig.freeInstance = true
+            FMIFlux.finishSolveFMU(
+                fmu,
+                c,
+                true, # free 
+                true,
+            ) # terminate
+        end
+        return nothing
     end
-    return nothing
-end
 
-	function prepareSolveFMU(fmu, parameters)
-		FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type,
-			fmu.executionConfig.instantiate, 
-	    	fmu.executionConfig.freeInstance, 
-	   		fmu.executionConfig.terminate, 
-	    	fmu.executionConfig.reset, 
-	    	fmu.executionConfig.setup, 
-	    	parameters)
-	end
+    function prepareSolveFMU(fmu, parameters)
+        FMIFlux.prepareSolveFMU(
+            fmu,
+            nothing,
+            fmu.type,
+            fmu.executionConfig.instantiate,
+            fmu.executionConfig.freeInstance,
+            fmu.executionConfig.terminate,
+            fmu.executionConfig.reset,
+            fmu.executionConfig.setup,
+            parameters,
+        )
+    end
 
-function dividePath(values)
-	last_value = values[1]
-	paths = []
-	path = []
-	for j in 1:length(values)
-		if values[j] == 1.0
-			push!(path, j)
-		end
+    function dividePath(values)
+        last_value = values[1]
+        paths = []
+        path = []
+        for j = 1:length(values)
+            if values[j] == 1.0
+                push!(path, j)
+            end
 
-		if values[j] == 0.0 && last_value != 0.0
-			push!(path, j)
-			push!(paths, path)
-			path = []
-		end
+            if values[j] == 0.0 && last_value != 0.0
+                push!(path, j)
+                push!(paths, path)
+                path = []
+            end
 
-		last_value = values[j]
-	end
-	if length(path) > 0
-		push!(paths, path)
-	end
-	return paths
-end
+            last_value = values[j]
+        end
+        if length(path) > 0
+            push!(paths, path)
+        end
+        return paths
+    end
 
-function plotRobot(solution::FMU2Solution, t::Real)
-	x = solution.states(t)
-	a1 = x[5]
-	a2 = x[3]
+    function plotRobot(solution::FMU2Solution, t::Real)
+        x = solution.states(t)
+        a1 = x[5]
+        a2 = x[3]
 
-	dt = 0.01
-	i = 1+round(Integer, t/dt)
-	v = solution.values.saveval[i]
+        dt = 0.01
+        i = 1 + round(Integer, t / dt)
+        v = solution.values.saveval[i]
 
-	l1 = 0.2
-	l2 = 0.1
+        l1 = 0.2
+        l2 = 0.1
 
-	margin = 0.05
-	scale = 1500
-	fig = plot(; title="Time $(round(t; digits=1))s",
-		size=(round(Integer, (2*margin+l1+l2)*scale), round(Integer, (l1+l2+2*margin)*scale)),
-		xlims=(-margin, l1+l2+margin), ylims=(-l1-margin, l2+margin), legend=:bottomleft)
+        margin = 0.05
+        scale = 1500
+        fig = plot(;
+            title = "Time $(round(t; digits=1))s",
+            size = (
+                round(Integer, (2 * margin + l1 + l2) * scale),
+                round(Integer, (l1 + l2 + 2 * margin) * scale),
+            ),
+            xlims = (-margin, l1 + l2 + margin),
+            ylims = (-l1 - margin, l2 + margin),
+            legend = :bottomleft,
+        )
 
-	p0 = [0.0, 0.0]
-	p1 = p0 .+ [cos(a1)*l1, sin(a1)*l1]
-	p2 = p1 .+ [cos(a1+a2)*l2, sin(a1+a2)*l2]
+        p0 = [0.0, 0.0]
+        p1 = p0 .+ [cos(a1) * l1, sin(a1) * l1]
+        p2 = p1 .+ [cos(a1 + a2) * l2, sin(a1 + a2) * l2]
 
-	f_norm = collect(v[3] for v in solution.values.saveval)
-	
-	paths = dividePath(f_norm)
-	drawing = collect(v[1:2] for v in solution.values.saveval)
-	for path in paths
-		plot!(fig, collect(v[1] for v in drawing[path]), collect(v[2] for v in drawing[path]), label=:none, color=:black, style=:dot)
-	end
+        f_norm = collect(v[3] for v in solution.values.saveval)
 
-	paths = dividePath(f_norm[1:i])
-	drawing_is = collect(v[4:5] for v in solution.values.saveval)[1:i]
-	for path in paths
-		plot!(fig, collect(v[1] for v in drawing_is[path]), collect(v[2] for v in drawing_is[path]), label=:none, color=:green, width=2)
-	end
+        paths = dividePath(f_norm)
+        drawing = collect(v[1:2] for v in solution.values.saveval)
+        for path in paths
+            plot!(
+                fig,
+                collect(v[1] for v in drawing[path]),
+                collect(v[2] for v in drawing[path]),
+                label = :none,
+                color = :black,
+                style = :dot,
+            )
+        end
 
-	plot!(fig, [p0[1], p1[1]], [p0[2], p1[2]], label=:none, width=3, color=:blue)
-	plot!(fig, [p1[1], p2[1]], [p1[2], p2[2]], label=:none, width=3, color=:blue)
+        paths = dividePath(f_norm[1:i])
+        drawing_is = collect(v[4:5] for v in solution.values.saveval)[1:i]
+        for path in paths
+            plot!(
+                fig,
+                collect(v[1] for v in drawing_is[path]),
+                collect(v[2] for v in drawing_is[path]),
+                label = :none,
+                color = :green,
+                width = 2,
+            )
+        end
 
-	scatter!(fig, [p0[1]], [p0[2]], label="R1 | α1=$(round(a1; digits=3)) rad", color=:red)
-	scatter!(fig, [p1[1]], [p1[2]], label="R2 | α2=$(round(a2; digits=3)) rad", color=:purple)
+        plot!(fig, [p0[1], p1[1]], [p0[2], p1[2]], label = :none, width = 3, color = :blue)
+        plot!(fig, [p1[1], p2[1]], [p1[2], p2[2]], label = :none, width = 3, color = :blue)
 
-	scatter!(fig, [v[1]], [v[2]], label="TCP | F=$(v[3]) N", color=:orange)
-end
+        scatter!(
+            fig,
+            [p0[1]],
+            [p0[2]],
+            label = "R1 | α1=$(round(a1; digits=3)) rad",
+            color = :red,
+        )
+        scatter!(
+            fig,
+            [p1[1]],
+            [p1[2]],
+            label = "R2 | α2=$(round(a2; digits=3)) rad",
+            color = :purple,
+        )
 
-HIDDEN_CODE_MESSAGE
+        scatter!(fig, [v[1]], [v[2]], label = "TCP | F=$(v[3]) N", color = :orange)
+    end
+
+    HIDDEN_CODE_MESSAGE
 
 end # begin
 
 # ╔═╡ 92ad1a99-4ad9-4b69-b6f3-84aab49db54f
-@bind t_train_plot Slider(0.0:0.1:data_train.t[end], default=data_train.t[1])
+@bind t_train_plot Slider(0.0:0.1:data_train.t[end], default = data_train.t[1])
 
 # ╔═╡ f111e772-a340-4217-9b63-e7715f773b2c
 md"""
@@ -367,7 +427,7 @@ The parameter array only contains the path to the training data file, the trajec
 """
 
 # ╔═╡ 8f8f91cc-9a92-4182-8f18-098ae3e2c553
-parameters = FMIZoo.getParameter(data_train, tStart; friction=false)
+parameters = FMIZoo.getParameter(data_train, tStart; friction = false)
 
 # ╔═╡ 8d93a1ed-28a9-4a77-9ac2-5564be3729a5
 md"""
@@ -380,7 +440,7 @@ To check whether the hybrid model was not only able to *imitate*, but *understan
 data_validation = FMIZoo.RobotRR(:validate)
 
 # ╔═╡ dbde2da3-e3dc-4b78-8f69-554018533d35
-@bind t_validate_plot Slider(0.0:0.1:data_validation.t[end], default=data_validation.t[1])
+@bind t_validate_plot Slider(0.0:0.1:data_validation.t[end], default = data_validation.t[1])
 
 # ╔═╡ 6a8b98c9-e51a-4f1c-a3ea-cc452b9616b7
 md"""
@@ -408,35 +468,47 @@ The SCARA simulation model is called `RobotRR` for `Robot Rotational Rotational`
 # load the FMU named `RobotRR` from the FMIZoo
 # the FMU was exported from Dymola (version 2023x)
 # load the FMU in mode `model-exchange` (ME) 
-fmu = fmiLoad("RobotRR", "Dymola", "2023x"; type=:ME) 
+fmu = fmiLoad("RobotRR", "Dymola", "2023x"; type = :ME)
 
 # ╔═╡ c228eb10-d694-46aa-b952-01d824879287
 begin
 
-# We activate the single instance mode, so only one FMU instance gets allocated and is reused again an again.
-fmiSingleInstanceMode!(fmu, true)
+    # We activate the single instance mode, so only one FMU instance gets allocated and is reused again an again.
+    fmiSingleInstanceMode!(fmu, true)
 
-using FMI.FMIImport: fmi2StringToValueReference
+    using FMI.FMIImport: fmi2StringToValueReference
 
-# declare some model identifiers (inside of the FMU)
-STATE_I1 = fmu.modelDescription.stateValueReferences[2]
-STATE_I2 = fmu.modelDescription.stateValueReferences[1]
-STATE_A1  = fmi2StringToValueReference(fmu, "rRPositionControl_Elasticity.rr1.rotational1.revolute1.phi")
-STATE_A2  = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.rr1.rotational2.revolute1.phi")
-STATE_dA1 = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.rr1.rotational1.revolute1.w")
-STATE_dA2 = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.rr1.rotational2.revolute1.w")
+    # declare some model identifiers (inside of the FMU)
+    STATE_I1 = fmu.modelDescription.stateValueReferences[2]
+    STATE_I2 = fmu.modelDescription.stateValueReferences[1]
+    STATE_A1 = fmi2StringToValueReference(
+        fmu,
+        "rRPositionControl_Elasticity.rr1.rotational1.revolute1.phi",
+    )
+    STATE_A2 = fmi2StringToValueReference(
+        fmu,
+        "rRPositionControl_Elasticity.rr1.rotational2.revolute1.phi",
+    )
+    STATE_dA1 = fmi2StringToValueReference(
+        fmu,
+        "rRPositionControl_Elasticity.rr1.rotational1.revolute1.w",
+    )
+    STATE_dA2 = fmi2StringToValueReference(
+        fmu,
+        "rRPositionControl_Elasticity.rr1.rotational2.revolute1.w",
+    )
 
-DER_ddA2 = fmu.modelDescription.derivativeValueReferences[4]
-DER_ddA1 = fmu.modelDescription.derivativeValueReferences[6]
+    DER_ddA2 = fmu.modelDescription.derivativeValueReferences[4]
+    DER_ddA1 = fmu.modelDescription.derivativeValueReferences[6]
 
-VAR_TCP_PX = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.tCP.p_x")
-VAR_TCP_PY = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.tCP.p_y")
-VAR_TCP_VX = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.tCP.v_x")
-VAR_TCP_VY = fmi2StringToValueReference(fmu,"rRPositionControl_Elasticity.tCP.v_y")
-VAR_TCP_F  = fmi2StringToValueReference(fmu, "combiTimeTable.y[3]")
-	
-HIDDEN_CODE_MESSAGE
-	
+    VAR_TCP_PX = fmi2StringToValueReference(fmu, "rRPositionControl_Elasticity.tCP.p_x")
+    VAR_TCP_PY = fmi2StringToValueReference(fmu, "rRPositionControl_Elasticity.tCP.p_y")
+    VAR_TCP_VX = fmi2StringToValueReference(fmu, "rRPositionControl_Elasticity.tCP.v_x")
+    VAR_TCP_VY = fmi2StringToValueReference(fmu, "rRPositionControl_Elasticity.tCP.v_y")
+    VAR_TCP_F = fmi2StringToValueReference(fmu, "combiTimeTable.y[3]")
+
+    HIDDEN_CODE_MESSAGE
+
 end
 
 # ╔═╡ 16ffc610-3c21-40f7-afca-e9da806ea626
@@ -480,11 +552,17 @@ Let's define an array of values we want to be recorded during the first simulati
 """
 
 # ╔═╡ 0c9493c4-322e-41a0-9ec7-2e2c54ae1373
-recordValues = [DER_ddA2, DER_ddA1, 	# mechanical accelerations
-                STATE_A2, STATE_A1, 	# mechanical angles
-         		VAR_TCP_PX, VAR_TCP_PY, # tool-center-point x and y
-				VAR_TCP_VX, VAR_TCP_VY, # tool-center-point velocity x and y
-				VAR_TCP_F] 				# normal force pen on paper
+recordValues = [
+    DER_ddA2,
+    DER_ddA1, # mechanical accelerations
+    STATE_A2,
+    STATE_A1, # mechanical angles
+    VAR_TCP_PX,
+    VAR_TCP_PY, # tool-center-point x and y
+    VAR_TCP_VX,
+    VAR_TCP_VY, # tool-center-point velocity x and y
+    VAR_TCP_F,
+] # normal force pen on paper
 
 # ╔═╡ 325c3032-4c78-4408-b86e-d9aa4cfc3187
 md"""
@@ -492,12 +570,14 @@ Let's simulate the FMU using `fmiSimulate`. In the solution object, different in
 """
 
 # ╔═╡ 25e55d1c-388f-469d-99e6-2683c0508693
-sol_fmu_train = fmiSimulate(fmu, 					   # our FMU
-							(tStart, tStop);           # sim. from tStart to tStop
-							solver=solver, 			   # use the Tsit5 solver
-							parameters=parameters,     # the word "train"
-							saveat=tSave, 			   # saving points for the sol.
-							recordValues=recordValues) # values to record
+sol_fmu_train = fmiSimulate(
+    fmu,    # our FMU
+    (tStart, tStop);           # sim. from tStart to tStop
+    solver = solver,    # use the Tsit5 solver
+    parameters = parameters,     # the word "train"
+    saveat = tSave,    # saving points for the sol.
+    recordValues = recordValues,
+) # values to record
 
 # ╔═╡ 74c519c9-0eef-4798-acff-b11044bb4bf1
 md"""
@@ -533,10 +613,20 @@ Which signals are used for `y_refs`, can be selected:
 """
 
 # ╔═╡ b42bf3d8-e70c-485c-89b3-158eb25d8b25
-@bind CHOOSE_y_refs MultiCheckBox([STATE_A1 => "Angle Joint 1", STATE_A2 => "Angle Joint 2", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
+@bind CHOOSE_y_refs MultiCheckBox([
+    STATE_A1 => "Angle Joint 1",
+    STATE_A2 => "Angle Joint 2",
+    STATE_dA1 => "Angular velocity Joint 1",
+    STATE_dA2 => "Angular velocity Joint 2",
+    VAR_TCP_PX => "TCP position x",
+    VAR_TCP_PY => "TCP position y",
+    VAR_TCP_VX => "TCP velocity x",
+    VAR_TCP_VY => "TCP velocity y",
+    VAR_TCP_F => "TCP (normal) force z",
+])
 
 # ╔═╡ 2e08df84-a468-4e99-a277-e2813dfeae5c
-model = Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=CHOOSE_y_refs))
+model = Chain(x -> fmu(; x = x, dx_refs = :all, y_refs = CHOOSE_y_refs))
 
 # ╔═╡ c446ed22-3b23-487d-801e-c23742f81047
 md"""
@@ -544,16 +634,16 @@ Let's pick a state `x1` one second after simulation start to determine sensitivi
 """
 
 # ╔═╡ fc3d7989-ac10-4a82-8777-eeecd354a7d0
-x1 = FMIZoo.getState(data_train, tStart+1.0)
+x1 = FMIZoo.getState(data_train, tStart + 1.0)
 
 # ╔═╡ f4e66f76-76ff-4e21-b4b5-c1ecfd846329
-begin 
-	using FMIFlux.FMISensitivity.ReverseDiff
-	using FMIFlux.FMISensitivity.ForwardDiff
-	
-	prepareSolveFMU(fmu, parameters)
-	jac_rwd = ReverseDiff.jacobian(x -> model(x), x1);
-	A_rwd = jac_rwd[1:length(x1), :]
+begin
+    using FMIFlux.FMISensitivity.ReverseDiff
+    using FMIFlux.FMISensitivity.ForwardDiff
+
+    prepareSolveFMU(fmu, parameters)
+    jac_rwd = ReverseDiff.jacobian(x -> model(x), x1)
+    A_rwd = jac_rwd[1:length(x1), :]
 end
 
 # ╔═╡ 0a7955e7-7c1a-4396-9613-f8583195c0a8
@@ -562,8 +652,8 @@ Depending on how many signals you select, the output of the FMU-layer is extende
 """
 
 # ╔═╡ 4912d9c9-d68d-4afd-9961-5d8315884f75
-begin 
-	dx_y = model(x1)
+begin
+    dx_y = model(x1)
 end
 
 # ╔═╡ 19942162-cd4e-487c-8073-ea6b262d299d
@@ -601,7 +691,7 @@ We can determine further Jacobians for FMUs, for example the Jacobian $C = \frac
 
 # ╔═╡ ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
 begin
- 	C_rwd = jac_rwd[length(x1)+1:end, :]
+    C_rwd = jac_rwd[length(x1)+1:end, :]
 end
 
 # ╔═╡ 5e9cb956-d5ea-4462-a649-b133a77929b0
@@ -617,12 +707,12 @@ The amount of selected signals has influence on the computational performance of
 
 # ╔═╡ 476a1ed7-c865-4878-a948-da73d3c81070
 begin
-	CHOOSE_y_refs;
-	
-	md"""
-	🎬 **Start Benchmark** $(@bind BENCHMARK CheckBox())
-	(benchmarking takes around 10 seconds)
-	"""
+    CHOOSE_y_refs
+
+    md"""
+    🎬 **Start Benchmark** $(@bind BENCHMARK CheckBox())
+    (benchmarking takes around 10 seconds)
+    """
 end
 
 # ╔═╡ 0b6b4f6d-be09-42f3-bc2c-5f17a8a9ab0e
@@ -632,11 +722,11 @@ The current timing and allocations for inference are:
 
 # ╔═╡ a1aca180-d561-42a3-8d12-88f5a3721aae
 begin
-	if BENCHMARK
-		@btime model(x1)
-	else
-		BENCHMARK_MESSAGE
-	end
+    if BENCHMARK
+        @btime model(x1)
+    else
+        BENCHMARK_MESSAGE
+    end
 end
 
 # ╔═╡ 3bc2b859-d7b1-4b79-88df-8fb517a6929d
@@ -646,16 +736,16 @@ Gradient and Jacobian computation takes a little longer of course. We use revers
 
 # ╔═╡ a501d998-6fd6-496f-9718-3340c42b08a6
 begin
-	if BENCHMARK
-		prepareSolveFMU(fmu, parameters)
-		function ben_rwd(x)
-			return ReverseDiff.jacobian(model, x + rand(6)*1e-12);
-		end
-		@btime ben_rwd(x1)
-		#nothing
-	else
-		BENCHMARK_MESSAGE
-	end
+    if BENCHMARK
+        prepareSolveFMU(fmu, parameters)
+        function ben_rwd(x)
+            return ReverseDiff.jacobian(model, x + rand(6) * 1e-12)
+        end
+        @btime ben_rwd(x1)
+        #nothing
+    else
+        BENCHMARK_MESSAGE
+    end
 end
 
 # ╔═╡ 83a2122d-56da-4a80-8c10-615a8f76c4c1
@@ -665,16 +755,16 @@ Further, forward-mode automatic differentiation is available too via `ForwardDif
 
 # ╔═╡ e342be7e-0806-4f72-9e32-6d74ed3ed3f2
 begin
-	if BENCHMARK
-		prepareSolveFMU(fmu, parameters)
-		function ben_fwd(x)
-			return ForwardDiff.jacobian(model, x + rand(6)*1e-12);
-		end
-		@btime ben_fwd(x1) # second run for "benchmarking"
-		#nothing
-	else
-		BENCHMARK_MESSAGE
-	end
+    if BENCHMARK
+        prepareSolveFMU(fmu, parameters)
+        function ben_fwd(x)
+            return ForwardDiff.jacobian(model, x + rand(6) * 1e-12)
+        end
+        @btime ben_fwd(x1) # second run for "benchmarking"
+    #nothing
+    else
+        BENCHMARK_MESSAGE
+    end
 end
 
 # ╔═╡ eaf37128-0377-42b6-aa81-58f0a815276b
@@ -695,16 +785,20 @@ We simplify the ANN to a single nonlinear activation function. Let's see what's 
 """
 
 # ╔═╡ 51c200c9-0de3-4e50-8884-49fe06158560
-begin 
-	fig_pre_post1 = plot(layout=grid(1,2,widths=(1/4, 3/4)), xlabel="t [s]", legend=:bottomright)
+begin
+    fig_pre_post1 = plot(
+        layout = grid(1, 2, widths = (1 / 4, 3 / 4)),
+        xlabel = "t [s]",
+        legend = :bottomright,
+    )
 
-	plot!(fig_pre_post1[1], data_train.t, data_train.da1, label=:none, xlims=(0.0,0.1))
-	plot!(fig_pre_post1[1], data_train.t, tanh.(data_train.da1), label=:none)
-	
-	plot!(fig_pre_post1[2], data_train.t, data_train.da1, label="dα1")
-	plot!(fig_pre_post1[2], data_train.t, tanh.(data_train.da1), label="tanh(dα1)")
-	
-	fig_pre_post1
+    plot!(fig_pre_post1[1], data_train.t, data_train.da1, label = :none, xlims = (0.0, 0.1))
+    plot!(fig_pre_post1[1], data_train.t, tanh.(data_train.da1), label = :none)
+
+    plot!(fig_pre_post1[2], data_train.t, data_train.da1, label = "dα1")
+    plot!(fig_pre_post1[2], data_train.t, tanh.(data_train.da1), label = "tanh(dα1)")
+
+    fig_pre_post1
 end
 
 # ╔═╡ 0dadd112-3132-4491-9f02-f43cf00aa1f9
@@ -715,7 +809,7 @@ We can add shift (=addition) and scale (=multiplication) operations before and a
 """
 
 # ╔═╡ bf6bf640-54bc-44ef-bd4d-b98e934d416e
-@bind PRE_POST_SHIFT Slider(-1:0.1:1.0, default=0.0)
+@bind PRE_POST_SHIFT Slider(-1:0.1:1.0, default = 0.0)
 
 # ╔═╡ 5c2308d9-6d04-4b38-af3b-6241da3b6871
 md"""
@@ -723,7 +817,7 @@ Change the `shift` value $(PRE_POST_SHIFT):
 """
 
 # ╔═╡ 007d6d95-ad85-4804-9651-9ac3703d3b40
-@bind PRE_POST_SCALE Slider(0.1:0.1:2.0, default=1.0)
+@bind PRE_POST_SCALE Slider(0.1:0.1:2.0, default = 1.0)
 
 # ╔═╡ 639889b3-b9f2-4a3c-999d-332851768fd7
 md"""
@@ -731,21 +825,38 @@ Change the `scale` value $(PRE_POST_SCALE):
 """
 
 # ╔═╡ ed1887df-5079-4367-ab04-9d02a1d6f366
-begin 
-	fun_pre = ShiftScale([PRE_POST_SHIFT], [PRE_POST_SCALE])
-	fun_post = ScaleShift(fun_pre)
-	
-	fig_pre_post2 = plot(;layout=grid(1,2,widths=(1/4, 3/4)), xlabel="t [s]")
+begin
+    fun_pre = ShiftScale([PRE_POST_SHIFT], [PRE_POST_SCALE])
+    fun_post = ScaleShift(fun_pre)
 
-	plot!(fig_pre_post2[2], data_train.t, data_train.da1, label=:none, title="Shift: $(round(PRE_POST_SHIFT; digits=1)) | Scale: $(round(PRE_POST_SCALE; digits=1))", legend=:bottomright)
-	plot!(fig_pre_post2[2], data_train.t, tanh.(data_train.da1), label=:none)
-	plot!(fig_pre_post2[2], data_train.t, fun_post(tanh.(fun_pre(data_train.da1))), label=:none)
+    fig_pre_post2 = plot(; layout = grid(1, 2, widths = (1 / 4, 3 / 4)), xlabel = "t [s]")
 
-	plot!(fig_pre_post2[1], data_train.t, data_train.da1, label="dα1", xlims=(0.0, 0.1))
-	plot!(fig_pre_post2[1], data_train.t, tanh.(data_train.da1), label="tanh(dα1)")
-	plot!(fig_pre_post2[1], data_train.t, fun_post(tanh.(fun_pre(data_train.da1))), label="post(tanh(pre(dα1)))")
-	
-	fig_pre_post2
+    plot!(
+        fig_pre_post2[2],
+        data_train.t,
+        data_train.da1,
+        label = :none,
+        title = "Shift: $(round(PRE_POST_SHIFT; digits=1)) | Scale: $(round(PRE_POST_SCALE; digits=1))",
+        legend = :bottomright,
+    )
+    plot!(fig_pre_post2[2], data_train.t, tanh.(data_train.da1), label = :none)
+    plot!(
+        fig_pre_post2[2],
+        data_train.t,
+        fun_post(tanh.(fun_pre(data_train.da1))),
+        label = :none,
+    )
+
+    plot!(fig_pre_post2[1], data_train.t, data_train.da1, label = "dα1", xlims = (0.0, 0.1))
+    plot!(fig_pre_post2[1], data_train.t, tanh.(data_train.da1), label = "tanh(dα1)")
+    plot!(
+        fig_pre_post2[1],
+        data_train.t,
+        fun_post(tanh.(fun_pre(data_train.da1))),
+        label = "post(tanh(pre(dα1)))",
+    )
+
+    fig_pre_post2
 end
 
 # ╔═╡ 0b0c4650-2ce1-4879-9acd-81c16d06700e
@@ -776,7 +887,7 @@ The good news is, you don't have to decide this beforehand. This is something th
 """
 
 # ╔═╡ cbae6aa4-1338-428c-86aa-61d3304e33ed
-@bind GATE_INIT_FMU Slider(0.0:0.1:1.0, default=1.0)
+@bind GATE_INIT_FMU Slider(0.0:0.1:1.0, default = 1.0)
 
 # ╔═╡ 2fa1821b-aaec-4de4-bfb4-89560790dc39
 md"""
@@ -784,7 +895,7 @@ Change the opening of the **FMU gate** $(GATE_INIT_FMU) for dα1:
 """
 
 # ╔═╡ 8c56acd6-94d3-4cbc-bc29-d249740268a0
-@bind GATE_INIT_ANN Slider(0.0:0.1:1.0, default=0.0)
+@bind GATE_INIT_ANN Slider(0.0:0.1:1.0, default = 0.0)
 
 # ╔═╡ 9b52a65a-f20c-4387-aaca-5292a92fb639
 md"""
@@ -797,40 +908,49 @@ The FMU gate value for dα1 is $(GATE_INIT_FMU) and the ANN gate value is $(GATE
 """
 
 # ╔═╡ 5a399a9b-32d9-4f93-a41f-8f16a4b102dc
-begin 
-	function build_model_gates()
-		Random.seed!(123)
-		
-		cache = CacheLayer()                        # allocate a cache layer
-		cacheRetrieve = CacheRetrieveLayer(cache)   # allocate a cache retrieve layer, link it to the cache layer
-	
-	    # we have two signals (acceleration, consumption) and two sources (ANN, FMU), so four gates:
-	    # (1) acceleration from FMU (gate=1.0 | open)
-	    # (2) consumption  from FMU (gate=1.0 | open)
-	    # (3) acceleration from ANN (gate=0.0 | closed)
-	    # (4) consumption  from ANN (gate=0.0 | closed)
-	    # the accelerations [1,3] and consumptions [2,4] are paired
-	    gates = ScaleSum([GATE_INIT_FMU, GATE_INIT_ANN], [[1,2]]) # gates with sum
-	
-	    # setup the neural FMU topology
-	    model_gates = Flux.f64(Chain(dx -> cache(dx),                    # cache `dx`
-	                  Dense(1, 16, tanh),  
-						Dense(16, 1, tanh),  # pre-process `dx`
-	                  dx -> cacheRetrieve(1, dx),       # dynamics FMU | dynamics ANN
-	                  gates))       # stack together
+begin
+    function build_model_gates()
+        Random.seed!(123)
 
-		model_input = collect([v] for v in data_train.da1)
-		model_output = collect(model_gates(inp) for inp in model_input)
-		ANN_output = collect(model_gates[2:3](inp) for inp in model_input)
-		
-		fig = plot(; ylims=(-3,1), legend=:bottomright) 
-		plot!(fig, data_train.t, collect(v[1] for v in model_input), label="dα1 of FMU")
-		plot!(fig, data_train.t, collect(v[1] for v in ANN_output), label="dα1 of ANN")
-		plot!(fig, data_train.t, collect(v[1] for v in model_output), label="dα1 of neural FMU")
-		
-		return fig
-	end
-	build_model_gates()
+        cache = CacheLayer()                        # allocate a cache layer
+        cacheRetrieve = CacheRetrieveLayer(cache)   # allocate a cache retrieve layer, link it to the cache layer
+
+        # we have two signals (acceleration, consumption) and two sources (ANN, FMU), so four gates:
+        # (1) acceleration from FMU (gate=1.0 | open)
+        # (2) consumption  from FMU (gate=1.0 | open)
+        # (3) acceleration from ANN (gate=0.0 | closed)
+        # (4) consumption  from ANN (gate=0.0 | closed)
+        # the accelerations [1,3] and consumptions [2,4] are paired
+        gates = ScaleSum([GATE_INIT_FMU, GATE_INIT_ANN], [[1, 2]]) # gates with sum
+
+        # setup the neural FMU topology
+        model_gates = Flux.f64(
+            Chain(
+                dx -> cache(dx),                    # cache `dx`
+                Dense(1, 16, tanh),
+                Dense(16, 1, tanh),  # pre-process `dx`
+                dx -> cacheRetrieve(1, dx),       # dynamics FMU | dynamics ANN
+                gates,
+            ),
+        )       # stack together
+
+        model_input = collect([v] for v in data_train.da1)
+        model_output = collect(model_gates(inp) for inp in model_input)
+        ANN_output = collect(model_gates[2:3](inp) for inp in model_input)
+
+        fig = plot(; ylims = (-3, 1), legend = :bottomright)
+        plot!(fig, data_train.t, collect(v[1] for v in model_input), label = "dα1 of FMU")
+        plot!(fig, data_train.t, collect(v[1] for v in ANN_output), label = "dα1 of ANN")
+        plot!(
+            fig,
+            data_train.t,
+            collect(v[1] for v in model_output),
+            label = "dα1 of neural FMU",
+        )
+
+        return fig
+    end
+    build_model_gates()
 end
 
 # ╔═╡ fd1cebf1-5ccc-4bc5-99d4-1eaa30e9762e
@@ -887,7 +1007,17 @@ Pick additional ANN layer inputs:
 """
 
 # ╔═╡ d240c95c-5aba-4b47-ab8d-2f9c0eb854cd
-@bind y_refs MultiCheckBox([STATE_A2 => "Angle Joint 2", STATE_A1 => "Angle Joint 1", STATE_dA1 => "Angular velocity Joint 1", STATE_dA2 => "Angular velocity Joint 2", VAR_TCP_PX => "TCP position x", VAR_TCP_PY => "TCP position y", VAR_TCP_VX => "TCP velocity x", VAR_TCP_VY => "TCP velocity y", VAR_TCP_F => "TCP (normal) force z"])
+@bind y_refs MultiCheckBox([
+    STATE_A2 => "Angle Joint 2",
+    STATE_A1 => "Angle Joint 1",
+    STATE_dA1 => "Angular velocity Joint 1",
+    STATE_dA2 => "Angular velocity Joint 2",
+    VAR_TCP_PX => "TCP position x",
+    VAR_TCP_PY => "TCP position y",
+    VAR_TCP_VX => "TCP velocity x",
+    VAR_TCP_VY => "TCP velocity y",
+    VAR_TCP_F => "TCP (normal) force z",
+])
 
 # ╔═╡ 06937575-9ab1-41cd-960c-7eef3e8cae7f
 md"""
@@ -905,7 +1035,7 @@ The ANN shall have $(@bind NUM_LAYERS Select([2, 3, 4])) layers with a width of 
 """
 
 # ╔═╡ 53e971d8-bf43-41cc-ac2b-20dceaa78667
-@bind GATES_INIT Slider(0.0:0.1:1.0, default=0.0)
+@bind GATES_INIT Slider(0.0:0.1:1.0, default = 0.0)
 
 # ╔═╡ 68d57a23-68c3-418c-9c6f-32bdf8cafceb
 md"""
@@ -924,50 +1054,57 @@ Our final neural FMU topology looks like this:
 """
 
 # ╔═╡ 84215a73-1ab0-416d-a9db-6b29cd4f5d2a
-begin 
+begin
 
-function build_topology(gates_init, add_y_refs, nl, lw)
+    function build_topology(gates_init, add_y_refs, nl, lw)
 
-	ANN_input_Vars = [recordValues[1:2]..., add_y_refs...]
-	ANN_input_Vals = fmiGetSolutionValue(sol_fmu_train, ANN_input_Vars)
-	ANN_input_Idcs = [4, 6]
-	for i in 1:length(add_y_refs)
-		push!(ANN_input_Idcs, i+6)
-	end
+        ANN_input_Vars = [recordValues[1:2]..., add_y_refs...]
+        ANN_input_Vals = fmiGetSolutionValue(sol_fmu_train, ANN_input_Vars)
+        ANN_input_Idcs = [4, 6]
+        for i = 1:length(add_y_refs)
+            push!(ANN_input_Idcs, i + 6)
+        end
 
-	# pre- and post-processing
-    preProcess = ShiftScale(ANN_input_Vals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
-    #preProcess.scale[:] *= 0.1                         # add some additional "buffer"
-    postProcess = ScaleShift(preProcess; indices=[1,2])   # initialize the postProcess as inverse of the preProcess, but only take indices 1 and 2
+        # pre- and post-processing
+        preProcess = ShiftScale(ANN_input_Vals)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
+        #preProcess.scale[:] *= 0.1                         # add some additional "buffer"
+        postProcess = ScaleShift(preProcess; indices = [1, 2])   # initialize the postProcess as inverse of the preProcess, but only take indices 1 and 2
 
-    # cache
-    cache = CacheLayer()                        # allocate a cache layer
-    cacheRetrieve = CacheRetrieveLayer(cache)   # allocate a cache retrieve layer, link it to the cache layer
+        # cache
+        cache = CacheLayer()                        # allocate a cache layer
+        cacheRetrieve = CacheRetrieveLayer(cache)   # allocate a cache retrieve layer, link it to the cache layer
 
-	gates = ScaleSum([1.0-gates_init, 1.0-gates_init, gates_init, gates_init], [[1,3], [2,4]]) # gates with sum
-	
-	ANN_layers = []
-	push!(ANN_layers, Dense(2+length(add_y_refs), lw, tanh)) # first layer 
-	for i in 3:nl
-		push!(ANN_layers, Dense(lw, lw, tanh))
-	end
-	push!(ANN_layers, Dense(lw, 2, tanh)) # last layer 
+        gates = ScaleSum(
+            [1.0 - gates_init, 1.0 - gates_init, gates_init, gates_init],
+            [[1, 3], [2, 4]],
+        ) # gates with sum
 
-	model = Flux.f64(Chain(x -> fmu(; x=x, dx_refs=:all, y_refs=add_y_refs), 
-		dxy -> cache(dxy),                    # cache `dx`
-        dxy -> dxy[ANN_input_Idcs], 
-		preProcess,
-		ANN_layers...,
-		postProcess,
-		dx -> cacheRetrieve(4, 6, dx),       # dynamics FMU | dynamics ANN
-    	gates,                              # compute resulting dx from ANN + FMU
-      	dx -> cacheRetrieve(1:3, dx[1], 5, dx[2])))
+        ANN_layers = []
+        push!(ANN_layers, Dense(2 + length(add_y_refs), lw, tanh)) # first layer 
+        for i = 3:nl
+            push!(ANN_layers, Dense(lw, lw, tanh))
+        end
+        push!(ANN_layers, Dense(lw, 2, tanh)) # last layer 
 
-	return model
-	
-end
+        model = Flux.f64(
+            Chain(
+                x -> fmu(; x = x, dx_refs = :all, y_refs = add_y_refs),
+                dxy -> cache(dxy),                    # cache `dx`
+                dxy -> dxy[ANN_input_Idcs],
+                preProcess,
+                ANN_layers...,
+                postProcess,
+                dx -> cacheRetrieve(4, 6, dx),       # dynamics FMU | dynamics ANN
+                gates,                              # compute resulting dx from ANN + FMU
+                dx -> cacheRetrieve(1:3, dx[1], 5, dx[2]),
+            ),
+        )
 
-HIDDEN_CODE_MESSAGE
+        return model
+
+    end
+
+    HIDDEN_CODE_MESSAGE
 
 end
 
@@ -1023,21 +1160,21 @@ Different loss functions are thinkable here. Two quantities that should be consi
 function loss(solution::FMU2Solution, data::FMIZoo.RobotRR_Data)
 
     # determine the start/end indices `ts` and `te` (sampled with 100Hz)
-	dt = 0.01
-    ts = 1+round(Integer, solution.states.t[1] / dt)
-    te = 1+round(Integer, solution.states.t[end] / dt)
-    
+    dt = 0.01
+    ts = 1 + round(Integer, solution.states.t[1] / dt)
+    te = 1 + round(Integer, solution.states.t[end] / dt)
+
     # retrieve simulation data from neural FMU ("where we are") and data from measurements ("where we want to be")
     i1_value = fmiGetSolutionState(solution, STATE_I1)
     i2_value = fmiGetSolutionState(solution, STATE_I2)
     i1_data = data.i1[ts:te]
     i2_data = data.i2[ts:te]
 
-	# accumulate our loss value
+    # accumulate our loss value
     Δvalue = 0.0
     Δvalue += FMIFlux.Losses.mae(i1_value, i1_data)
     Δvalue += FMIFlux.Losses.mae(i2_value, i2_data)
-    
+
     return Δvalue
 end
 
@@ -1062,13 +1199,18 @@ $(@bind MODE Select([:train => "Training", :demo => "Demo (pre-trained)"]))
 
 # ╔═╡ f9d35cfd-4ae5-4dcd-94d9-02aefc99bdfb
 begin
-	using JLD2
-	
-	if MODE == :train
-		final_model = build_topology(GATES_INIT, y_refs, NUM_LAYERS, LAYERS_WIDTH)
-	elseif MODE == :demo
-		final_model = build_topology(0.2, [STATE_A2, STATE_A1, VAR_TCP_VX, VAR_TCP_VY, VAR_TCP_F], 3, 32)
-	end
+    using JLD2
+
+    if MODE == :train
+        final_model = build_topology(GATES_INIT, y_refs, NUM_LAYERS, LAYERS_WIDTH)
+    elseif MODE == :demo
+        final_model = build_topology(
+            0.2,
+            [STATE_A2, STATE_A1, VAR_TCP_VX, VAR_TCP_VY, VAR_TCP_F],
+            3,
+            32,
+        )
+    end
 end
 
 # ╔═╡ f741b213-a20d-423a-a382-75cae1123f2c
@@ -1076,143 +1218,159 @@ final_model(x0)
 
 # ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
 begin
-	neuralFMU = ME_NeuralFMU(
-		fmu, 			# the FMU used in the neural FMU 
+    neuralFMU = ME_NeuralFMU(
+        fmu, # the FMU used in the neural FMU 
         final_model,    # the model we specified above 
-    	(tStart, tStop),# start and stop time for solving
-        solver; 		# the solver (Tsit5)
-        saveat=tSave)   # time points to save the solution at
+        (tStart, tStop),# start and stop time for solving
+        solver; # the solver (Tsit5)
+        saveat = tSave,
+    )   # time points to save the solution at
 end
 
 # ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
 begin
-	import Downloads
-	demo_path = Downloads.download("https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/20000.jld2?raw=true")
-	
-	# in demo mode, we load parameters from a pre-trained model
-	if MODE == :demo
-		fmiLoadParameters(neuralFMU, demo_path)
-	end
+    import Downloads
+    demo_path = Downloads.download(
+        "https://github.com/ThummeTo/FMIFlux.jl/blob/main/examples/pluto-src/SciMLUsingFMUs/src/20000.jld2?raw=true",
+    )
 
-	HIDDEN_CODE_MESSAGE
+    # in demo mode, we load parameters from a pre-trained model
+    if MODE == :demo
+        fmiLoadParameters(neuralFMU, demo_path)
+    end
+
+    HIDDEN_CODE_MESSAGE
 end
 
 # ╔═╡ e8bae97d-9f90-47d2-9263-dc8fc065c3d0
 begin
-	neuralFMU;
-	y_refs;
-	NUM_LAYERS;
-	LAYERS_WIDTH;
-	GATES_INIT;
-	ETA;
-	BATCHDUR;
-	MODE;
+    neuralFMU
+    y_refs
+    NUM_LAYERS
+    LAYERS_WIDTH
+    GATES_INIT
+    ETA
+    BATCHDUR
+    MODE
 
-	if MODE == :train
-		md"""⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
-	
-🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
-		"""
-	else
-		LIVE_TRAIN = false
-		md"""ℹ️ No training in demo mode. Please continue with plotting results.
-		"""
-	end
+    if MODE == :train
+        md"""⚠️ The roughly estimated training time is **$(round(Integer, STEPS*10*BATCHDUR + 0.6/BATCHDUR)) seconds** (Windows, i7 @ 3.6GHz). Training might be faster if the system is less stiff than expected. Once you started training by clicking on `Start Training`, training can't be terminated easily.
+      	
+      🎬 **Start Training** $(@bind LIVE_TRAIN CheckBox())
+      		"""
+    else
+        LIVE_TRAIN = false
+        md"""ℹ️ No training in demo mode. Please continue with plotting results.
+        """
+    end
 end
 
 # ╔═╡ 2dce68a7-27ec-4ffc-afba-87af4f1cb630
 begin
-	
-function train(eta, batchdur, steps)
 
-	if steps == 0
-		return md"""⚠️ Number of training steps is `0`, no training."""
-	end
+    function train(eta, batchdur, steps)
 
-	prepareSolveFMU(fmu, parameters)
-	
-	train_t = data_train.t
-	train_data = collect([data_train.i2[i], data_train.i1[i]] for i in 1:length(train_t))
+        if steps == 0
+            return md"""⚠️ Number of training steps is `0`, no training."""
+        end
 
-	#@info 
-	@info "Started batching ..."
-	
-	batch = batchDataSolution(neuralFMU, # our neural FMU model
-                              t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
-                              train_t, # data time points
-                              train_data; # data cumulative consumption 
-                              batchDuration=batchdur, # duration of one batch element
-                              indicesModel=[1,2], # model indices to train on (1 and 2 equal the `electrical current` states)
-                              plot=false, # don't show intermediate plots (try this outside of Pluto)
-                              showProgress=false,
-                              parameters=parameters)   
-	
-	@info "... batching finished!"
-	
-	# a random element scheduler
-	scheduler = RandomScheduler(neuralFMU, batch; applyStep=1, plotStep=0)
+        prepareSolveFMU(fmu, parameters)
 
-	lossFct = (solution::FMU2Solution) -> loss(solution, data_train)
+        train_t = data_train.t
+        train_data = collect([data_train.i2[i], data_train.i1[i]] for i = 1:length(train_t))
 
-	maxiters = round(Int, 1e5*batchdur)
+        #@info 
+        @info "Started batching ..."
 
-	_loss = p -> FMIFlux.Losses.loss(neuralFMU, # the neural FMU to simulate
-                                    batch; # the batch to take an element from
-                                    p=p, # the neural FMU training parameters (given as input)
-                                    lossFct=lossFct, # our custom loss function
-                                    batchIndex=scheduler.elementIndex, # the index of the batch element to take, determined by the chosen scheduler
-                                    logLoss=true, # log losses after every evaluation
-                                    showProgress=false,
-									parameters=parameters,
-									maxiters=maxiters) 
+        batch = batchDataSolution(
+            neuralFMU, # our neural FMU model
+            t -> FMIZoo.getState(data_train, t), # a function returning a start state for a given time point `t`, to determine start states for batch elements
+            train_t, # data time points
+            train_data; # data cumulative consumption 
+            batchDuration = batchdur, # duration of one batch element
+            indicesModel = [1, 2], # model indices to train on (1 and 2 equal the `electrical current` states)
+            plot = false, # don't show intermediate plots (try this outside of Pluto)
+            showProgress = false,
+            parameters = parameters,
+        )
 
-	params = FMIFlux.params(neuralFMU)
+        @info "... batching finished!"
 
-	FMIFlux.initialize!(scheduler; p=params[1], showProgress=false, parameters=parameters, print=false)
+        # a random element scheduler
+        scheduler = RandomScheduler(neuralFMU, batch; applyStep = 1, plotStep = 0)
 
-	BETA1 = 0.9
-	BETA2 = 0.999
-	optim = Adam(eta, (BETA1, BETA2))
+        lossFct = (solution::FMU2Solution) -> loss(solution, data_train)
 
-	@info "Started training ..."
-	
-	@withprogress name="iterating" begin
-		iteration = 0
-		function cb()
-			iteration += 1
-			@logprogress iteration/steps
-			FMIFlux.update!(scheduler; print=false)
-			nothing
-		end
-		
-		FMIFlux.train!(_loss, # the loss function for training
-                   neuralFMU, # the parameters to train
-                   Iterators.repeated((), steps), # an iterator repeating `steps` times
-                   optim; # the optimizer to train
-                   gradient=:ReverseDiff, # use ReverseDiff, because it's much faster!
-                   cb=cb, # update the scheduler after every step 
-                   proceed_on_assert=true) # go on if a training steps fails (e.g. because of instability)  
-	end
+        maxiters = round(Int, 1e5 * batchdur)
 
-	@info "... training finished!"
-end
+        _loss =
+            p -> FMIFlux.Losses.loss(
+                neuralFMU, # the neural FMU to simulate
+                batch; # the batch to take an element from
+                p = p, # the neural FMU training parameters (given as input)
+                lossFct = lossFct, # our custom loss function
+                batchIndex = scheduler.elementIndex, # the index of the batch element to take, determined by the chosen scheduler
+                logLoss = true, # log losses after every evaluation
+                showProgress = false,
+                parameters = parameters,
+                maxiters = maxiters,
+            )
 
-HIDDEN_CODE_MESSAGE
+        params = FMIFlux.params(neuralFMU)
+
+        FMIFlux.initialize!(
+            scheduler;
+            p = params[1],
+            showProgress = false,
+            parameters = parameters,
+            print = false,
+        )
+
+        BETA1 = 0.9
+        BETA2 = 0.999
+        optim = Adam(eta, (BETA1, BETA2))
+
+        @info "Started training ..."
+
+        @withprogress name = "iterating" begin
+            iteration = 0
+            function cb()
+                iteration += 1
+                @logprogress iteration / steps
+                FMIFlux.update!(scheduler; print = false)
+                nothing
+            end
+
+            FMIFlux.train!(
+                _loss, # the loss function for training
+                neuralFMU, # the parameters to train
+                Iterators.repeated((), steps), # an iterator repeating `steps` times
+                optim; # the optimizer to train
+                gradient = :ReverseDiff, # use ReverseDiff, because it's much faster!
+                cb = cb, # update the scheduler after every step 
+                proceed_on_assert = true,
+            ) # go on if a training steps fails (e.g. because of instability)  
+        end
+
+        @info "... training finished!"
+    end
+
+    HIDDEN_CODE_MESSAGE
 
 end
 
 # ╔═╡ c3f5704b-8e98-4c46-be7a-18ab4f139458
 let
-	if MODE == :train
-		if LIVE_TRAIN
-			train(ETA, BATCHDUR, STEPS)
-		else
-			LIVE_TRAIN_MESSAGE
-		end
-	else
-		md"""ℹ️ No training in demo mode. Please continue with plotting results.
-		"""
-	end
+    if MODE == :train
+        if LIVE_TRAIN
+            train(ETA, BATCHDUR, STEPS)
+        else
+            LIVE_TRAIN_MESSAGE
+        end
+    else
+        md"""ℹ️ No training in demo mode. Please continue with plotting results.
+        """
+    end
 end
 
 # ╔═╡ 1a608bc8-7264-4dd3-a4e7-0e39128a8375
@@ -1230,56 +1388,60 @@ Let's check out the *training* results of the freshly trained neural FMU.
 """
 
 # ╔═╡ 51eeb67f-a984-486a-ab8a-a2541966fa72
-begin 
-	neuralFMU;
-	MODE;
-	LIVE_TRAIN;
-	md"""
-	🎬 **Plot results** $(@bind LIVE_RESULTS CheckBox()) 
-	"""
+begin
+    neuralFMU
+    MODE
+    LIVE_TRAIN
+    md"""
+    🎬 **Plot results** $(@bind LIVE_RESULTS CheckBox()) 
+    """
 end
 
 # ╔═╡ 27458e32-5891-4afc-af8e-7afdf7e81cc6
 begin
 
-function plotPaths!(fig, t, x, N; color=:black, label=:none, kwargs...)
-    paths = []
-    path = nothing
-    lastN = N[1]
-    for i in 1:length(N)
-        if N[i] == 0.0
-            if lastN == 1.0
-                push!(path, (t[i], x[i]) )
-                push!(paths, path)
+    function plotPaths!(fig, t, x, N; color = :black, label = :none, kwargs...)
+        paths = []
+        path = nothing
+        lastN = N[1]
+        for i = 1:length(N)
+            if N[i] == 0.0
+                if lastN == 1.0
+                    push!(path, (t[i], x[i]))
+                    push!(paths, path)
+                end
             end
+
+            if N[i] == 1.0
+                if lastN == 0.0
+                    path = []
+                end
+                push!(path, (t[i], x[i]))
+            end
+
+            lastN = N[i]
+        end
+        if length(path) > 0
+            push!(paths, path)
         end
 
-        if N[i] == 1.0
-            if lastN == 0.0
-                path = []
-            end
-            push!(path, (t[i], x[i]) )
+        isfirst = true
+        for path in paths
+            plot!(
+                fig,
+                collect(v[1] for v in path),
+                collect(v[2] for v in path);
+                label = isfirst ? label : :none,
+                color = color,
+                kwargs...,
+            )
+            isfirst = false
         end
 
-        lastN = N[i]
-    end
-    if length(path) > 0
-        push!(paths, path)
+        return fig
     end
 
-    isfirst = true
-    for path in paths
-        plot!(fig, collect(v[1] for v in path), collect(v[2] for v in path); 
-            label=isfirst ? label : :none, 
-            color=color, 
-            kwargs...)
-        isfirst = false
-    end
-
-    return fig
-end
-
-HIDDEN_CODE_MESSAGE
+    HIDDEN_CODE_MESSAGE
 
 end
 
@@ -1291,15 +1453,24 @@ Simulating the FMU (training data):
 
 # ╔═╡ 5dd491a4-a8cd-4baf-96f7-7a0b850bb26c
 begin
-	fmu_train = fmiSimulate(fmu, (data_train.t[1], data_train.t[end]); x0=x0,
-	parameters=Dict{String, Any}("fileName" => data_train.params["fileName"]), 
-	recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
-				  "rRPositionControl_Elasticity.tCP.p_y",
-				  "rRPositionControl_Elasticity.tCP.N",
-				  "rRPositionControl_Elasticity.tCP.a_x", 
-                  "rRPositionControl_Elasticity.tCP.a_y"],
-	showProgress=true, maxiters=1e6, saveat=data_train.t, solver=Tsit5());
-	nothing
+    fmu_train = fmiSimulate(
+        fmu,
+        (data_train.t[1], data_train.t[end]);
+        x0 = x0,
+        parameters = Dict{String,Any}("fileName" => data_train.params["fileName"]),
+        recordValues = [
+            "rRPositionControl_Elasticity.tCP.p_x",
+            "rRPositionControl_Elasticity.tCP.p_y",
+            "rRPositionControl_Elasticity.tCP.N",
+            "rRPositionControl_Elasticity.tCP.a_x",
+            "rRPositionControl_Elasticity.tCP.a_y",
+        ],
+        showProgress = true,
+        maxiters = 1e6,
+        saveat = data_train.t,
+        solver = Tsit5(),
+    )
+    nothing
 end
 
 # ╔═╡ 4f27b6c0-21da-4e26-aaad-ff453c8af3da
@@ -1310,46 +1481,75 @@ Simulating the neural FMU (training data):
 
 # ╔═╡ 1195a30c-3b48-4bd2-8a3a-f4f74f3cd864
 begin
-	if LIVE_RESULTS
-		result_train = neuralFMU(x0, (data_train.t[1], data_train.t[end]); 
-        parameters=Dict{String, Any}("fileName" => data_train.params["fileName"]), 
-        recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
-                      "rRPositionControl_Elasticity.tCP.p_y", 
-                      "rRPositionControl_Elasticity.tCP.N",
-					  "rRPositionControl_Elasticity.tCP.v_x", 
-                      "rRPositionControl_Elasticity.tCP.v_y"],
-        showProgress=true, maxiters=1e6, saveat=data_train.t);
-		nothing
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        result_train = neuralFMU(
+            x0,
+            (data_train.t[1], data_train.t[end]);
+            parameters = Dict{String,Any}("fileName" => data_train.params["fileName"]),
+            recordValues = [
+                "rRPositionControl_Elasticity.tCP.p_x",
+                "rRPositionControl_Elasticity.tCP.p_y",
+                "rRPositionControl_Elasticity.tCP.N",
+                "rRPositionControl_Elasticity.tCP.v_x",
+                "rRPositionControl_Elasticity.tCP.v_y",
+            ],
+            showProgress = true,
+            maxiters = 1e6,
+            saveat = data_train.t,
+        )
+        nothing
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
 let
-	if LIVE_RESULTS
-		loss_fmu = loss(fmu_train, data_train)
-		loss_nfmu = loss(result_train, data_train)
-		
-		md"""
-#### The word `train`
-The loss function value of the FMU on training data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
-"""
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        loss_fmu = loss(fmu_train, data_train)
+        loss_nfmu = loss(result_train, data_train)
+
+        md"""
+      #### The word `train`
+      The loss function value of the FMU on training data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
+      """
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 919419fe-35de-44bb-89e4-8f8688bee962
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(200*3,60*3))
-		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(; dpi = 300, size = (200 * 3, 60 * 3))
+        plotPaths!(
+            fig,
+            data_train.tcp_px,
+            data_train.tcp_py,
+            data_train.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_train.values.saveval),
+            collect(v[2] for v in fmu_train.values.saveval),
+            collect(v[3] for v in fmu_train.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_train.values.saveval),
+            collect(v[2] for v in result_train.values.saveval),
+            collect(v[3] for v in result_train.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ ed25a535-ca2f-4cd2-b0af-188e9699f1c3
@@ -1359,14 +1559,41 @@ md"""
 
 # ╔═╡ 2918daf2-6499-4019-a04b-8c3419ee1ab7
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(40*10,40*10), xlims=(0.165, 0.205), ylims=(-0.035, 0.005))
-		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
-	else 
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(;
+            dpi = 300,
+            size = (40 * 10, 40 * 10),
+            xlims = (0.165, 0.205),
+            ylims = (-0.035, 0.005),
+        )
+        plotPaths!(
+            fig,
+            data_train.tcp_px,
+            data_train.tcp_py,
+            data_train.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_train.values.saveval),
+            collect(v[2] for v in fmu_train.values.saveval),
+            collect(v[3] for v in fmu_train.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_train.values.saveval),
+            collect(v[2] for v in result_train.values.saveval),
+            collect(v[3] for v in result_train.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ d798a5d0-3017-4eab-9cdf-ee85d63dfc49
@@ -1376,14 +1603,41 @@ md"""
 
 # ╔═╡ 048e39c3-a3d9-4e6b-b050-1fd5a919e4ae
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(50*10,40*10), xlims=(0.245, 0.295), ylims=(-0.04, 0.0))
-		plotPaths!(fig, data_train.tcp_px, data_train.tcp_py, data_train.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_train.values.saveval), collect(v[2] for v in fmu_train.values.saveval), collect(v[3] for v in fmu_train.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_train.values.saveval), collect(v[2] for v in result_train.values.saveval), collect(v[3] for v in result_train.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE 
-	end
+    if LIVE_RESULTS
+        fig = plot(;
+            dpi = 300,
+            size = (50 * 10, 40 * 10),
+            xlims = (0.245, 0.295),
+            ylims = (-0.04, 0.0),
+        )
+        plotPaths!(
+            fig,
+            data_train.tcp_px,
+            data_train.tcp_py,
+            data_train.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_train.values.saveval),
+            collect(v[2] for v in fmu_train.values.saveval),
+            collect(v[3] for v in fmu_train.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_train.values.saveval),
+            collect(v[2] for v in result_train.values.saveval),
+            collect(v[3] for v in result_train.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ b489f97d-ee90-48c0-af06-93b66a1f6d2e
@@ -1400,13 +1654,22 @@ Simulating the FMU (validation data):
 
 # ╔═╡ ea0ede8d-7c2c-4e72-9c96-3260dc8d817d
 begin
-	fmu_validation = fmiSimulate(fmu, (data_validation.t[1], data_validation.t[end]); x0=x0,
-		parameters=Dict{String, Any}("fileName" => data_validation.params["fileName"]), 
-		recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
-					  "rRPositionControl_Elasticity.tCP.p_y",
-					  "rRPositionControl_Elasticity.tCP.N"],
-		showProgress=true, maxiters=1e6, saveat=data_validation.t, solver=Tsit5());
-	nothing
+    fmu_validation = fmiSimulate(
+        fmu,
+        (data_validation.t[1], data_validation.t[end]);
+        x0 = x0,
+        parameters = Dict{String,Any}("fileName" => data_validation.params["fileName"]),
+        recordValues = [
+            "rRPositionControl_Elasticity.tCP.p_x",
+            "rRPositionControl_Elasticity.tCP.p_y",
+            "rRPositionControl_Elasticity.tCP.N",
+        ],
+        showProgress = true,
+        maxiters = 1e6,
+        saveat = data_validation.t,
+        solver = Tsit5(),
+    )
+    nothing
 end
 
 # ╔═╡ 35f52dbc-0c0b-495e-8fd4-6edbc6fa811e
@@ -1417,43 +1680,72 @@ Simulating the neural FMU (validation data):
 
 # ╔═╡ 51aed933-2067-4ea8-9c2f-9d070692ecfc
 begin
-	if LIVE_RESULTS
-		result_validation = neuralFMU(x0, (data_validation.t[1], data_validation.t[end]); 
-        parameters=Dict{String, Any}("fileName" => data_validation.params["fileName"]), 
-        recordValues=["rRPositionControl_Elasticity.tCP.p_x", 
-            "rRPositionControl_Elasticity.tCP.p_y",
-            "rRPositionControl_Elasticity.tCP.N"],
-        showProgress=true, maxiters=1e6, saveat=data_validation.t);
-		nothing
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        result_validation = neuralFMU(
+            x0,
+            (data_validation.t[1], data_validation.t[end]);
+            parameters = Dict{String,Any}("fileName" => data_validation.params["fileName"]),
+            recordValues = [
+                "rRPositionControl_Elasticity.tCP.p_x",
+                "rRPositionControl_Elasticity.tCP.p_y",
+                "rRPositionControl_Elasticity.tCP.N",
+            ],
+            showProgress = true,
+            maxiters = 1e6,
+            saveat = data_validation.t,
+        )
+        nothing
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 8d9dc86e-f38b-41b1-80c6-b2ab6f488a3a
 begin
-	if LIVE_RESULTS
-		loss_fmu = loss(fmu_validation, data_validation)
-		loss_nfmu = loss(result_validation, data_validation)
-		md"""
-#### The word `validate`
-The loss function value of the FMU on validation data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
-"""
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        loss_fmu = loss(fmu_validation, data_validation)
+        loss_nfmu = loss(result_validation, data_validation)
+        md"""
+      #### The word `validate`
+      The loss function value of the FMU on validation data is $(round(loss_fmu; digits=6)), of the neural FMU it is $(round(loss_nfmu; digits=6)). The neural FMU is about $(round(loss_fmu/loss_nfmu; digits=1)) times more accurate.
+      """
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 74ef5a39-1dd7-404a-8baf-caa1021d3054
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(200*3,40*3))
-		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(; dpi = 300, size = (200 * 3, 40 * 3))
+        plotPaths!(
+            fig,
+            data_validation.tcp_px,
+            data_validation.tcp_py,
+            data_validation.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_validation.values.saveval),
+            collect(v[2] for v in fmu_validation.values.saveval),
+            collect(v[3] for v in fmu_validation.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_validation.values.saveval),
+            collect(v[2] for v in result_validation.values.saveval),
+            collect(v[3] for v in result_validation.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 347d209b-9d41-48b0-bee6-0d159caacfa9
@@ -1463,14 +1755,41 @@ md"""
 
 # ╔═╡ 05281c4f-dba8-4070-bce3-dc2f1319902e
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(35*10,50*10), xlims=(0.188, 0.223), ylims=(-0.025, 0.025))
-		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(;
+            dpi = 300,
+            size = (35 * 10, 50 * 10),
+            xlims = (0.188, 0.223),
+            ylims = (-0.025, 0.025),
+        )
+        plotPaths!(
+            fig,
+            data_validation.tcp_px,
+            data_validation.tcp_py,
+            data_validation.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_validation.values.saveval),
+            collect(v[2] for v in fmu_validation.values.saveval),
+            collect(v[3] for v in fmu_validation.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_validation.values.saveval),
+            collect(v[2] for v in result_validation.values.saveval),
+            collect(v[3] for v in result_validation.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 590d7f24-c6b6-4524-b3db-0c93d9963b74
@@ -1480,14 +1799,42 @@ md"""
 
 # ╔═╡ 67cfe7c5-8e62-4bf0-996b-19597d5ad5ef
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(25*10,50*10), xlims=(0.245, 0.27), ylims=(-0.025, 0.025), legend=:topleft)
-		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(;
+            dpi = 300,
+            size = (25 * 10, 50 * 10),
+            xlims = (0.245, 0.27),
+            ylims = (-0.025, 0.025),
+            legend = :topleft,
+        )
+        plotPaths!(
+            fig,
+            data_validation.tcp_px,
+            data_validation.tcp_py,
+            data_validation.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_validation.values.saveval),
+            collect(v[2] for v in fmu_validation.values.saveval),
+            collect(v[3] for v in fmu_validation.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_validation.values.saveval),
+            collect(v[2] for v in result_validation.values.saveval),
+            collect(v[3] for v in result_validation.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ e6dc8aab-82c1-4dc9-a1c8-4fe9c137a146
@@ -1497,14 +1844,42 @@ md"""
 
 # ╔═╡ dfee214e-bd13-4d4f-af8e-20e0c4e0de9b
 let
-	if LIVE_RESULTS
-		fig = plot(; dpi=300, size=(25*10,30*10), xlims=(0.265, 0.29), ylims=(-0.025, 0.005), legend=:topleft)
-		plotPaths!(fig, data_validation.tcp_px, data_validation.tcp_py, data_validation.tcp_norm_f, label="Data", color=:black, style=:dash)
-		plotPaths!(fig, collect(v[1] for v in fmu_validation.values.saveval), collect(v[2] for v in fmu_validation.values.saveval), collect(v[3] for v in fmu_validation.values.saveval), label="FMU", color=:orange)
-		plotPaths!(fig, collect(v[1] for v in result_validation.values.saveval), collect(v[2] for v in result_validation.values.saveval), collect(v[3] for v in result_validation.values.saveval), label="Neural FMU", color=:blue)
-	else
-		LIVE_RESULTS_MESSAGE
-	end
+    if LIVE_RESULTS
+        fig = plot(;
+            dpi = 300,
+            size = (25 * 10, 30 * 10),
+            xlims = (0.265, 0.29),
+            ylims = (-0.025, 0.005),
+            legend = :topleft,
+        )
+        plotPaths!(
+            fig,
+            data_validation.tcp_px,
+            data_validation.tcp_py,
+            data_validation.tcp_norm_f,
+            label = "Data",
+            color = :black,
+            style = :dash,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in fmu_validation.values.saveval),
+            collect(v[2] for v in fmu_validation.values.saveval),
+            collect(v[3] for v in fmu_validation.values.saveval),
+            label = "FMU",
+            color = :orange,
+        )
+        plotPaths!(
+            fig,
+            collect(v[1] for v in result_validation.values.saveval),
+            collect(v[2] for v in result_validation.values.saveval),
+            collect(v[3] for v in result_validation.values.saveval),
+            label = "Neural FMU",
+            color = :blue,
+        )
+    else
+        LIVE_RESULTS_MESSAGE
+    end
 end
 
 # ╔═╡ 88884204-79e4-4412-b861-ebeb5f6f7396

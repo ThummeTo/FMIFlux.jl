@@ -14,12 +14,22 @@ struct OptimOptimiserWrapper{G} <: AbstractOptimiser
     optim::Optim.AbstractOptimizer
     grad_fun!::G
 
-    state::Union{Optim.AbstractOptimizerState, Nothing}
-    d::Union{Optim.OnceDifferentiable, Nothing}
-    options
+    state::Union{Optim.AbstractOptimizerState,Nothing}
+    d::Union{Optim.OnceDifferentiable,Nothing}
+    options::Any
 
-    function OptimOptimiserWrapper(optim::Optim.AbstractOptimizer, grad_fun!::G, loss, params) where {G}
-        options = Optim.Options(outer_iterations=1, iterations=1, g_calls_limit=1, f_calls_limit=5)
+    function OptimOptimiserWrapper(
+        optim::Optim.AbstractOptimizer,
+        grad_fun!::G,
+        loss,
+        params,
+    ) where {G}
+        options = Optim.Options(
+            outer_iterations = 1,
+            iterations = 1,
+            g_calls_limit = 1,
+            f_calls_limit = 5,
+        )
 
         # should be ignored anyway, because function `g!` is given
         autodiff = :forward # = ::finite
@@ -33,7 +43,7 @@ struct OptimOptimiserWrapper{G} <: AbstractOptimiser
 
 end
 export OptimOptimiserWrapper
-  
+
 function apply!(optim::OptimOptimiserWrapper, params)
 
     res = Optim.optimize(optim.d, params, optim.optim, optim.options, optim.state)
@@ -47,26 +57,37 @@ end
 struct FluxOptimiserWrapper{G} <: AbstractOptimiser
     optim::Flux.Optimise.AbstractOptimiser
     grad_fun!::G
-    grad_buffer::Union{AbstractVector{Float64}, AbstractMatrix{Float64}}
+    grad_buffer::Union{AbstractVector{Float64},AbstractMatrix{Float64}}
     multiGrad::Bool
 
-    function FluxOptimiserWrapper(optim::Flux.Optimise.AbstractOptimiser, grad_fun!::G, grad_buffer::AbstractVector{Float64}) where {G}
+    function FluxOptimiserWrapper(
+        optim::Flux.Optimise.AbstractOptimiser,
+        grad_fun!::G,
+        grad_buffer::AbstractVector{Float64},
+    ) where {G}
         return new{G}(optim, grad_fun!, grad_buffer, false)
     end
 
-    function FluxOptimiserWrapper(optim::Flux.Optimise.AbstractOptimiser, grad_fun!::G, grad_buffer::AbstractMatrix{Float64}) where {G}
+    function FluxOptimiserWrapper(
+        optim::Flux.Optimise.AbstractOptimiser,
+        grad_fun!::G,
+        grad_buffer::AbstractMatrix{Float64},
+    ) where {G}
         return new{G}(optim, grad_fun!, grad_buffer, true)
     end
 
 end
 export FluxOptimiserWrapper
-  
+
 function apply!(optim::FluxOptimiserWrapper, params)
 
     optim.grad_fun!(optim.grad_buffer, params)
 
     if optim.multiGrad
-        return collect(Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer[:,i]) for i in 1:size(optim.grad_buffer)[2])
+        return collect(
+            Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer[:, i]) for
+            i = 1:size(optim.grad_buffer)[2]
+        )
     else
         return Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer)
     end
@@ -75,4 +96,3 @@ end
 ### generic FMIFlux.AbstractOptimiser ###
 
 
-  

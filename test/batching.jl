@@ -5,7 +5,7 @@
 
 using FMIFlux.Flux
 
-import Random 
+import Random
 Random.seed!(1234);
 
 t_start = 0.0
@@ -17,36 +17,36 @@ tData = t_start:t_step:t_stop
 posData, velData, accData = syntTrainingData(tData)
 
 # load FMU for NeuralFMU
-fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type=:ME)
+fmu = loadFMU("SpringPendulum1D", EXPORTINGTOOL, EXPORTINGVERSION; type = :ME)
 
 using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
 
 # loss function for training
-losssum_single = function(p)
+losssum_single = function (p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=false, saveat=tData)
+    solution = problem(X0; p = p, showProgress = false, saveat = tData)
 
     if !solution.success
-        return Inf 
+        return Inf
     end
 
-    posNet = getState(solution, 1; isIndex=true)
-    
+    posNet = getState(solution, 1; isIndex = true)
+
     return Flux.Losses.mse(posNet, posData)
 end
 
-losssum_multi = function(p)
+losssum_multi = function (p)
     global problem, X0, posData
-    solution = problem(X0; p=p, showProgress=false, saveat=tData)
+    solution = problem(X0; p = p, showProgress = false, saveat = tData)
 
     if !solution.success
         return [Inf, Inf]
     end
 
-    posNet = getState(solution, 1; isIndex=true)
-    velNet = getState(solution, 2; isIndex=true)
-    
+    posNet = getState(solution, 1; isIndex = true)
+    velNet = getState(solution, 2; isIndex = true)
+
     return [Flux.Losses.mse(posNet, posData), Flux.Losses.mse(velNet, velData)]
 end
 
@@ -56,14 +56,16 @@ c1 = CacheLayer()
 c2 = CacheRetrieveLayer(c1)
 
 # the "Chain" for training
-net = Chain(x -> fmu(;x=x, dx_refs=:all),
-            dx -> c1(dx),
-            Dense(numStates, 12, tanh),
-            Dense(12, 1, identity),
-            dx -> c2(1, dx[1]))
+net = Chain(
+    x -> fmu(; x = x, dx_refs = :all),
+    dx -> c1(dx),
+    Dense(numStates, 12, tanh),
+    Dense(12, 1, identity),
+    dx -> c2(1, dx[1]),
+)
 
 solver = Tsit5()
-problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat=tData)
+problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat = tData)
 @test problem != nothing
 
 # before
@@ -72,7 +74,13 @@ lossBefore = losssum_single(p_net[1])
 
 # single objective
 optim = OPTIMISER(ETA)
-FMIFlux.train!(losssum_single, problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT)
+FMIFlux.train!(
+    losssum_single,
+    problem,
+    Iterators.repeated((), NUMSTEPS),
+    optim;
+    gradient = GRADIENT,
+)
 
 # multi objective
 # lastLoss = sum(losssum_multi(p_net[1]))
