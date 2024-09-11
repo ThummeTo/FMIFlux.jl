@@ -1,7 +1,6 @@
 name = "Examples"
 
 [deps]
-DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 FMI = "14a09403-18e3-468f-ad8a-74f8dda2d9ac"
 FMIFlux = "fabad875-0d53-4e47-9446-963b74cae21f"
 FMIImport = "9fcbc62e-52a0-44e9-a616-1359a0008194"
