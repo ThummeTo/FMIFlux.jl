@@ -52,15 +52,10 @@ You can evaluate FMUs inside of your loss function.
 - Implicit solvers using `autodiff=true` is not supported (now), but you can use implicit solvers with `autodiff=false`.
 
 - Sensitivity information over state change by event $\partial x^{+} / \partial x^{-}$ can't be accessed in FMI. 
-These sensitivities are simplified on basis of one of the following assumptions (defined by user):
-(1) the state after event depends on nothing, so sensitivities are zero or 
-(2) the state after event instance only depends on the same state before the event instance
-The second is often correct for e.g. mechanical contacts, but may lead to wrong gradients for arbitrary discontinuous systems. 
-However even if the gradient might not be 100% correct in any case, gradients are often usable for optimization tasks. 
+These sensitivities are sampled if the FMU supports `fmiXGet/SetState`. If this feature is not available, wrong sensitivities are computed, which my influence your optimization (dependent on the use case).
 This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
 
-- Discontinuous systems with implicit solvers use continuous adjoints instead of automatic differentiation through the ODE solver.
-This might lead to issues, because FMUs are by design not capable of being simulated backwards in time. 
+- If continuous adjoints instead of automatic differentiation through the ODE solver (discrete adjoint) are applied, this might lead to issues, because FMUs are by design not capable of being simulated backwards in time. 
 On the other hand, many FMUs are capable of doing so.
 This issue is also part of the [*OpenScaling*](https://itea4.org/project/openscaling.html) research project.
 
