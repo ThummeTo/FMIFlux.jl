@@ -94,5 +94,3 @@ function apply!(optim::FluxOptimiserWrapper, params)
 end
 
 ### generic FMIFlux.AbstractOptimiser ###
-
-

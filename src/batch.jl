@@ -643,5 +643,3 @@ function batchDataEvaluation(
 
     return batch
 end
-
-
