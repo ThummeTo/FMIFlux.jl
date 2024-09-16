@@ -82,6 +82,7 @@ jobs:
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
             git switch examples
             git reset --hard origin/examples
+            rm -r ${{ env.EXAMPLES_PATH }}/jupyter-src/${{ matrix.file-name }}*
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
@@ -127,6 +128,7 @@ jobs:
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
             git switch examples
             git reset --hard origin/examples
+            rm -r ${{ env.EXAMPLES_PATH }}/pluto-src/*
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
