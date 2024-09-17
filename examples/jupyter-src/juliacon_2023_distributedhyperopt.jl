@@ -14,7 +14,7 @@ using DistributedHyperOpt   # add via `add "https://github.com/ThummeTo/Distribu
 
 nprocs()
 workers = addprocs(5)
-@everywhere include(joinpath(@__DIR__, "workshop_module.jl"))
+@everywhere include(joinpath(@__DIR__, "juliacon_2023.jl"))
 
 # creating paths for log files (logs), parameter sets (params) and hyperparameter plots (plots) 
 for dir ∈ ("logs", "params", "plots")
