@@ -28,4 +28,4 @@ LocalPreferences.toml
 tmp/
 build/
 .vscode/
-examples/src/.ipynb_checkpoints/
+examples/jupyter-src/.ipynb_checkpoints/

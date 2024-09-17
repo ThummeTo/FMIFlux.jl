@@ -8,8 +8,7 @@ on:
       - main
     paths:
       - 'src/**'
-      - 'examples/jupyter-src/**'
-      - 'examples/pluto-src/**'
+      - 'examples/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
 
@@ -79,7 +78,7 @@ jobs:
           command: |
             git fetch --all
             git stash clear
-            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
             git switch examples
             git reset --hard origin/examples
             rm -r ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
