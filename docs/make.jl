@@ -14,7 +14,7 @@ makedocs(
         collapselevel = 1,
         sidebar_sitename = false,
         edit_link = nothing,
-        size_threshold_ignore = [joinpath("examples", "juliacon_2023.md")],
+        size_threshold_ignore = [joinpath("examples", "juliacon_2023.md", "modelica_conference_2021.md", "simple_hybrid_CS.md","simple_hybrid_ME.md")],
     ),
     warnonly = true,
     pages = Any[
