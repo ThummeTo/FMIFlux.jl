@@ -65,9 +65,9 @@ jobs:
         if: success() && github.event_name != 'pull_request' && github.ref_name == 'main'
         uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.os }}-${{ matrix.file-name }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref }}]
+          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.file-name }}-${{ matrix.os }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref_name }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples
+          EXAMPLES_PATH: examples/jupyter-src
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
@@ -82,7 +82,7 @@ jobs:
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
             git switch examples
             git reset --hard origin/examples
-            rm -r ${{ env.EXAMPLES_PATH }}/jupyter-src/${{ matrix.file-name }}*
+            rm -r ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
@@ -113,7 +113,7 @@ jobs:
         env: 
           CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
-          EXAMPLES_PATH: examples
+          EXAMPLES_PATH: examples/pluto-src
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
@@ -128,7 +128,7 @@ jobs:
             git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}
             git switch examples
             git reset --hard origin/examples
-            rm -r ${{ env.EXAMPLES_PATH }}/pluto-src/*
+            rm -r ${{ env.EXAMPLES_PATH }}/*
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
