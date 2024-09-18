@@ -89,8 +89,7 @@ my_makedocs() = makedocs(
         sidebar_sitename = false,
         edit_link = nothing,
         size_threshold = 512000,
-        size_threshold_ignore = [
-        ],
+        size_threshold_ignore = [],
     ),
     modules = [FMIFlux],
     checkdocs = :exports,
