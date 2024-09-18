@@ -11,19 +11,19 @@ on:
       - 'examples/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
-
+  
 jobs:
   jupyter:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest] # , ubuntu-latest]
+        os: [windows-latest] # ubuntu-latest]
         file-name: [simple_hybrid_CS, simple_hybrid_ME, juliacon_2023, modelica_conference_2021]
-        julia-version: ['1.10'] 
+        julia-version: ['1.10']
         julia-arch: [x64]
         experimental: [false]
-        
+
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
@@ -33,13 +33,13 @@ jobs:
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
-            
+
       - name: "Install dependencies"
         run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: "Install packages"
         run: pip install jupyter nbconvert
-
+        
       - name: "Execute notebook"
         env:
           FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
@@ -105,7 +105,7 @@ jobs:
         with:
             version: '1.10'
             
-      - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer"); Pkg.add("FMIFlux")'
+      - run: julia -e 'using Pkg; Pkg.add("PlutoSliderServer");'
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
 
       - name: "auto-commit (retry on merge)"
@@ -141,7 +141,7 @@ jobs:
             git add ${{ env.EXAMPLES_PATH }}
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
             git push origin examples || (git reset --soft HEAD~1 && (exit 1))
-
+            
   call-docu:
     needs: [jupyter, pluto]
     if: github.event_name != 'pull_request' && github.ref_name == 'main'

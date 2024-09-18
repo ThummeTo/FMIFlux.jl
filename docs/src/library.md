@@ -14,7 +14,7 @@ NeuralFMU
 ## FMI 2 version dependent functions
 
 ```@docs
-fmi2DoStepCS
+fmiDoStepCS
 fmi2EvaluateME
 fmi2InputDoStepCSOutput
 ```
@@ -22,7 +22,6 @@ fmi2InputDoStepCSOutput
 ## FMI version independent functions
 
 ```@docs
-fmiDoStepCS
 fmiEvaluateME
 fmiInputDoStepCSOutput
 ```
@@ -31,5 +30,22 @@ fmiInputDoStepCSOutput
 
 ```@docs
 mse_interpolate
+```
 transferParams!
+
+## TODO: Sort docs
+
+```@docs
+LossAccumulationScheduler
+FMIFlux.transferFlatParams!
+FMIFlux.WorstElementScheduler
+FMIFlux.FMUParameterRegistrator
+FMIFlux.SimultaniousZeroCrossing
+FMIFlux.ParameterRegistrator
+FMIFlux.ScaleShift
+FMIFlux.WorstGrowScheduler
+FMIFlux.SequentialScheduler
+FMIFlux.FMUTimeLayer
+FMIFlux.ShiftScale
+FMIFlux.RandomScheduler
 ```
