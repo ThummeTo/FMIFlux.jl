@@ -91,7 +91,7 @@ parameters = Dict(&quot;mass_s0&quot; =&gt; x0[1], &quot;mass_v0&quot; =&gt; x0[
 sol_gt = simulate(fmu_gt, (tStart, tStop); recordValues=vrs, saveat=tSave, parameters=parameters)    
 
 # ... and plot it!
-plot(sol_gt)                                                                    </code></pre><p>After the simulation, specific variables can be extracted. We will use them for the later training - as training data!</p><pre><code class="language-julia hljs">vel_gt = getValue(sol_gt, &quot;mass.v&quot;)
+plot(sol_gt)                                                                    </code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_10_0.svg" alt="svg"/></p><p>After the simulation, specific variables can be extracted. We will use them for the later training - as training data!</p><pre><code class="language-julia hljs">vel_gt = getValue(sol_gt, &quot;mass.v&quot;)
 acc_gt = getValue(sol_gt, &quot;mass.a&quot;)</code></pre><pre><code class="nohighlight hljs">501-element Vector{Float64}:
   6.0
   5.996872980925033
@@ -161,7 +161,7 @@ plot(sol_fmu)</code></pre><pre><code class="nohighlight hljs">##################
 		Get/Set State:		true
 		Serialize State:	true
 		Dir. Derivatives:	true
-##################### End information for FMU #####################</code></pre><h3 id="Neural-FMU"><a class="docs-heading-anchor" href="#Neural-FMU">Neural FMU</a><a id="Neural-FMU-1"></a><a class="docs-heading-anchor-permalink" href="#Neural-FMU" title="Permalink"></a></h3><p>First, let&#39;s check the inputs and outputs of our CS FMU.</p><pre><code class="language-julia hljs"># outputs
+##################### End information for FMU #####################</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_16_1.svg" alt="svg"/></p><h3 id="Neural-FMU"><a class="docs-heading-anchor" href="#Neural-FMU">Neural FMU</a><a id="Neural-FMU-1"></a><a class="docs-heading-anchor-permalink" href="#Neural-FMU" title="Permalink"></a></h3><p>First, let&#39;s check the inputs and outputs of our CS FMU.</p><pre><code class="language-julia hljs"># outputs
 println(&quot;Outputs:&quot;)
 y_refs = fmu.modelDescription.outputValueReferences 
 numOutputs = length(y_refs)
@@ -191,7 +191,7 @@ Inputs:
 neuralFMU = CS_NeuralFMU(fmu, net, (tStart, tStop));</code></pre><p>Before we can check that neural FMU, we need to define a input function, because the neural FMU - as well as the original FMU - has inputs.</p><pre><code class="language-julia hljs">function extForce(t)
     return [0.0]
 end </code></pre><pre><code class="nohighlight hljs">extForce (generic function with 1 method)</code></pre><p>Now, we can check how the neural FMU performs before the actual training!</p><pre><code class="language-julia hljs">solutionBefore = neuralFMU(extForce, tStep, (tStart, tStop); parameters=parameters)
-plot(solutionBefore)</code></pre><p>Not that ideal... let&#39;s add our ground truth data to compare!</p><pre><code class="language-julia hljs">plot!(sol_gt)</code></pre><p>Ufff... training seems a good idea here!</p><h3 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h3><p>Before we can train the neural FMU, we need to define a loss function. We use the common mean-squared-error (MSE) here.</p><pre><code class="language-julia hljs">function loss(p)
+plot(solutionBefore)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_24_0.svg" alt="svg"/></p><p>Not that ideal... let&#39;s add our ground truth data to compare!</p><pre><code class="language-julia hljs">plot!(sol_gt)</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_26_0.svg" alt="svg"/></p><p>Ufff... training seems a good idea here!</p><h3 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h3><p>Before we can train the neural FMU, we need to define a loss function. We use the common mean-squared-error (MSE) here.</p><pre><code class="language-julia hljs">function loss(p)
     # simulate the neural FMU by calling it
     sol_nfmu = neuralFMU(extForce, tStep, (tStart, tStop); parameters=parameters, p=p)
 
@@ -220,8 +220,6 @@ FMIFlux.train!(
     optim; 
     cb=()-&gt;callback(p)
 ) </code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [1]: 16.874727
-
-
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mLoss [21]: 10.452957
 
 
@@ -296,18 +294,18 @@ FMIFlux.train!(
 fig = plot(solutionBefore; valueIndices=2:2, label=&quot;Neural FMU (before)&quot;, ylabel=&quot;acceleration [m/s^2]&quot;)
 plot!(fig, solutionAfter; valueIndices=2:2, label=&quot;Neural FMU (after)&quot;)
 plot!(fig, tSave, acc_gt; label=&quot;ground truth&quot;)
-fig</code></pre><p>Finally, the FMU is unloaded and memory released.</p><pre><code class="language-julia hljs">unloadFMU(fmu)</code></pre><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p><h2 id="Build-information"><a class="docs-heading-anchor" href="#Build-information">Build information</a><a id="Build-information-1"></a><a class="docs-heading-anchor-permalink" href="#Build-information" title="Permalink"></a></h2><pre><code class="language-julia hljs"># check package build information for reproducibility
+fig</code></pre><p><img src="../simple_hybrid_CS_files/simple_hybrid_CS_35_0.svg" alt="svg"/></p><p>Finally, the FMU is unloaded and memory released.</p><pre><code class="language-julia hljs">unloadFMU(fmu)</code></pre><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p><h2 id="Build-information"><a class="docs-heading-anchor" href="#Build-information">Build information</a><a id="Build-information-1"></a><a class="docs-heading-anchor-permalink" href="#Build-information" title="Permalink"></a></h2><pre><code class="language-julia hljs"># check package build information for reproducibility
 import Pkg; Pkg.status()</code></pre><pre><code class="nohighlight hljs">[32m[1mStatus[22m[39m `D:\a\FMIFlux.jl\FMIFlux.jl\examples\Project.toml`
   [90m[0c46a032] [39mDifferentialEquations v7.14.0
   [90m[14a09403] [39mFMI v0.14.1
   [90m[fabad875] [39mFMIFlux v0.13.0 `D:\a\FMIFlux.jl\FMIFlux.jl`
-  [90m[9fcbc62e] [39mFMIImport v1.0.7
+  [90m[9fcbc62e] [39mFMIImport v1.0.8
   [90m[724179cf] [39mFMIZoo v1.1.0
-  [90m[587475ba] [39mFlux v0.14.19
+  [90m[587475ba] [39mFlux v0.14.22
   [90m[7073ff75] [39mIJulia v1.25.0
 [32m⌃[39m [90m[033835bb] [39mJLD2 v0.4.53
-  [90m[b964fa9f] [39mLaTeXStrings v1.3.1
+  [90m[b964fa9f] [39mLaTeXStrings v1.4.0
   [90m[f0f68f2c] [39mPlotlyJS v0.18.14
   [90m[91a5bcdd] [39mPlots v1.40.8
   [90m[9a3f8284] [39mRandom
-[36m[1mInfo[22m[39m Packages marked with [32m⌃[39m have new versions available and may be upgradable.</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 16 October 2024 10:21">Wednesday 16 October 2024</span>. Using Julia version 1.11.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+[36m[1mInfo[22m[39m Packages marked with [32m⌃[39m have new versions available and may be upgradable.</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../overview/">« Overview</a><a class="docs-footer-nextpage" href="../simple_hybrid_ME/">Simple ME-NeuralFMU »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 16 October 2024 11:51">Wednesday 16 October 2024</span>. Using Julia version 1.11.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

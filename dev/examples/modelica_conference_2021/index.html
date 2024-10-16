@@ -62,8 +62,6 @@ info(realFMU)</code></pre><pre><code class="nohighlight hljs">##################
 		...
 		16777223 [&quot;mass.smin&quot;]
 		16777224 [&quot;mass.v_small&quot;]
-
-
 		16777225 [&quot;mass.L&quot;]
 		16777226 [&quot;mass.m&quot;]
 		16777227 [&quot;mass.fexp&quot;]
@@ -80,6 +78,8 @@ info(realFMU)</code></pre><pre><code class="nohighlight hljs">##################
 		Get/Set State:		true
 		Serialize State:	true
 		Dir. Derivatives:	true
+
+
 ##################### End information for FMU #####################</code></pre><p>In the following two subsections, the <em>realFMU</em> is simulated twice with different initial states to show what effect the choice of initial states has.</p><h4 id="Default-initial-states"><a class="docs-heading-anchor" href="#Default-initial-states">Default initial states</a><a id="Default-initial-states-1"></a><a class="docs-heading-anchor-permalink" href="#Default-initial-states" title="Permalink"></a></h4><p>In the next steps the parameters are defined. The first parameter is the initial position of the mass, which is initialized with <span>$0.5m$</span>, the second parameter is the initial velocity, which is initialized with <span>$0\frac{m}{s}$</span>. In the function <code>fmiSimulate()</code> the <em>realFMU</em> is simulated, still specifying the start and end time, the parameters and which variables are recorded. After the simulation is finished the result of the <em>realFMU</em> can be plotted. This plot also serves as a reference for the other model (<em>simpleFMU</em>). The extracted data will still be needed later on.</p><pre><code class="language-julia hljs">initStates = [&quot;s0&quot;, &quot;v0&quot;]
 x₀ = [0.5, 0.0]
 params = Dict(zip(initStates, x₀))
@@ -90,7 +90,7 @@ posReal = getValue(realSimData, &quot;mass.s&quot;)
 velReal = getValue(realSimData, &quot;mass.v&quot;)
 plot(realSimData)</code></pre><pre><code class="nohighlight hljs">[34mSimulating ME-FMU ...   0%|█                             |  ETA: N/A[39m
 
-[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:15[39m</code></pre><h4 id="Define-functions"><a class="docs-heading-anchor" href="#Define-functions">Define functions</a><a id="Define-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Define-functions" title="Permalink"></a></h4><p>Also, a function to extract the position and velocity from the simulation data is created.</p><pre><code class="language-julia hljs">function extractPosVel(simData)
+[34mSimulating ME-FMU ... 100%|██████████████████████████████| Time: 0:00:16[39m</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_12_2.svg" alt="svg"/></p><h4 id="Define-functions"><a class="docs-heading-anchor" href="#Define-functions">Define functions</a><a id="Define-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Define-functions" title="Permalink"></a></h4><p>Also, a function to extract the position and velocity from the simulation data is created.</p><pre><code class="language-julia hljs">function extractPosVel(simData)
     if simData.states === nothing
         posData = getValue(simData, &quot;mass.s&quot;)
         velData = getValue(simData, &quot;mass.v&quot;)
@@ -102,7 +102,7 @@ plot(realSimData)</code></pre><pre><code class="nohighlight hljs">[34mSimulatin
     return posData, velData
 end</code></pre><pre><code class="nohighlight hljs">extractPosVel (generic function with 1 method)</code></pre><h4 id="Modified-initial-states"><a class="docs-heading-anchor" href="#Modified-initial-states">Modified initial states</a><a id="Modified-initial-states-1"></a><a class="docs-heading-anchor-permalink" href="#Modified-initial-states" title="Permalink"></a></h4><p>In contrast to the previous section, other initial states are selected. The position of the mass is initialized with <span>$1.0m$</span> and the velocity is initialized with <span>$-1.5\frac{m}{s}$</span>. With the modified initial states the <em>realFMU</em> is simulated and a graph is generated.</p><pre><code class="language-julia hljs">xMod₀ = [1.0, -1.5]
 realSimDataMod = simulate(realFMU, (tStart, tStop); parameters=Dict(zip(initStates, xMod₀)), recordValues=vrs, saveat=tSave)
-plot(realSimDataMod)</code></pre><h3 id="SimpleFMU"><a class="docs-heading-anchor" href="#SimpleFMU">SimpleFMU</a><a id="SimpleFMU-1"></a><a class="docs-heading-anchor-permalink" href="#SimpleFMU" title="Permalink"></a></h3><p>The following lines load the <em>simpleFMU</em> from <em>FMIZoo.jl</em>. </p><pre><code class="language-julia hljs">simpleFMU = loadFMU(&quot;SpringPendulum1D&quot;, &quot;Dymola&quot;, &quot;2022x&quot;; type=:ME)
+plot(realSimDataMod)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_17_0.svg" alt="svg"/></p><h3 id="SimpleFMU"><a class="docs-heading-anchor" href="#SimpleFMU">SimpleFMU</a><a id="SimpleFMU-1"></a><a class="docs-heading-anchor-permalink" href="#SimpleFMU" title="Permalink"></a></h3><p>The following lines load the <em>simpleFMU</em> from <em>FMIZoo.jl</em>. </p><pre><code class="language-julia hljs">simpleFMU = loadFMU(&quot;SpringPendulum1D&quot;, &quot;Dymola&quot;, &quot;2022x&quot;; type=:ME)
 info(simpleFMU)</code></pre><pre><code class="nohighlight hljs">#################### Begin information for FMU ####################
 	Model name:			SpringPendulum1D
 	FMI-Version:			2.0
@@ -143,10 +143,10 @@ xSimple₀ = vcat(x₀, displacement)
 vrs = vrs[1:end-1]
 
 simpleSimData = simulate(simpleFMU, (tStart, tStop); parameters=Dict(zip(initStates, xSimple₀)), recordValues=vrs, saveat=tSave)
-plot(simpleSimData)</code></pre><h4 id="Modified-initial-states-2"><a class="docs-heading-anchor" href="#Modified-initial-states-2">Modified initial states</a><a class="docs-heading-anchor-permalink" href="#Modified-initial-states-2" title="Permalink"></a></h4><p>The same values for the initial states are used for this simulation as for the simulation from the <em>realFMU</em> with the modified initial states.</p><pre><code class="language-julia hljs">xSimpleMod₀ = vcat(xMod₀, displacement)
+plot(simpleSimData)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_22_0.svg" alt="svg"/></p><h4 id="Modified-initial-states-2"><a class="docs-heading-anchor" href="#Modified-initial-states-2">Modified initial states</a><a class="docs-heading-anchor-permalink" href="#Modified-initial-states-2" title="Permalink"></a></h4><p>The same values for the initial states are used for this simulation as for the simulation from the <em>realFMU</em> with the modified initial states.</p><pre><code class="language-julia hljs">xSimpleMod₀ = vcat(xMod₀, displacement)
 
 simpleSimDataMod = simulate(simpleFMU, (tStart, tStop); parameters=Dict(zip(initStates, xSimpleMod₀)), recordValues=vrs, saveat=tSave)
-plot(simpleSimDataMod)</code></pre><h2 id="NeuralFMU"><a class="docs-heading-anchor" href="#NeuralFMU">NeuralFMU</a><a id="NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#NeuralFMU" title="Permalink"></a></h2><h4 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h4><p>In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.</p><p>The error function in this implementation consists of the mean of the mean squared errors. The first part of the addition is the deviation of the position and the second part is the deviation of the velocity. The mean squared error (mse) for the position consists from the real position of the <em>realFMU</em> simulation (posReal) and the position data of the network (posNet). The mean squared error for the velocity consists of the real velocity of the <em>realFMU</em> simulation (velReal) and the velocity data of the network (velNet). $ e<em>{loss} = \frac{1}{2} \Bigl[ \frac{1}{n} \sum\limits</em>{i=0}^n (posReal[i] - posNet[i])^2 + \frac{1}{n} \sum\limits_{i=0}^n (velReal[i] - velNet[i])^2 \Bigr]$</p><pre><code class="language-julia hljs"># loss function for training
+plot(simpleSimDataMod)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_24_0.svg" alt="svg"/></p><h2 id="NeuralFMU"><a class="docs-heading-anchor" href="#NeuralFMU">NeuralFMU</a><a id="NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#NeuralFMU" title="Permalink"></a></h2><h4 id="Loss-function"><a class="docs-heading-anchor" href="#Loss-function">Loss function</a><a id="Loss-function-1"></a><a class="docs-heading-anchor-permalink" href="#Loss-function" title="Permalink"></a></h4><p>In order to train our model, a loss function must be implemented. The solver of the NeuralFMU can calculate the gradient of the loss function. The gradient descent is needed to adjust the weights in the neural network so that the sum of the error is reduced and the model becomes more accurate.</p><p>The error function in this implementation consists of the mean of the mean squared errors. The first part of the addition is the deviation of the position and the second part is the deviation of the velocity. The mean squared error (mse) for the position consists from the real position of the <em>realFMU</em> simulation (posReal) and the position data of the network (posNet). The mean squared error for the velocity consists of the real velocity of the <em>realFMU</em> simulation (velReal) and the velocity data of the network (velNet). $ e<em>{loss} = \frac{1}{2} \Bigl[ \frac{1}{n} \sum\limits</em>{i=0}^n (posReal[i] - posNet[i])^2 + \frac{1}{n} \sum\limits_{i=0}^n (velReal[i] - velNet[i])^2 \Bigr]$</p><pre><code class="language-julia hljs"># loss function for training
 function lossSum(p)
     global x₀
     solution = neuralFMU(x₀; p=p)
@@ -308,7 +308,7 @@ net = Chain(Dense(numStates, numStates,  identity),
   Dense(8 =&gt; 8, tanh),                  [90m# 72 parameters[39m
   Dense(8 =&gt; 2),                        [90m# 18 parameters[39m
 ) [90m                  # Total: 8 arrays, [39m120 parameters, 992 bytes.</code></pre><h4 id="Definition-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Definition-of-the-NeuralFMU">Definition of the NeuralFMU</a><a id="Definition-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-NeuralFMU" title="Permalink"></a></h4><p>The instantiation of the ME-NeuralFMU is done as a one-liner. The FMU (<em>simpleFMU</em>), the structure of the network <code>net</code>, start <code>tStart</code> and end time <code>tStop</code>, the numerical solver <code>Tsit5()</code> and the time steps <code>tSave</code> for saving are specified.</p><pre><code class="language-julia hljs">neuralFMU = ME_NeuralFMU(simpleFMU, net, (tStart, tStop), Tsit5(); saveat=tSave);</code></pre><h4 id="Plot-before-training"><a class="docs-heading-anchor" href="#Plot-before-training">Plot before training</a><a id="Plot-before-training-1"></a><a class="docs-heading-anchor-permalink" href="#Plot-before-training" title="Permalink"></a></h4><p>Here the state trajectory of the <em>simpleFMU</em> is recorded. Doesn&#39;t really look like a pendulum yet, but the system is random initialized by default. In the plots later on, the effect of learning can be seen.</p><pre><code class="language-julia hljs">solutionBefore = neuralFMU(x₀)
-plot(solutionBefore)</code></pre><h4 id="Training-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-NeuralFMU">Training of the NeuralFMU</a><a id="Training-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-NeuralFMU" title="Permalink"></a></h4><p>For the training of the NeuralFMU the parameters are extracted. All parameters of the first layer are set to the absolute value.</p><pre><code class="language-julia hljs"># train
+plot(solutionBefore)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_44_0.svg" alt="svg"/></p><h4 id="Training-of-the-NeuralFMU"><a class="docs-heading-anchor" href="#Training-of-the-NeuralFMU">Training of the NeuralFMU</a><a id="Training-of-the-NeuralFMU-1"></a><a class="docs-heading-anchor-permalink" href="#Training-of-the-NeuralFMU" title="Permalink"></a></h4><p>For the training of the NeuralFMU the parameters are extracted. All parameters of the first layer are set to the absolute value.</p><pre><code class="language-julia hljs"># train
 paramsNet = FMIFlux.params(neuralFMU)
 
 for i in 1:length(paramsNet[1])
@@ -358,8 +358,6 @@ numIterations = 500;</code></pre><h4 id="Training-loop"><a class="docs-heading-a
 
     plot_displacement_model!(realSimData, netTop, displacements, tSave, displacement)
 end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 1/5
-
-
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [51]: 0.45217
 [36m[1m│ [22m[39m        Avg displacement in data: 0.67244
 [36m[1m└ [22m[39m        Weight/Scale: 0.6029313727409417   Bias/Offset: 0.04838982792298539
@@ -510,9 +508,9 @@ end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1501]: 0.01176
 [36m[1m│ [22m[39m        Avg displacement in data: 0.10843
 [36m[1m└ [22m[39m        Weight/Scale: 0.7521206937747862   Bias/Offset: 0.1989686681528405
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 1/2  Epoch: 4/5
-
-
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [1551]: 0.01135
 [36m[1m│ [22m[39m        Avg displacement in data: 0.10653
 [36m[1m└ [22m[39m        Weight/Scale: 0.7506097264801087   Bias/Offset: 0.19789621918008185
@@ -614,43 +612,7 @@ end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[
 [36m[1m└ [22m[39m        Weight/Scale: 0.7438872351944437   Bias/Offset: 0.19014429963747764
 
 
- 95.874149 seconds (1.32 G allocations: 59.333 GiB, 8.50% gc time, 0.09% compilation time)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.30873694544497
-
-
-
-
-
-
-
-
-
-
-
-
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 1/5
+ 94.525058 seconds (1.32 G allocations: 59.333 GiB, 9.62% gc time, 0.09% compilation time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_51.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_52.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_53.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_54.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.30873694544497</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_56.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_57.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 1/5
 
 
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [2551]: 0.00286
@@ -701,9 +663,9 @@ end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3001]: 0.00218
 [36m[1m│ [22m[39m        Avg displacement in data: 0.04673
 [36m[1m└ [22m[39m        Weight/Scale: 0.7438315491972639   Bias/Offset: 0.19698127821198744
-
-
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 2/5
+
+
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [3051]: 0.0021
 [36m[1m│ [22m[39m        Avg displacement in data: 0.04584
 [36m[1m└ [22m[39m        Weight/Scale: 0.7438199538351697   Bias/Offset: 0.19793962190968858
@@ -854,9 +816,9 @@ end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4501]: 0.00061
 [36m[1m│ [22m[39m        Avg displacement in data: 0.0248
 [36m[1m└ [22m[39m        Weight/Scale: 0.7402581611875044   Bias/Offset: 0.21952494458366242
+
+
 [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mRun: 2/2  Epoch: 5/5
-
-
 [36m[1m┌ [22m[39m[36m[1mInfo: [22m[39m  Loss [4551]: 0.0006
 [36m[1m│ [22m[39m        Avg displacement in data: 0.0244
 [36m[1m└ [22m[39m        Weight/Scale: 0.7398924330632394   Bias/Offset: 0.2198360859839917
@@ -907,29 +869,6 @@ end</code></pre><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[
 [36m[1m└ [22m[39m        Weight/Scale: 0.7366671763752564   Bias/Offset: 0.22303477489954107
 
 
- 85.740204 seconds (1.19 G allocations: 53.583 GiB, 7.94% gc time)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.30873694544497
-[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 2 mse: 18.472186845588634</code></pre><p>Finally, the FMUs are cleaned-up.</p><pre><code class="language-julia hljs">unloadFMU(simpleFMU)
-unloadFMU(realFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../juliacon_2023/">« JuliaCon 2023</a><a class="docs-footer-nextpage" href="../workshops/">Pluto Workshops »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 16 October 2024 10:21">Wednesday 16 October 2024</span>. Using Julia version 1.11.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 83.410306 seconds (1.19 G allocations: 53.583 GiB, 8.96% gc time)</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_110.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_111.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_112.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_113.svg" alt="svg"/></p><pre><code class="nohighlight hljs">[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 1 mse: 16.30873694544497
+[36m[1m[ [22m[39m[36m[1mInfo: [22m[39mFriction model 2 mse: 18.472186845588634</code></pre><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_115.svg" alt="svg"/></p><p><img src="../modelica_conference_2021_files/modelica_conference_2021_52_116.svg" alt="svg"/></p><p>Finally, the FMUs are cleaned-up.</p><pre><code class="language-julia hljs">unloadFMU(simpleFMU)
+unloadFMU(realFMU)</code></pre><h3 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h3><p>Based on the plots, it can be seen that the curves of the <em>realFMU</em> and the <em>neuralFMU</em> are very close. The <em>neuralFMU</em> is able to learn the friction and displacement model.</p><h3 id="Source"><a class="docs-heading-anchor" href="#Source">Source</a><a id="Source-1"></a><a class="docs-heading-anchor-permalink" href="#Source" title="Permalink"></a></h3><p>[1] Tobias Thummerer, Lars Mikelsons and Josef Kircher. 2021. <strong>NeuralFMU: towards structural integration of FMUs into neural networks.</strong> Martin Sjölund, Lena Buffoni, Adrian Pop and Lennart Ochel (Ed.). Proceedings of 14th Modelica Conference 2021, Linköping, Sweden, September 20-24, 2021. Linköping University Electronic Press, Linköping (Linköping Electronic Conference Proceedings ; 181), 297-306. <a href="https://doi.org/10.3384/ecp21181297">DOI: 10.3384/ecp21181297</a></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../juliacon_2023/">« JuliaCon 2023</a><a class="docs-footer-nextpage" href="../workshops/">Pluto Workshops »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 16 October 2024 11:51">Wednesday 16 October 2024</span>. Using Julia version 1.11.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
