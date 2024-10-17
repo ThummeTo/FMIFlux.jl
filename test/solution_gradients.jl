@@ -185,7 +185,6 @@ stepCb = FunctionCallingCallback(stepCompleted; func_everystep = true, func_star
 #fmu_params = nothing
 fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME)
 fmu_params = Dict("damping" => 0.7, "mass_radius" => 0.0, "mass_s_min" => DBL_MIN)
-fmu.executionConfig.isolatedStateDependency = true
 
 net = Chain(#Dense(W1, b1, identity),
     x -> fmu(; x = x, dx_refs = :all),

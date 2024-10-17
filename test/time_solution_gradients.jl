@@ -231,7 +231,6 @@ fmu_params = Dict(
     "mass_m" => MASS,
     "mass_s_min" => DBL_MIN,
 )
-fmu.executionConfig.isolatedStateDependency = true
 
 net = Chain(#Dense(W1, b1, identity),
     x -> fmu(; x = x, dx_refs = :all),

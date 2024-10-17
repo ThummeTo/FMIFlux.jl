@@ -4,7 +4,7 @@
 #
 
 using Flux
-using DifferentialEquations
+using DifferentialEquations, Sundials
 
 import Random
 Random.seed!(5678);
@@ -58,6 +58,7 @@ for fmu in fmus
     @info "##### CHECKING FMU WITH $(fmu.modelDescription.numberOfEventIndicators) SIMULTANEOUS EVENT INDICATOR(S) #####"
     solvers = [
         Tsit5(),
+        CVODE_BDF(),
         Rosenbrock23(autodiff = false),
         Rodas5(autodiff = false),
         FBDF(autodiff = false),
