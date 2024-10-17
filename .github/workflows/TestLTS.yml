@@ -1,4 +1,4 @@
-name: Test v1.6 (LTS)
+name: Test v1.10 (LTS)
 
 on:
   workflow_dispatch:
