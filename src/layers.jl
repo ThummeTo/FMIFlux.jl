@@ -142,30 +142,39 @@ Flux.@functor SimultaniousZeroCrossing (m,)
 ### SHIFTSCALE ###
 
 """
-ToDo.
+
+    ToDo.
+
+Shifts and scales input data to a given distribution
 """
-struct ShiftScale{T}
+struct ShiftScale{T, A}
     shift::AbstractArray{T}
     scale::AbstractArray{T}
+    activation::A
 
-    function ShiftScale{T}(shift::AbstractArray{T}, scale::AbstractArray{T}) where {T}
-        inst = new(shift, scale)
+    function ShiftScale{T, A}(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=Flux.identity) where {T, A}
+        inst = new(shift, scale, activation)
         return inst
     end
 
-    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}) where {T}
-        return ShiftScale{T}(shift, scale)
+    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=Flux.identity) where {T, A}
+        return ShiftScale{T, A}(shift, scale, activation)
     end
 
     # initialize for data array
     function ShiftScale(
-        data::AbstractArray{<:AbstractArray{T}};
-        range::Union{Symbol,UnitRange{<:Integer}} = -1:1,
-    ) where {T}
+        data::AbstractArray{<:AbstractArray{T}},
+        activation::A=Flux.identity;
+        range::Union{Symbol,UnitRange{<:Integer}} = :Normalize,
+    ) where {T, A}
         shift = -mean.(data)
         scale = nothing
 
-        if range == :NormalDistribution
+        if range == :Normalize
+            range = 0:1
+        end
+
+        if range == :Standardize # NormalDistribution
             scale = 1.0 ./ std.(data)
         elseif isa(range, UnitRange{<:Integer})
             scale =
@@ -173,17 +182,17 @@ struct ShiftScale{T}
                 (collect(max(d...) for d in data) - collect(min(d...) for d in data)) .*
                 (range[end] - range[1])
         else
-            @assert false "Unsupported scaleMode, supported is `:NormalDistribution` or `UnitRange{<:Integer}`"
+            @assert false "Unsupported range `$(range)`, supported is `:Standardize`, `:Normalize` or `UnitRange{<:Integer}`"
         end
 
-        return ShiftScale{T}(shift, scale)
+        return ShiftScale{T, A}(shift, scale, activation)
     end
 end
 export ShiftScale
 
 function (l::ShiftScale)(x)
 
-    x_proc = (x .+ l.shift) .* l.scale
+    x_proc = l.activation((x .+ l.shift) .* l.scale)
 
     return x_proc
 end
@@ -209,14 +218,14 @@ struct ScaleShift{T}
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T}; indices = 1:length(l.scale)) where {T}
+    function ScaleShift(l::ShiftScale{T, A}; indices = 1:length(l.scale)) where {T, A}
         return ScaleShift{T}(1.0 ./ l.scale[indices], -1.0 .* l.shift[indices])
     end
 
     function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}
         shift = mean.(data)
         scale = std.(data)
-        return ShiftScale{T}(scale, shift)
+        return ShiftScale(scale, shift)
     end
 end
 export ScaleShift
