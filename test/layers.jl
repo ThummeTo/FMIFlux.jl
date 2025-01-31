@@ -16,7 +16,7 @@ s = ShiftScale(shift, scale)
 @test s(input) == [6.0, 16.0, 24.0]
 
 s = ShiftScale(inputArray)
-@test s(input) == [2.5, -0.8, -1.0]
+@test s(input) == [1.25, -0.4, -0.5]
 
 s = ShiftScale(inputArray; range = -1:1)
 for i = 1:length(inputArray)
@@ -32,7 +32,7 @@ for i = 1:length(inputArray)
     @test min(res...) >= -2
 end
 
-s = ShiftScale(inputArray; range = :NormalDistribution)
+s = ShiftScale(inputArray; range = :Normalize)
 # ToDo: Test for :NormalDistribution
 
 # ScaleShift
