@@ -237,6 +237,52 @@ mutable struct SequentialScheduler <: BatchScheduler
     end
 end
 
+# ToDo: DocString update.
+"""
+    Picks a random batch element by doing the following two steps:
+    - given a vector (a) of vectors (b), a random vector from (a) is picked 
+    - a random value from the random vector (b) is picked
+"""
+mutable struct TwoStageRandomScheduler <: BatchScheduler
+
+    ### mandatory ###
+    step::Integer
+    elementIndex::Integer
+    applyStep::Integer
+    plotStep::Integer
+    batch::Any
+    neuralFMU::NeuralFMU
+    losses::Vector{Float64}
+    logLoss::Bool
+
+    ### type specific ###
+    printMsg::String
+    indices::AbstractVector{<:AbstractVector{<:Int64}}
+
+    function TwoStageRandomScheduler(
+        neuralFMU::NeuralFMU,
+        batch,
+        indices;
+        applyStep::Integer = 1,
+        plotStep::Integer = 1,
+    )
+        inst = new()
+        inst.neuralFMU = neuralFMU
+        inst.indices = indices
+        inst.step = 0
+        inst.elementIndex = 0
+        inst.batch = batch
+        inst.applyStep = applyStep
+        inst.plotStep = plotStep
+        inst.losses = []
+        inst.logLoss = false
+
+        inst.printMsg = ""
+
+        return inst
+    end
+end
+
 function initialize!(scheduler::BatchScheduler; print::Bool = true, runkwargs...)
 
     lastIndex = 0
@@ -290,108 +336,6 @@ function update!(scheduler::BatchScheduler; print::Bool = true)
     if scheduler.plotStep > 0 && scheduler.step % scheduler.plotStep == 0
         plot(scheduler, lastIndex)
     end
-end
-
-function plot(scheduler::BatchScheduler, lastIndex::Integer)
-    num = length(scheduler.batch)
-
-    xs = 1:num
-    ys = collect((nominalLoss(b) != Inf ? nominalLoss(b) : 0.0) for b in scheduler.batch)
-    ys_shadow = collect(
-        (length(b.losses) > 1 ? nominalLoss(b.losses[end-1]) : 1e-16) for
-        b in scheduler.batch
-    )
-
-    title = "[$(scheduler.step)]"
-    if hasfield(typeof(scheduler), :printMsg)
-        title = title * " " * scheduler.printMsg
-    end
-
-    fig = Plots.plot(;
-        layout = Plots.grid(2, 1),
-        size = (480, 960),
-        xlabel = "Batch ID",
-        ylabel = "Loss",
-        background_color_legend = colorant"rgba(255,255,255,0.5)",
-        title = title,
-    )
-
-    if hasfield(typeof(scheduler), :lossAccu)
-        normScale = max(ys..., ys_shadow...) / max(scheduler.lossAccu...)
-        Plots.bar!(
-            fig[1],
-            xs,
-            scheduler.lossAccu .* normScale,
-            label = "Accum. loss (norm.)",
-            color = :blue,
-            bar_width = 1.0,
-            alpha = 0.2,
-        )
-    end
-
-    good = []
-    bad = []
-
-    for i = 1:num
-        if ys[i] > ys_shadow[i]
-            push!(bad, i)
-        else
-            push!(good, i)
-        end
-    end
-
-    Plots.bar!(
-        fig[1],
-        xs[good],
-        ys[good],
-        label = "Loss (better)",
-        color = :green,
-        bar_width = 1.0,
-    )
-    Plots.bar!(
-        fig[1],
-        xs[bad],
-        ys[bad],
-        label = "Loss (worse)",
-        color = :orange,
-        bar_width = 1.0,
-    )
-
-    for i = 1:length(ys_shadow)
-        Plots.plot!(
-            fig[1],
-            [xs[i] - 0.5, xs[i] + 0.5],
-            [ys_shadow[i], ys_shadow[i]],
-            label = (i == 1 ? "Last loss" : :none),
-            linewidth = 2,
-            color = :black,
-        )
-    end
-
-    if lastIndex > 0
-        Plots.plot!(
-            fig[1],
-            [lastIndex],
-            [0.0],
-            color = :pink,
-            marker = :circle,
-            label = "Current ID [$(lastIndex)]",
-            markersize = 5.0,
-        ) # current batch element
-    end
-    Plots.plot!(
-        fig[1],
-        [scheduler.elementIndex],
-        [0.0],
-        color = :pink,
-        marker = :circle,
-        label = "Next ID [$(scheduler.elementIndex)]",
-        markersize = 3.0,
-    ) # next batch element
-
-    Plots.plot!(fig[2], 1:length(scheduler.losses), scheduler.losses; yaxis = :log)
-
-    display(fig)
 end
 
 """
@@ -569,6 +513,18 @@ end
 function apply!(scheduler::RandomScheduler; print::Bool = true)
 
     next = rand(1:length(scheduler.batch))
+
+    if print
+        @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"
+    end
+
+    return next
+end
+
+function apply!(scheduler::TwoStageRandomScheduler; print::Bool = true)
+
+    nextStack = rand(scheduler.indices)
+    next = rand(nextStack)
 
     if print
         @info "Current step: $(scheduler.step) | Current element=$(scheduler.elementIndex) | Next element=$(next)"

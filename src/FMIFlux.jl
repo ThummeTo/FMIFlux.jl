@@ -14,7 +14,7 @@ import FMISensitivity.FiniteDiff
 @debug "Debugging messages enabled for FMIFlux ..."
 
 if VERSION < v"1.7.0"
-    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer." maxlog =
+    @warn "Training in Julia < 1.7 is very slow, please consider using Julia 1.7 or newer." maxlog =
         1
 end
 
@@ -59,6 +59,10 @@ struct FluxOptimiserWrapper end # via FluxExt
 struct OptimOptimiserWrapper end # via OptimExt
 function apply! end
 function _train! end
+
+# plot 
+#function plot end
+function plotLoss end
 
 # ToDo: for now, Optim.jl is still a full (not optionally) dependency, so include this manually
 include(joinpath(@__DIR__, "..", "ext", "OptimExt.jl")) 
