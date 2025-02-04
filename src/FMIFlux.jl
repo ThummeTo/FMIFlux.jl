@@ -75,7 +75,7 @@ export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # scheduler.jl
 export WorstElementScheduler,
-    WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler
+    WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler, TwoStageRandomScheduler
 
 # batch.jl 
 export batchDataSolution, batchDataEvaluation
