@@ -61,7 +61,7 @@ function apply! end
 function _train! end
 
 # plot 
-#function plot end
+function plot end
 function plotLoss end
 
 # ToDo: for now, Optim.jl is still a full (not optionally) dependency, so include this manually
