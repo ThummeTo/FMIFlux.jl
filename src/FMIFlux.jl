@@ -23,16 +23,12 @@ import FMISensitivity.ChainRulesCore: ignore_derivatives
 
 import FMIImport
 
-import Flux
-
 using FMIImport
 
+include("misc.jl")
 include("optimiser.jl")
 include("hotfixes.jl")
-include("convert.jl")
-include("flux_overload.jl")
 include("neural.jl")
-include("misc.jl")
 include("layers.jl")
 include("deprecated.jl")
 include("batch.jl")
@@ -50,6 +46,22 @@ end
 # JLD2.jl
 function saveParameters end
 function loadParameters end
+
+# (F)Lux/convert.jl
+function eval end
+function is64 end
+function convert64 end
+function destructure end
+function params end
+
+# optimisers 
+struct FluxOptimiserWrapper end # via FluxExt
+struct OptimOptimiserWrapper end # via OptimExt
+function apply! end
+function _train! end
+
+# ToDo: for now, Optim.jl is still a full (not optionally) dependency, so include this manually
+include(joinpath(@__DIR__, "..", "ext", "OptimExt.jl")) 
 
 # FMI_neural.jl
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU

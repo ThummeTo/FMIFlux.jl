@@ -182,7 +182,7 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = 
 
     #nfmu.p = p 
     c.default_t = t
-    return nfmu.re(p)(x)
+    return FMIFlux.eval(nfmu, x; p=p)
 end
 
 function evaluateModel(
@@ -206,7 +206,7 @@ function evaluateModel(
 
     #nfmu.p = p 
     c.default_t = t
-    dx[:] = nfmu.re(p)(x)
+    dx[:] = FMIFlux.eval(nfmu, x; p=p)
 
     return nothing
 end
@@ -510,11 +510,11 @@ function f_optim(
     #@info "\nec: $(ec)\n-> $(unsense(ec))\ny: $(y)\n-> $(unsense(y))"
 
     errorIndicator =
-        Flux.Losses.mae(indicatorValue, ec) + smoothmax(-sign * ec * 1000.0, 0.0)
+        FMIFlux.Losses.mae(indicatorValue, ec) + smoothmax(-sign * ec * 1000.0, 0.0)
     # if errorIndicator > 0.0 
     #     errorIndicator = max(errorIndicator, 1.0)
     # end
-    errorState = Flux.Losses.mae(right_x_fmu, y)
+    errorState = FMIFlux.Losses.mae(right_x_fmu, y)
 
     #@info "ErrorState: $(errorState) | ErrorIndicator: $(errorIndicator)"
 
@@ -1122,7 +1122,7 @@ function ME_NeuralFMU(
     recordValues = nothing,
     saveat = nothing,
     solvekwargs...,
-)
+) 
 
     if !is64(model)
         model = convert64(model)
@@ -1132,7 +1132,7 @@ function ME_NeuralFMU(
         )
     end
 
-    p, re = Flux.destructure(model)
+    p, re = FMIFlux.destructure(model)
     nfmu = ME_NeuralFMU{typeof(model),typeof(re)}(model, p, re)
 
     ######
@@ -1181,7 +1181,7 @@ function CS_NeuralFMU(fmu::FMU2, model, tspan; recordValues = [])
     nfmu.model = model
     nfmu.tspan = tspan
 
-    nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
+    nfmu.p, nfmu.re = FMIFlux.destructure(nfmu.model)
 
     return nfmu
 end
@@ -1204,7 +1204,7 @@ function CS_NeuralFMU(fmus::Vector{<:FMU2}, model, tspan; recordValues = [])
     nfmu.model = model
     nfmu.tspan = tspan
 
-    nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
+    nfmu.p, nfmu.re = FMIFlux.destructure(nfmu.model)
 
     return nfmu
 end
@@ -1680,7 +1680,7 @@ function (nfmu::CS_NeuralFMU{F,C})(
             y = nfmu.model(input)
         else # flattened, explicite parameters
             @assert !isnothing(nfmu.re) "Using explicite parameters without destructing the model."
-            y = nfmu.re(p)(input)
+            y = FMIFlux.eval(nfmu, input; p=p)
         end
 
         return y
@@ -1759,11 +1759,12 @@ function (nfmu::CS_NeuralFMU{Vector{F},Vector{C}})(
         else # flattened, explicite parameters
             @assert nfmu.re != nothing "Using explicite parameters without destructing the model."
 
-            if length(p) == 1
-                y = nfmu.re(p[1])(input)
-            else
-                y = nfmu.re(p)(input)
-            end
+            # if length(p) == 1
+            #     y = nfmu.re(p[1])(input)
+            # else
+            #     y = nfmu.re(p)(input)
+            # end
+            FMIFlux.eval(nfmu, input; p=p)
         end
 
         return y
@@ -1782,38 +1783,6 @@ function (nfmu::CS_NeuralFMU{Vector{F},Vector{C}})(
     # cs = finishSolveFMU(nfmu.fmu, cs, freeInstance, terminate)
 
     return solution
-end
-
-# adapting the Flux functions
-function Flux.params(nfmu::ME_NeuralFMU; destructure::Bool = false)
-    if destructure
-        nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
-    end
-
-    ps = Flux.params(nfmu.p)
-
-    if issense(ps)
-        @warn "Parameters include AD-primitives, this indicates that something did go wrong in before."
-    end
-
-    return ps
-end
-
-function Flux.params(nfmu::CS_NeuralFMU; destructure::Bool = false) # true)
-    if destructure
-        nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
-
-        # else
-        #     return Flux.params(nfmu.model)
-    end
-
-    ps = Flux.params(nfmu.p)
-
-    if issense(ps)
-        @warn "Parameters include AD-primitives, this indicates that something did go wrong in before."
-    end
-
-    return ps
 end
 
 function computeGradient!(
@@ -1957,13 +1926,13 @@ function trainStep(
 
     #try
 
-    for j = 1:length(params)
+    #for j = 1:length(params)
 
-        step = FMIFlux.apply!(optim, params[j])
+        step = FMIFlux.apply!(optim, params)
 
         lock(lk_TrainApply) do
 
-            params[j] .-= step
+            params[:] .-= step
 
             if printStep
                 @info "Step: min(abs()) = $(min(abs.(step)...))   max(abs()) = $(max(abs.(step)...))"
@@ -1971,7 +1940,7 @@ function trainStep(
 
         end
 
-    end
+    #end
 
     # catch e
 
@@ -2025,7 +1994,7 @@ function train!(
     gradient::Symbol = :ReverseDiff,
     kwargs...,
 )
-    params = Flux.params(neuralFMU)
+    params = FMIFlux.params(neuralFMU)
 
     snapshots = neuralFMU.snapshots
 
@@ -2044,7 +2013,7 @@ end
 # Dispatch for FMIFlux.jl [FMIFlux.AbstractOptimiser]
 function _train!(
     loss,
-    params::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
+    params, #::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
     data,
     optim::FMIFlux.AbstractOptimiser;
     gradient::Symbol = :ReverseDiff,
@@ -2056,7 +2025,7 @@ function _train!(
     multiObjective::Bool = false,
 )
 
-    if length(params) <= 0 || length(params[1]) <= 0
+    if length(params) <= 0 #|| length(params[1]) <= 0
         @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
         return
     end
@@ -2086,68 +2055,3 @@ function _train!(
 
 end
 
-# Dispatch for Flux.jl [Flux.Optimise.AbstractOptimiser]
-function _train!(
-    loss,
-    params::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
-    data,
-    optim::Flux.Optimise.AbstractOptimiser;
-    gradient::Symbol = :ReverseDiff,
-    chunk_size::Union{Integer,Symbol} = :auto_fmiflux,
-    multiObjective::Bool = false,
-    kwargs...,
-)
-
-    grad_buffer = nothing
-
-    if multiObjective
-        dim = loss(params[1])
-
-        grad_buffer = zeros(Float64, length(params[1]), length(dim))
-    else
-        grad_buffer = zeros(Float64, length(params[1]))
-    end
-
-    grad_fun! = (G, p) -> computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
-    _optim = FluxOptimiserWrapper(optim, grad_fun!, grad_buffer)
-    _train!(
-        loss,
-        params,
-        data,
-        _optim;
-        gradient = gradient,
-        chunk_size = chunk_size,
-        multiObjective = multiObjective,
-        kwargs...,
-    )
-end
-
-# Dispatch for Optim.jl [Optim.AbstractOptimizer]
-function _train!(
-    loss,
-    params::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
-    data,
-    optim::Optim.AbstractOptimizer;
-    gradient::Symbol = :ReverseDiff,
-    chunk_size::Union{Integer,Symbol} = :auto_fmiflux,
-    multiObjective::Bool = false,
-    kwargs...,
-)
-    if length(params) <= 0 || length(params[1]) <= 0
-        @warn "train!(...): Empty parameter array, training on an empty parameter array doesn't make sense."
-        return
-    end
-
-    grad_fun! = (G, p) -> computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
-    _optim = OptimOptimiserWrapper(optim, grad_fun!, loss, params[1])
-    _train!(
-        loss,
-        params,
-        data,
-        _optim;
-        gradient = gradient,
-        chunk_size = chunk_size,
-        multiObjective = multiObjective,
-        kwargs...,
-    )
-end

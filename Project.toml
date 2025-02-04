@@ -1,24 +1,29 @@
 name = "FMIFlux"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
-version = "0.13.1"
+version = "0.14.0"
 
 [deps]
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DifferentiableEigen = "73a20539-4e65-4dcb-a56d-dc20f210a01b"
 FMIImport = "9fcbc62e-52a0-44e9-a616-1359a0008194"
 FMISensitivity = "3e748fe5-cd7f-4615-8419-3159287187d2"
-Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 
 [weakdeps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+#Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 
 [extensions]
+FluxExt = ["Flux"]
 JLD2Ext = ["JLD2"]
+LuxExt = ["Lux"]
+#OptimExt = ["Optim"]
 
 [compat]
 Colors = "0.12, 0.13"

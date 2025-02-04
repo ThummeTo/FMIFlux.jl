@@ -36,7 +36,7 @@ function checkSensalgs!(
     kwargs...,
 )
 
-    params = Flux.params(neuralFMU)
+    params = FMIFlux.params(neuralFMU)
     initial_sensalg = neuralFMU.fmu.executionConfig.sensealg
 
     best_timing = Inf

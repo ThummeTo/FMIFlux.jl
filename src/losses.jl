@@ -5,12 +5,42 @@
 
 module Losses
 
-using Flux
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMUSolution
 import ..FMIFlux.FMIImport.FMIBase: unsense, logWarning
 
-mse = Flux.Losses.mse
-mae = Flux.Losses.mae
+function mean_error_sum(a, b, fun)
+    sum = 0.0
+    len_a = length(a)
+    len_b = length(b)
+    len = len_a
+
+    if len_a != len_b
+        len = min(len_a, len_b)
+        @warn "Length a ($(len_a)) != Length b ($(len_b)), not entire set is compared, only the first $(len) elements!"
+    end 
+
+    for i in 1:len 
+        sum += fun(a[i], b[i])
+    end
+    
+    return sum / len
+end
+
+#mse = Flux.Losses.mse
+function mse(a, b)
+    fun = function(x, y)
+        (x .- y) * (x .- y)
+    end
+    return mean_error_sum(a, b, fun)
+end
+
+#mae = Flux.Losses.mae
+function mae(a, b)
+    fun = function(x, y)
+        abs(x .- y)
+    end
+    return mean_error_sum(a, b, fun)
+end
 
 function last_element_rel(fun, a::AbstractArray, b::AbstractArray, lastElementRatio::Real)
     return (1.0 - lastElementRatio) * fun(a[1:end-1], b[1:end-1]) +
@@ -101,7 +131,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::AbstractArray{<:AbstractArray{<:Tuple{Real,Real}}};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -135,7 +165,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::AbstractArray{<:Tuple{Real,Real}};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -169,7 +199,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::Tuple{Real,Real};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -203,7 +233,7 @@ function loss(
     model,
     batchElement::FMU2BatchElement;
     logLoss::Bool = true,
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     p = nothing,
 )
 
@@ -219,7 +249,7 @@ function loss(
     nfmu::NeuralFMU,
     batch::AbstractArray{<:FMU2BatchElement};
     batchIndex::Integer = rand(1:length(batch)),
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     logLoss::Bool = true,
     solvekwargs...,
 )
@@ -255,7 +285,7 @@ function loss(
     model,
     batch::AbstractArray{<:FMU2BatchElement};
     batchIndex::Integer = rand(1:length(batch)),
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     logLoss::Bool = true,
     p = nothing,
 )
@@ -378,6 +408,46 @@ function (t::ToggleLoss)(args...; kwargs...)
         t.index = 1
     end
     return ret
+end
+
+"""
+Compares non-equidistant (or equidistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
+(Zygote-friendly: Zygote can differentiate through via AD.)
+"""
+function mse_interpolate(t1, x1, t2, x2, t_comp)
+    #lin1 = LinearInterpolation(t1, x1)
+    #lin2 = LinearInterpolation(t2, x2)
+    ar1 = collect(lin_interp(t1, x1, t_sample) for t_sample in t_comp) #lin1.(t_comp)
+    ar2 = collect(lin_interp(t2, x2, t_sample) for t_sample in t_comp) #lin2.(t_comp)
+    mse(ar1, ar2)
+end
+
+# Helper: simple linear interpolation 
+function lin_interp(t, x, t_sample)
+    if t_sample <= t[1]
+        return x[1]
+    end
+
+    if t_sample >= t[end]
+        return x[end]
+    end
+
+    i = 1
+    while t_sample > t[i]
+        i += 1
+    end
+
+    x_left = x[i-1]
+    x_right = x[i]
+
+    t_left = t[i-1]
+    t_right = t[i]
+
+    dx = x_right - x_left
+    dt = t_right - t_left
+    h = t_sample - t_left
+
+    x_left + dx / dt * h
 end
 
 end # module

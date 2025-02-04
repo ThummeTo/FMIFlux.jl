@@ -11,7 +11,7 @@ scale = [4.0, 5.0, 6.0]
 input = [0.5, 1.2, 1.0]
 inputArray = [[-3.0, -2.0, -1.0], [3.0, 2.0, 1.0], [1.0, 2.0, 3.0]]
 
-# ShiftScale
+### ShiftScale ###
 s = ShiftScale(shift, scale)
 @test s(input) == [6.0, 16.0, 24.0]
 
@@ -35,7 +35,10 @@ end
 s = ShiftScale(inputArray; range = :Normalize)
 # ToDo: Test for :NormalDistribution
 
-# ScaleShift
+p, re = Flux.destructure(Flux.Chain(s))
+@test length(p) == 6
+
+### ScaleShift ###
 s = ScaleShift(scale, shift)
 @test s(input) == [3.0, 8.0, 9.0]
 

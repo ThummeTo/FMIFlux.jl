@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMIFlux.Flux
+using Flux
 
 import Random
 Random.seed!(1234);
@@ -69,8 +69,8 @@ problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat = tData)
 @test problem != nothing
 
 # before
-p_net = Flux.params(problem)
-lossBefore = losssum_single(p_net[1])
+p_net = FMIFlux.params(problem)
+lossBefore = losssum_single(p_net)
 
 # single objective
 optim = OPTIMISER(ETA)
@@ -83,12 +83,12 @@ FMIFlux.train!(
 )
 
 # multi objective
-# lastLoss = sum(losssum_multi(p_net[1]))
+# lastLoss = sum(losssum_multi(p_net))
 # optim = OPTIMISER(ETA)
 # FMIFlux.train!(losssum_multi,  problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
 
 # after
-lossAfter = losssum_single(p_net[1])
+lossAfter = losssum_single(p_net)
 @test lossAfter < lossBefore
 
 @test length(fmu.components) <= 1

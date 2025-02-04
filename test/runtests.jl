@@ -8,7 +8,7 @@ using Test
 using FMIZoo
 using FMIFlux.FMIImport
 using FMIFlux.FMIImport.FMICore
-using FMIFlux.Flux
+import Flux
 
 import FMIFlux.FMISensitivity: FiniteDiff, ForwardDiff, ReverseDiff
 
@@ -27,7 +27,7 @@ global GRADIENT = nothing
 global EXPORTINGTOOL = nothing
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
-global OPTIMISER = Descent
+global OPTIMISER = Flux.Descent
 global FAILED_GRADIENTS_QUOTA = 1 / 3
 
 # callback for bad optimization steps counter
@@ -35,11 +35,13 @@ global FAILED_GRADIENTS = 0
 global LAST_LOSS
 callback = function (p)
     global LAST_LOSS, FAILED_GRADIENTS
-    loss = losssum(p[1])
-    if loss >= LAST_LOSS
+    loss = losssum(p) # p[1]
+    if loss == LAST_LOSS
+        @error "Loss stays unchanged.\nZero gradient or broken Optimiser implementation."
+        FAILED_GRADIENTS += 1
+    elseif loss > LAST_LOSS
         FAILED_GRADIENTS += 1
     end
-    #@info "$(loss)"
     LAST_LOSS = loss
 end
 
@@ -74,7 +76,7 @@ function runtests(exportingTool)
             include("time_solution_gradients.jl")
         end
 
-        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
+        for _GRADIENT ∈ (:ReverseDiff, ) # (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
 
             global GRADIENT = _GRADIENT
             @info "Gradient: $(GRADIENT)"

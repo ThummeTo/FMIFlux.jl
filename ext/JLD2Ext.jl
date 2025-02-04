@@ -6,11 +6,10 @@
 module JLD2Ext
 
 using FMIFlux, JLD2
-using FMIFlux.Flux
 
 function FMIFlux.saveParameters(nfmu::NeuralFMU, path::String; keyword = "parameters")
 
-    params = Flux.params(nfmu)
+    params = FMIFlux.params(nfmu)
 
     JLD2.save(path, Dict(keyword => params[1]))
 end
@@ -24,18 +23,18 @@ function FMIFlux.loadParameters(
 
     paramsLoad = JLD2.load(path, keyword)
 
-    nfmu_params = Flux.params(nfmu)
+    nfmu_params = FMIFlux.params(nfmu)
     flux_model_params = nothing
 
     if flux_model != nothing
         flux_model_params = Flux.params(flux_model)
     end
 
-    numParams = length(nfmu_params[1])
+    numParams = length(nfmu_params)
     l = 1
     p = 1
     for i = 1:numParams
-        nfmu_params[1][i] = paramsLoad[i]
+        nfmu_params[i] = paramsLoad[i]
 
         if flux_model != nothing
             flux_model_params[l][p] = paramsLoad[i]

@@ -5,6 +5,8 @@
 
 using Statistics: mean, std
 
+identity = (a,) -> a
+
 ### FMUParameterRegistrator ###
 
 """
@@ -55,8 +57,6 @@ function (l::FMUParameterRegistrator)(x)
     return x
 end
 
-Flux.@functor FMUParameterRegistrator (p,)
-
 ### TimeLayer ###
 
 """
@@ -88,8 +88,6 @@ function (l::FMUTimeLayer)(x)
     return x
 end
 
-Flux.@functor FMUTimeLayer (offset,)
-
 ### ParameterRegistrator ###
 
 """
@@ -111,8 +109,6 @@ export ParameterRegistrator
 function (l::ParameterRegistrator)(x)
     return x
 end
-
-Flux.@functor ParameterRegistrator (p,)
 
 ### SimultaniousZeroCrossing ###
 
@@ -137,8 +133,6 @@ function (l::SimultaniousZeroCrossing)(x)
     return x * l.m * l.fct()
 end
 
-Flux.@functor SimultaniousZeroCrossing (m,)
-
 ### SHIFTSCALE ###
 
 """
@@ -152,19 +146,19 @@ struct ShiftScale{T, A}
     scale::AbstractArray{T}
     activation::A
 
-    function ShiftScale{T, A}(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=Flux.identity) where {T, A}
+    function ShiftScale{T, A}(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=identity) where {T, A}
         inst = new(shift, scale, activation)
         return inst
     end
 
-    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=Flux.identity) where {T, A}
+    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=identity) where {T, A}
         return ShiftScale{T, A}(shift, scale, activation)
     end
 
     # initialize for data array
     function ShiftScale(
         data::AbstractArray{<:AbstractArray{T}},
-        activation::A=Flux.identity;
+        activation::A=identity;
         range::Union{Symbol,UnitRange{<:Integer}} = :Normalize,
     ) where {T, A}
         shift = -mean.(data)
@@ -196,8 +190,6 @@ function (l::ShiftScale)(x)
 
     return x_proc
 end
-
-Flux.@functor ShiftScale (shift, scale)
 
 ### SCALESHIFT ###
 
@@ -237,8 +229,6 @@ function (l::ScaleShift)(x)
     return x_proc
 end
 
-Flux.@functor ScaleShift (scale, shift)
-
 ### ScaleSum ###
 
 struct ScaleSum{T}
@@ -272,22 +262,30 @@ function (l::ScaleSum)(x)
     end
 end
 
-Flux.@functor ScaleSum (scale,)
-
 ### CACHE ### 
 
 mutable struct CacheLayer
-    cache::AbstractArray{<:AbstractArray}
+    cache::AbstractVector{<:AbstractVector}
 
     function CacheLayer()
+        # undef fails in newwer Flux versions
+        def = Vector{Vector}(undef, Threads.nthreads())
+        for i in 1:length(def)
+            def[i] = Float64[]
+        end
+        inst = CacheLayer(def)
+        return inst
+    end
+
+    function CacheLayer(cache::AbstractVector{<:AbstractVector})
         inst = new()
-        inst.cache = Array{Array,1}(undef, Threads.nthreads())
+        inst.cache = cache 
         return inst
     end
 end
 export CacheLayer
 
-function (l::CacheLayer)(x)
+function (l::CacheLayer)(x::AbstractVector)
 
     tid = Threads.threadid()
     l.cache[tid] = x

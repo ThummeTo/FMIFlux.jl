@@ -66,17 +66,16 @@ solutionBefore = problem(X0; saveat = tData)
 @test solutionBefore.states.t[end] == t_stop
 
 # train it ...
-p_net = Flux.params(problem)
-@test length(p_net) == 1
-@test length(p_net[1]) == 7
-lossBefore = losssum(p_net[1])
+p_net = FMIFlux.params(problem)
+@test length(p_net) == 7
+lossBefore = losssum(p_net)
 
 @info "Start-Loss for net: $(lossBefore)"
 
 # [ToDo] Discontinuous system?
-# j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net[1])
-# j_fwd = ForwardDiff.gradient(losssum, p_net[1])
-# j_rwd = ReverseDiff.gradient(losssum, p_net[1])
+# j_fin = FiniteDiff.finite_difference_gradient(losssum, p_net)
+# j_fwd = ForwardDiff.gradient(losssum, p_net)
+# j_rwd = ReverseDiff.gradient(losssum, p_net)
 
 FMIFlux.train!(
     losssum,
@@ -93,7 +92,7 @@ solutionAfter = problem(X0; saveat = tData)
 @test solutionAfter.states.t[1] == t_start
 @test solutionAfter.states.t[end] == t_stop
 
-lossAfter = losssum(p_net[1])
+lossAfter = losssum(p_net)
 @test lossAfter < lossBefore
 
 @test length(fmu.components) <= 1

@@ -3,7 +3,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using FMIFlux.Flux
+using FMIFlux
+using Flux
 using DifferentialEquations
 using FMIFlux, FMIZoo, Test
 import FMIFlux.FMISensitivity.SciMLSensitivity.SciMLBase: RightRootFind, LeftRootFind
@@ -310,7 +311,7 @@ mysolve_bb = function (p; sensealg = nothing, root = :Right, solver = nothing)
     end
 end
 
-p_net = Flux.params(prob)[1]
+p_net = FMIFlux.params(prob)
 
 using FMIFlux.FMISensitivity.SciMLSensitivity
 sensealg = ReverseDiffAdjoint() # InterpolatingAdjoint(autojacvec=ReverseDiffVJP(false)) #  
