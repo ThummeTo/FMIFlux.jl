@@ -76,16 +76,21 @@ function runtests(exportingTool)
             include("time_solution_gradients.jl")
         end
 
-        for _GRADIENT ∈ (:ReverseDiff, ) # (:ReverseDiff, :ForwardDiff) # , :FiniteDiff)
+        @info "Layers (layers.jl)"
+        @testset "Layers" begin
+            include("layers.jl")
+        end
+
+        @info "Loading / Saving (load_save.jl)"
+        @testset "Loading / Saving" begin
+            include("load_save.jl")
+        end
+
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
 
             global GRADIENT = _GRADIENT
             @info "Gradient: $(GRADIENT)"
             @testset "Gradient: $(GRADIENT)" begin
-
-                @info "Layers (layers.jl)"
-                @testset "Layers" begin
-                    include("layers.jl")
-                end
 
                 @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
                 @testset "ME-NeuralFMU (Continuous)" begin
