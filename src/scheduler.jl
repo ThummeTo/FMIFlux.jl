@@ -346,6 +346,14 @@ function roundToLength(number::Real, len::Integer)
 
     @assert len >= 5 "`len` must be at least `5`."
 
+    if number == Inf 
+        return "Inf"
+    end
+
+    if number == -Inf 
+        return "-Inf"
+    end
+
     if number == 0.0
         return "0.0"
     end
