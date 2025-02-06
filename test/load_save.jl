@@ -3,7 +3,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-using Flux
+using Flux, JLD2
 using DifferentialEquations: Tsit5
 
 import Random

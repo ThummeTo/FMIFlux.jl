@@ -1315,8 +1315,6 @@ function (nfmu::ME_NeuralFMU)(
 
     ignore_derivatives() do
 
-        c.solution = FMUSolution(c)
-
         @debug "ME_NeuralFMU: Defining callbacks..."
 
         # custom callbacks
@@ -1617,6 +1615,7 @@ function (nfmu::ME_NeuralFMU)(
         for snapshot in c.solution.snapshots
             FMIBase.freeSnapshot!(snapshot)
         end
+        # freeSnapshot only removes them from the FMU2Instance, not the FMUSolution
         c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
     end
 

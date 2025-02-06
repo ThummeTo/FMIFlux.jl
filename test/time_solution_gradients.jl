@@ -399,6 +399,9 @@ affect_nfmu_check = function (x, t, idx = 1)
         cleanup = true,
     )
 
+    # initial snapshot
+    FMIBase.snapshot!(c.solution)
+
     integrator = (t = t, u = x, opts = (internalnorm = (a, b) -> 1.0,))
     FMIFlux.affectFMU!(prob, c, integrator, idx)
 
