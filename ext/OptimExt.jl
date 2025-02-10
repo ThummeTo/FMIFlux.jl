@@ -46,7 +46,7 @@ struct OptimOptimiserWrapper{G} <: AbstractOptimiser
 end
 export OptimOptimiserWrapper
 
-function apply!(optim::OptimOptimiserWrapper, params)
+function FMIFlux.apply!(optim::OptimOptimiserWrapper, params)
 
     res = Optim.optimize(optim.d, params, optim.optim, optim.options, optim.state)
     step = params .- Optim.minimizer(res)

@@ -1923,7 +1923,7 @@ function trainStep(
 
     global lk_TrainApply
 
-    #try
+    try
 
     #for j = 1:length(params)
 
@@ -1941,16 +1941,15 @@ function trainStep(
 
     #end
 
-    # catch e
-
-    #     if proceed_on_assert
-    #         msg = "$(e)"
-    #         msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
-    #         @error "Training asserted, but continuing: $(msg)"
-    #     else
-    #         throw(e)
-    #     end
-    # end
+    catch
+        if proceed_on_assert
+            msg = "$(e)"
+            msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
+            @error "Training asserted, but continuing: $(msg)"
+        else
+            throw(e)
+        end
+    end
 
     if cb != nothing
         if isa(cb, AbstractArray)
