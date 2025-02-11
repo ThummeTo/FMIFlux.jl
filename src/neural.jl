@@ -1941,7 +1941,7 @@ function trainStep(
 
     #end
 
-    catch
+    catch e
         if proceed_on_assert
             msg = "$(e)"
             msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
