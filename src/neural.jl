@@ -1918,7 +1918,7 @@ function trainStep(
     printStep,
     proceed_on_assert,
     cb,
-    multiObjective,
+    multiObjective; assert_length=4096
 )
 
     global lk_TrainApply
@@ -1944,7 +1944,11 @@ function trainStep(
     catch e
         if proceed_on_assert
             msg = "$(e)"
-            msg = length(msg) > 4096 ? first(msg, 4096) * "..." : msg
+            if assert_length != 0
+                if length(msg) > assert_length 
+                    msg = first(msg, assert_length) * "..."
+                end
+            end
             @error "Training asserted, but continuing: $(msg)"
         else
             throw(e)
@@ -2020,7 +2024,7 @@ function _train!(
     printStep::Bool = false,
     proceed_on_assert::Bool = false,
     multiThreading::Bool = false,
-    multiObjective::Bool = false,
+    multiObjective::Bool = false, assert_length=4096
 )
 
     if length(params) <= 0 #|| length(params[1]) <= 0
@@ -2042,7 +2046,7 @@ function _train!(
             printStep,
             proceed_on_assert,
             cb,
-            multiObjective,
+            multiObjective; assert_length=assert_length
         )
 
     if multiThreading

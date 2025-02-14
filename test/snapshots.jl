@@ -87,6 +87,8 @@ end
 
 EPS = 1e-8
 for i in 1:NUMEVENTS
+    local s, t 
+    
     t = solution.events[i].t
 
     # get snapshot slightly before the event

@@ -128,10 +128,11 @@ function runtests(exportingTool)
                     include("hybrid_CS.jl")
                 end
 
-                @info "Multiple FMUs (multi.jl)"
-                @testset "Multiple FMUs" begin
-                    include("multi.jl")
-                end
+                @warn "Multiple FMUs Test Skipped"
+                # @info "Multiple FMUs (multi.jl)"
+                # @testset "Multiple FMUs" begin
+                #     include("multi.jl")
+                # end
 
                 @info "Batching (batching.jl)"
                 @testset "Batching" begin

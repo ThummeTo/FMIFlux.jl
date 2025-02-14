@@ -170,9 +170,9 @@ push!(nets, net9)
 solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
-    @testset "Solver: $(solver)" begin
-        for i = 1:length(nets)
-            @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
+   @testset "Solver: $(solver)" begin
+       for i = 1:length(nets)
+           @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
@@ -254,7 +254,7 @@ for solver in solvers
                 # fig = plot(solutionAfter; title="Net $(i) - $(FAILED_GRADIENTS) / $(FAILED_GRADIENTS_QUOTA * NUMSTEPS)")
                 # plot!(fig, tData, posData)
                 # display(fig)
-            end
+           end
         end
     end
 end

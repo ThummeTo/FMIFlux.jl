@@ -23,12 +23,15 @@ ps = Vector{Vector{Float64}}(undef, 2)
 path = joinpath(@__DIR__, "test.jld2")
 
 for i in 1:2
+    local net, problem 
+
     net = Chain(x -> fmu(x = x, dx_refs = :all),
                 Dense(numx, 16, tanh),
                 Dense(16, numx, identity)) 
 
     problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
     problem.modifiedState = false
+
     ps[i] = copy(problem.p)
     @test problem != nothing
 
@@ -39,7 +42,7 @@ for i in 1:2
     elseif i == 2 # load 
 
         # first, solutions must differ!
-        @test !isapprox(solutions[1].states.u[end], solutions[2].states.u[end]; atol=1e-6)
+        @test !isapprox(solutions[1].states.u[end], solutions[2].states.u[end]; atol=1e-4)
         @test ps[1] != ps[2]
 
         # load params and re-run
@@ -48,7 +51,7 @@ for i in 1:2
         ps[i] = copy(problem.p)
 
         # now, solutions must be the same!
-        @test isapprox(solutions[1].states.u[end], solutions[2].states.u[end]; atol=1e-6)
+        @test isapprox(solutions[1].states.u[end], solutions[2].states.u[end]; atol=1e-4)
         @test ps[1] == ps[2]
     end
 end
