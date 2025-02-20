@@ -8,7 +8,7 @@ module Losses
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMUSolution
 import ..FMIFlux.FMIImport.FMIBase: unsense, logWarning
 
-function mean_error_sum(a, b, fun)
+function mean_error_sum(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real}, fun)
     sum = 0.0
     len_a = length(a)
     len_b = length(b)
@@ -27,7 +27,7 @@ function mean_error_sum(a, b, fun)
 end
 
 #mse = Flux.Losses.mse
-function mse(a, b)
+function mse(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real})
     fun = function(x, y)
         (x .- y) * (x .- y)
     end
@@ -35,7 +35,7 @@ function mse(a, b)
 end
 
 #mae = Flux.Losses.mae
-function mae(a, b)
+function mae(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real})
     fun = function(x, y)
         abs(x .- y)
     end

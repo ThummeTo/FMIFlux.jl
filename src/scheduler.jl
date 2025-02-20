@@ -34,7 +34,7 @@ mutable struct WorstElementScheduler <: BatchScheduler
     function WorstElementScheduler(
         neuralFMU::NeuralFMU,
         batch,
-        lossFct = mse;
+        lossFct = FMIFlux.Losses.mae;
         applyStep::Integer = 1,
         plotStep::Integer = 1,
         updateStep::Integer = 1,
@@ -86,7 +86,7 @@ mutable struct LossAccumulationScheduler <: BatchScheduler
     function LossAccumulationScheduler(
         neuralFMU::NeuralFMU,
         batch,
-        lossFct = mse;
+        lossFct = FMIFlux.Losses.mae;
         applyStep::Integer = 1,
         plotStep::Integer = 1,
         updateStep::Integer = 1,
@@ -134,7 +134,7 @@ mutable struct WorstGrowScheduler <: BatchScheduler
     function WorstGrowScheduler(
         neuralFMU::NeuralFMU,
         batch,
-        lossFct = mse;
+        lossFct = FMIFlux.Losses.mae;
         applyStep::Integer = 1,
         plotStep::Integer = 1,
     )

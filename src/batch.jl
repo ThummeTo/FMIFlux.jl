@@ -238,10 +238,10 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool = 
     if hasmethod(lossFct, Tuple{FMUSolution})
         loss = lossFct(batchElement.solution)
 
-    elseif hasmethod(lossFct, Tuple{FMUSolution,Union{}})
+    elseif hasmethod(lossFct, Tuple{FMUSolution, AbstractVector})
         loss = lossFct(batchElement.solution, batchElement.targets)
 
-    else # hasmethod(lossFct, Tuple{Union{}, Union{}})
+    else # hasmethod(lossFct, Tuple{AbstractVector, AbstractVector})
 
         if batchElement.solution.success
             if batchElement.scalarLoss
