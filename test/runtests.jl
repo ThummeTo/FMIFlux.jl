@@ -43,6 +43,7 @@ callback = function (p)
         FAILED_GRADIENTS += 1
     end
     LAST_LOSS = loss
+    return false
 end
 
 # training data for pendulum experiment 

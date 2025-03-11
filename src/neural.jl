@@ -53,7 +53,7 @@ using FMIImport.FMIBase:
     logError,
     logInfo,
     logWarning,
-    fast_copy!
+    fast_copy!, isTrue, isContinuousTimeMode, ERR_MSG_CONT_TIME_MODE, setupSolver!
 using FMISensitivity.SciMLSensitivity:
     ForwardDiffSensitivity, InterpolatingAdjoint, ReverseDiffVJP, ZygoteVJP
 import DifferentiableEigen
@@ -102,6 +102,7 @@ mutable struct ME_NeuralFMU{M,R} <: NeuralFMU
 
     tolerance::Union{Real,Nothing}
     parameters::Union{Dict{<:Any,<:Any},Nothing}
+    inputs::Union{Dict{<:Any,<:Any},Nothing}
 
     modifiedState::Bool
 
@@ -121,6 +122,8 @@ mutable struct ME_NeuralFMU{M,R} <: NeuralFMU
 
         inst.re_model = nothing
         inst.re_p = nothing
+
+        inst.inputs = nothing
 
         inst.modifiedState = false
 
@@ -168,7 +171,7 @@ mutable struct CS_NeuralFMU{F,C} <: NeuralFMU
     end
 end
 
-function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = c.default_t)
+function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = c.default_t, force::Bool=false)
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     # [ToDo]: Skip array check, e.g. by using a flag
@@ -178,11 +181,18 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = 
     #end
     #return nfmu.re_model(x)
 
-    @debug "evaluateModel(t=$(t)) [out-of-place dx]"
+    #@debug "evaluateModel(t=$(t)) [out-of-place dx]"
+
+    mode = c.force
+    c.force = force
 
     #nfmu.p = p 
     c.default_t = t
-    return FMIFlux.eval(nfmu, x; p=p)
+    dx = FMIFlux.eval(nfmu, x; p=p)
+
+    c.force = mode
+
+    return dx
 end
 
 function evaluateModel(
@@ -191,7 +201,7 @@ function evaluateModel(
     dx,
     x;
     p = nfmu.p,
-    t = c.default_t,
+    t = c.default_t, force::Bool=false
 )
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
@@ -202,11 +212,26 @@ function evaluateModel(
     #end
     #dx[:] = nfmu.re_model(x)
 
-    @debug "evaluateModel(t=$(t)) [in-place dx]"
+    #@debug "evaluateModel(t=$(t)) [in-place dx]"
 
     #nfmu.p = p 
+
+    mode = c.force
+    c.force = force
+
     c.default_t = t
+    
+    # Info: This may be for implicit solvers!
+    #@info "dx: $(typeof(dx))"
+    #@info "x: $(typeof(x))"
+
+    #if issense(x) && !issense(dx)
+    #    x = unsense(x)
+    #end
+    
     dx[:] = FMIFlux.eval(nfmu, x; p=p)
+
+    c.force = mode
 
     return nothing
 end
@@ -239,7 +264,8 @@ function startCallback(
             t_stop = nfmu.tspan[end],
             tolerance = nfmu.tolerance,
             x0 = nfmu.x0,
-            handleEvents = FMIFlux.handleEvents,
+            inputs = nfmu.inputs,
+            #handleEvents = FMIFlux.handleEvents,
             cleanup = true,
         )
 
@@ -275,6 +301,9 @@ function startCallback(
 
     end
 
+    #@warn "Experimental -> c.force = true"
+    #c.force = true
+
     return c
 end
 
@@ -295,6 +324,7 @@ end
 # Read next time event from fmu and provide it to the integrator 
 function time_choice(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, tStart, tStop)
 
+    @assert isContinuousTimeMode(c) "time_choice(...):\n" * ERR_MSG_CONT_TIME_MODE
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @assert c.fmu.executionConfig.handleTimeEvents "time_choice(...) was called, but execution config disables time events.\nPlease open a issue."
     # assert_integrator_valid(integrator)
@@ -306,7 +336,7 @@ function time_choice(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, tStart, t
 
     c.solution.evals_timechoice += 1
 
-    if c.eventInfo.nextEventTimeDefined == fmi2True
+    if isTrue(c.eventInfo.nextEventTimeDefined)
 
         if c.eventInfo.nextEventTime >= tStart && c.eventInfo.nextEventTime <= tStop
             @debug "time_choice(...): At $(integrator.t) next time event announced @$(c.eventInfo.nextEventTime)s"
@@ -374,6 +404,8 @@ function condition!(
     handleEventIndicators,
 )
 
+@assert isContinuousTimeMode(c) "condition!(...):\n" * ERR_MSG_CONT_TIME_MODE
+
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     @assert c.state == fmi2ComponentStateContinuousTimeMode "condition!(...):\n" *
                                                             FMIBase.ERR_MSG_CONT_TIME_MODE
@@ -389,7 +421,7 @@ function condition!(
     c.default_ec = out
     c.default_ec_idcs = handleEventIndicators
 
-    evaluateModel(nfmu, c, x)
+    evaluateModel(nfmu, c, x; t=t)
     # write back to condition buffer
     if (!isdual(out) && isdual(c.output.ec)) || (!istracked(out) && istracked(c.output.ec))
         out[:] = unsense(c.output.ec)
@@ -414,8 +446,8 @@ global lastIndicatorX = nothing
 global lastIndicatorT = nothing
 function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, integrator)
 
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "condition(...):\n" *
-                                                            FMIBase.ERR_MSG_CONT_TIME_MODE
+    @assert isContinuousTimeMode(c) "condition!(...):\n" * ERR_MSG_CONT_TIME_MODE
+
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
     if c.fmu.handleEventIndicators != nothing && index ∉ c.fmu.handleEventIndicators
@@ -432,7 +464,7 @@ function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, inte
     # [ToDo] Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     c.default_t = t
     c.default_ec = lastIndicator
-    evaluateModel(nfmu, c, x)
+    evaluateModel(nfmu, c, x; t=t)
     c.default_t = -1.0
     c.default_ec = EMPTY_fmi2Real
 
@@ -708,7 +740,7 @@ function stateChange!(
 
     right_x = left_x
 
-    if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
+    if isTrue(c.eventInfo.valuesOfContinuousStatesChanged)
 
         ignore_derivatives() do
             if idx == 0
@@ -782,6 +814,7 @@ function stateChange!(
             right_x = right_x_fmu
         end
 
+        
     else
 
         ignore_derivatives() do
@@ -792,8 +825,7 @@ function stateChange!(
             end
         end
 
-        # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
-        # u_modified!(integrator, false)
+        
     end
 
     if snapshots
@@ -829,18 +861,18 @@ end
 # Handles the upcoming event
 function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
-    @debug "affectFMU!"
+    @assert isContinuousTimeMode(c) "affectFMU!(...):\n" * ERR_MSG_CONT_TIME_MODE
+
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     # assert_integrator_valid(integrator)
-
-    @assert c.state == fmi2ComponentStateContinuousTimeMode "affectFMU!(...):\n" *
-                                                            FMIBase.ERR_MSG_CONT_TIME_MODE
 
     # [NOTE] Here unsensing is OK, because we just want to reset the FMU to the correct state!
     #        The values come directly from the integrator and are NOT function arguments!
     t = unsense(integrator.t)
     left_x = unsense_copy(integrator.u)
     right_x = nothing
+
+    @debug "affectFMU!(t=$(t), ...) -> ..."
 
     ignore_derivatives() do
 
@@ -851,38 +883,49 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
         #if c.x != left_x
         # capture status of `force`    
-        mode = c.force
-        c.force = true
+        
 
         # there are fx-evaluations before the event is handled, reset the FMU state to the current integrator step
-        evaluateModel(nfmu, c, left_x; t = t) # evaluate NeuralFMU (set new states)
+        evaluateModel(nfmu, c, left_x; t = t, force=true) # evaluate NeuralFMU (set new states)
         # [NOTE] No need to reset time here, because we did pass a event instance! 
         #        c.default_t = -1.0
-
-        c.force = mode
+        
         #end
     end
 
     integ_sens = nfmu.snapshots
 
+    # INFO: entereventmode and handleevents happens inside stateChange!
     right_x = stateChange!(nfmu, c, left_x, t, idx)
 
-    # sensitivities needed
-    if integ_sens
-        jac = I
+    if isTrue(c.eventInfo.valuesOfContinuousStatesChanged)
 
-        if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
-            jac = sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx)
+         # [ToDo] Do something with that information, e.g. use for FiniteDiff sampling step size determination and pass to ODE solver!
+         c.x_nominals = fmi2GetNominalsOfContinuousStates(c)
+
+        # sensitivities needed
+        if integ_sens
+            jac = I
+
+            if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
+                jac = sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx)
+            end
+
+            VJP = jac * integrator.u
+            #tgrad = tvec .* integrator.t
+            staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
+
+            # [ToDo] add (sampled) time gradient
+            integrator.u[:] = staticOff + VJP # + tgrad
+        else
+            integrator.u[:] = right_x
         end
 
-        VJP = jac * integrator.u
-        #tgrad = tvec .* integrator.t
-        staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
-
-        # [ToDo] add (sampled) time gradient
-        integrator.u[:] = staticOff + VJP # + tgrad
+        # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
+        u_modified!(integrator, true)
     else
-        integrator.u[:] = right_x
+        # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
+        u_modified!(integrator, false)
     end
 
     #@info "affect right_x = $(right_x)"
@@ -890,10 +933,6 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
     # u_modified!(integrator, true)
 
-    if c.eventInfo.nominalsOfContinuousStatesChanged == fmi2True
-        # [ToDo] Do something with that information, e.g. use for FiniteDiff sampling step size determination
-        x_nom = fmi2GetNominalsOfContinuousStates(c)
-    end
 
     ignore_derivatives() do
         if idx != -1
@@ -957,7 +996,7 @@ function stepCompleted(
     tStop,
 )
 
-    # assert_integrator_valid(integrator)
+    @assert isContinuousTimeMode(c) "stepCompleted(...):\n" * ERR_MSG_CONT_TIME_MODE
 
     # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
     # u_modified!(integrator, false)
@@ -985,20 +1024,26 @@ function stepCompleted(
         end
     end
 
-    if c != nothing
-        (status, enterEventMode, terminateSimulation) =
-            fmi2CompletedIntegratorStep(c, fmi2True)
+    status, enterEventMode, terminateSimulation =
+        fmi2CompletedIntegratorStep(c, fmi2False)
 
-        if terminateSimulation == fmi2True
-            logError(c.fmu, "stepCompleted(...): FMU requested termination!")
-        end
-
-        if enterEventMode == fmi2True
-            affectFMU!(nfmu, c, integrator, -1)
-        end
-
-        @debug "Step completed at $(unsense(t)) with $(unsense(x))"
+    if isTrue(terminateSimulation)
+        logError(c.fmu, "stepCompleted(...): FMU requested termination!")
     end
+
+    @debug "stepCompleted(t=$(t), ...) -> enterEventMode=$(c.enterEventMode), terminateSimulation=$(c.terminateSimulation)"
+
+    if isTrue(enterEventMode)
+        affectFMU!(nfmu, c, integrator, -1)
+    else
+        # ToDo: it would be sufficient to only update inputs here, 
+        # however, this is not that easy for generic NFMUs 
+        # Info: We use c.x and c.t, so that no state update happens. 
+        # This is important, only inputs are allowed to be set here!
+        evaluateModel(nfmu, c, c.x; t=c.t)
+    end
+
+    #end
 
     # assert_integrator_valid(integrator)
 end
@@ -1008,6 +1053,8 @@ end
 #        (3) remove unsense to determine save value sensitivities
 # save FMU values 
 function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, _t, integrator)
+
+    @assert isContinuousTimeMode(c) "stepCompleted(...):\n" * ERR_MSG_CONT_TIME_MODE
 
     t = unsense(_t)
     x = unsense(_x)
@@ -1021,7 +1068,6 @@ function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, _t, 
 
     @debug "Save values @t=$(t)\nintegrator.t=$(unsense(integrator.t))\n$(values)"
 
-    # Todo set inputs
     return (values...,)
 end
 
@@ -1063,6 +1109,11 @@ function fx(
     t,
 )#::Real) 
 
+    ignore_derivatives() do
+        c.solution.evals_fx_inplace += 1
+    end
+    @debug "f(t=$(t), ...) [in-place, eval count: $(c.solution.evals_fx_inplace)]"
+
     if isnothing(c)
         # this should never happen!
         @warn "fx() called without allocated FMU instance!"
@@ -1072,10 +1123,6 @@ function fx(
     ############
 
     evaluateModel(nfmu, c, dx, x; p = p, t = t)
-
-    ignore_derivatives() do
-        c.solution.evals_fx_inplace += 1
-    end
 
     return dx
 end
@@ -1087,14 +1134,14 @@ function fx(
     p,#::Array,
     t,
 )#::Real) 
+    ignore_derivatives() do
+        c.solution.evals_fx_outofplace += 1
+    end
+    @debug "f(t=$(t), ...) [out-of-place, eval count: $(c.solution.evals_fx_outofplace)]"
 
     if c === nothing
         # this should never happen!
         return zeros(length(x))
-    end
-
-    ignore_derivatives() do
-        c.solution.evals_fx_outofplace += 1
     end
 
     return evaluateModel(nfmu, c, x; p = p, t = t)
@@ -1281,6 +1328,9 @@ function (nfmu::ME_NeuralFMU)(
 
     saving = (length(recordValues) > 0)
 
+    solvekwargs = Dict{Symbol,Any}(solvekwargs...)
+    tspan = setupSolver!(nfmu.fmu, tspan, solvekwargs)
+
     t_start = tspan[1]
     t_stop = tspan[end]
 
@@ -1396,6 +1446,7 @@ function (nfmu::ME_NeuralFMU)(
         end
 
         # custom callbacks
+        # TODO: This should be at the very end of callbacks? check if batching still works.
         for cb in nfmu.customCallbacksAfter
             push!(callbacks, cb)
         end
@@ -1562,7 +1613,7 @@ function (nfmu::ME_NeuralFMU)(
     #kwargs[:sensealg]=sensealg
     #kwargs[:u0] = nfmu.x0 # this is because of `IntervalNonlinearProblem has no field u0`
 
-    @debug "ME_NeuralFMU: Start solving ..."
+    @debug "Start solving ...\nx0: $(nfmu.x0)\nargs: $(args...)\nkwargs: $(kwargs...)"
 
     c.solution.states = solve(
         prob,
@@ -1573,7 +1624,7 @@ function (nfmu::ME_NeuralFMU)(
         kwargs...,
     )
 
-    @debug "ME_NeuralFMU: ... finished solving!"
+    @debug "Finished solving!"
 
     ignore_derivatives() do
 
@@ -1887,6 +1938,9 @@ function computeGradient!(
     @assert !all_zero "Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD."
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
+
+        @assert false "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
+
         @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
         gradient = :ForwardDiff
         computeGradient!(jac, loss, params, gradient, chunk_size, multiObjective)

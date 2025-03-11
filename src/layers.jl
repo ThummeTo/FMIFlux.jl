@@ -71,7 +71,7 @@ struct FMUTimeLayer{F,O}
         return new{F,O}(fmu, fct, offset)
     end
 
-    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O) where {F,O}
+    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O=zeros(1)) where {F,O}
         return FMUTimeLayer{F,O}(fmu, fct, offset)
     end
 
