@@ -2052,23 +2052,13 @@ function train!(
 )
     params = FMIFlux.params(neuralFMU)
 
-    snapshots = neuralFMU.snapshots
-
-    # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
-    #        :ForwardDiff needs it for state change sampling
-    neuralFMU.snapshots = true
-
-    _train!(loss, params, data, optim; gradient = gradient, kwargs...)
-
-    neuralFMU.snapshots = snapshots
-    neuralFMU.p = unsense(neuralFMU.p)
-
-    return nothing
+    return train!(loss, neuralFMU, params, data, optim; kwargs...)
 end
 
 # Dispatch for FMIFlux.jl [FMIFlux.AbstractOptimiser]
-function _train!(
+function train!(
     loss,
+    neuralFMU::NeuralFMU,
     params, #::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
     data,
     optim::FMIFlux.AbstractOptimiser;
@@ -2090,8 +2080,13 @@ function _train!(
         @warn "train!(...): Multi-threading is set via flag `multiThreading=true`, but this Julia process does not have multiple threads. This will not result in a speed-up. Please spawn Julia in multi-thread mode to speed-up training."
     end
 
-    _trainStep =
-        (i,) -> trainStep(
+    _trainStep = function(i) 
+        # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
+        #        :ForwardDiff needs it for state change sampling
+        snapshots = neuralFMU.snapshots
+        neuralFMU.snapshots = true
+
+        ret = trainStep(
             loss,
             params,
             gradient,
@@ -2102,6 +2097,24 @@ function _train!(
             cb,
             multiObjective; assert_length=assert_length
         )
+
+        neuralFMU.snapshots = snapshots
+
+        if !snapshots
+            # invalidate all active snapshots, otherwise execConfig = no-reset causes massive memory allocations!
+            if hasCurrentInstance(neuralFMU.fmu)
+                c = getCurrentInstance(neuralFMU.fmu)
+                while length(c.snapshots) > 0
+                    freeSnapshot!(c.snapshots[end])
+                end
+            end
+            
+        end
+
+        neuralFMU.p = unsense(neuralFMU.p)
+
+        return ret
+    end
 
     if multiThreading
         ThreadPools.qforeach(_trainStep, 1:length(data))

@@ -47,8 +47,9 @@ function FMIFlux.apply!(optim::FluxOptimiserWrapper, params)
 end
 
 # Dispatch for Flux.jl [Flux.Optimise.AbstractOptimiser]
-function FMIFlux._train!(
+function FMIFlux.train!(
     loss,
+    neuralFMU::NeuralFMU,
     params, #::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
     data,
     optim::Flux.Optimise.AbstractOptimiser;
@@ -70,8 +71,9 @@ function FMIFlux._train!(
 
     grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
     _optim = FluxOptimiserWrapper(optim, grad_fun!, grad_buffer)
-    FMIFlux._train!(
+    FMIFlux.train!(
         loss,
+        neuralFMU,
         params,
         data,
         _optim;
@@ -121,8 +123,9 @@ function FMIFlux.apply!(optim::OptimisersWrapper, params)
 end
 
 # Dispatch for Flux.jl [Flux.Optimise.AbstractOptimiser]
-function FMIFlux._train!(
+function FMIFlux.train!(
     loss,
+    neuralFMU::NeuralFMU,
     params, #::Union{Flux.Params,Zygote.Params,AbstractVector{<:AbstractVector{<:Real}}},
     data,
     optim::Flux.Optimisers.AbstractRule;
@@ -137,8 +140,9 @@ function FMIFlux._train!(
     grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
 
     _optim = OptimisersWrapper(optim, grad_fun!, grad_buffer, params)
-    FMIFlux._train!(
+    FMIFlux.train!(
         loss,
+        neuralFMU,
         params,
         data,
         _optim;

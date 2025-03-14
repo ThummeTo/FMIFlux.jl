@@ -229,6 +229,35 @@ function (l::ScaleShift)(x)
     return x_proc
 end
 
+### SHIFT ###
+
+"""
+
+    ToDo.
+
+Shifts input signals.
+"""
+struct Shift{T}
+    shift::AbstractArray{T}
+
+    function Shift{T}(shift::AbstractArray{T}) where {T}
+        inst = new(shift)
+        return inst
+    end
+
+    function Shift(shift::AbstractArray{T}) where {T}
+        return Shift{T}(shift)
+    end
+end
+export Shift
+
+function (l::Shift)(x)
+
+    x_proc = x .+ l.shift
+
+    return x_proc
+end
+
 ### ScaleSum ###
 
 struct ScaleSum{T}
