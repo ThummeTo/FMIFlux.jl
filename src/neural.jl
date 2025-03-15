@@ -204,7 +204,7 @@ function evaluateModel(
     t = c.default_t, force::Bool=false
 )
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
-
+    
     # [ToDo]: Skip array check, e.g. by using a flag
     #if p !== nfmu.re_p || p != nfmu.re_p # || isnothing(nfmu.re_model)
     #    nfmu.re_p = p # fast_copy!(nfmu, :re_p, p)
@@ -284,7 +284,7 @@ function startCallback(
         end
 
         if !isnothing(readSnapshot)
-            @assert c == readSnapshot.instance "Snapshot instance mismatch, snapshot instance is $(readSnapshot.instance.compAddr), current component is $(c.compAddr)"
+            @assert c == readSnapshot.instance "Snapshot instance mismatch, snapshot instance is $(readSnapshot.instance.addr), current component is $(c.addr)"
             # c = readSnapshot.instance 
 
             if t != readSnapshot.t
@@ -866,6 +866,12 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
     # assert_integrator_valid(integrator)
 
+    if c.termSim
+        logError(c.fmu, "affectFMU!(...): Terminating simulation because of previous errors.")
+        terminate!(integrator)
+        return
+    end
+
     # [NOTE] Here unsensing is OK, because we just want to reset the FMU to the correct state!
     #        The values come directly from the integrator and are NOT function arguments!
     t = unsense(integrator.t)
@@ -998,6 +1004,12 @@ function stepCompleted(
 
     @assert isContinuousTimeMode(c) "stepCompleted(...):\n" * ERR_MSG_CONT_TIME_MODE
 
+    if c.termSim
+        logError(c.fmu, "stepCompleted(...): Terminating simulation because of previous errors.")
+        terminate!(integrator)
+        return
+    end
+
     # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
     # u_modified!(integrator, false)
 
@@ -1029,6 +1041,7 @@ function stepCompleted(
 
     if isTrue(terminateSimulation)
         logError(c.fmu, "stepCompleted(...): FMU requested termination!")
+        terminate!(integrator)
     end
 
     @debug "stepCompleted(t=$(t), ...) -> enterEventMode=$(c.enterEventMode), terminateSimulation=$(c.terminateSimulation)"
