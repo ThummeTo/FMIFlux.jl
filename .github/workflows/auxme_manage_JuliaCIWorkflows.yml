@@ -1,0 +1,280 @@
+# CAUTION!!!!
+# DO NOT BREAK THE UPDATE MECHANISM
+#
+# If update mechnism is broken and those changes are pushed to JuliaCIWorkflows main branch anyway, all repos will pull the broken version and open PRs to themselvs.
+# When those PRs are merged, the required fix has to be distributed manually. 
+#
+# You have been warned.
+# 
+# recommended approach for changes to this workflow: create a fork of JuliaCIWorkflows and a fork of a repo using shared Workflows (e.g. FMI.jl)
+#         disable most of the workflows there to save the github runner resources, otherwise each push will lead to all on.push workflows to be triggered
+#         make your modifications and test them. As final test, push the modified auxme_manage_JuliaCIWorkflows.yml to your JuliaCIWorkflows fork (this will not check the step for default JuliaCIWorkflows repo selection, make shure this part works too). 
+#         Check if the action works as desired, then approve the automatic PR to your fork. Check all works after that too. If it does, run auxme_manage_JuliaCIWorkflows.yml in your forked "client-repo" (e.g. FMI.jl).
+#         If the action ran as desired, approve the automatic PR to update it. rerun the action with a workflow to be added (that does not exist on the fork), to also check the handle arguments part of this action. 
+#         When everything works, approve the PR and check one last time for successful action performance. If all is fine, you can proceed to open a PR to the upstream repo, if not, start over!
+#         When opening the PR to upstream, keep in mind, that action behavior ist slightly different (e.g. reference-repo selection), so also monitor every step along this path.
+#
+# (Common pitfall: selection of the reference repo meight be broken, which can not easyly be tested when not on deployment repo)
+
+# this workflow needs a SSH_keypair, for details see repo readme
+
+name: auxme_manage_JuliaCIWorkflows # name must be the same as the filename of this workflow without ".yml"! (that is because this workflow does update itself in order to add newly found workflow files)
+
+env: 
+  PR_BRANCH_NAME: bot_${{ github.workflow }}_patches_${{ github.ref_name }} # caution: if modified, also modify on.push.branches.<exclusion_branches> All PR branches shall be excluded. Otherwise this action would create an infinite loop by creating a PR, which would trigger this action, which would modify the PR, which would trigger the action, ...
+
+permissions: write-all
+
+on:
+  # manual trigger
+  workflow_dispatch:
+    inputs:
+      add_workflow:
+        description: 'add new workflow' # workflow from REF_REPO_OWNER/JuliaCIWorkflows to add to this repo (run empty once for update and merge PR, if option is not yet available, then select, run and merge again)
+        required: false
+        type: choice
+        default: ''
+        options: # this list is updated automatically by the action itself (if repo = JuliaCIWorkflows; if repo != JuliaCIWorkflows, this list and whole workflow is updated from JuliaCIWorkflows)
+          - ''
+          #MARKER_FOR_AUTO_UPDATE_BEGIN (do not move, indent or tamper with! must be just below first, empty list element with same indentation)
+          - 'dependabot'
+          - 'workflows/CompatHelper'
+          - 'workflows/Documentation'
+          - 'workflows/Eval'
+          - 'workflows/Example'
+          - 'workflows/JuliaFormatter'
+          - 'workflows/TagBot'
+          - 'workflows/TestLTS'
+          - 'workflows/TestLatest'
+          #MARKER_FOR_AUTO_UPDATE_END (do not move or tamper with! must be just below last list element)
+
+  pull_request:
+  push:
+    branches: # keep track of all branches and keep them up to date, BUT exclude all branches with automatic pushes 
+      - '**'
+      - '!examples'
+      - '!gh-pages'
+      - '!bot_*_patches_*'
+  schedule: # this only keeps the main branch up to date. All the others are only checked if there is activity on them
+    - cron: '17 4 * * *'
+
+jobs:
+
+  # ONLY RUNS IF REPO_NAME == 'JuliaCIWorkflows' 
+  # this job updates the list list of shared workflows, that can be added when running this workflow manually in other repos
+  update_JuliaCIWorkflows_repo:
+    runs-on: ubuntu-latest
+    # just on push, as this is the only way for shared workflows to be created or removed
+    if: ${{ github.event.repository.name == 'JuliaCIWorkflows' && github.event_name == 'push' }} 
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+          # as we are in 'JuliaCIWorkflows' where are no Compathelper and Documenter as of now, we require the specific JULIA_CI_WORKFLOWS_UPDATE_KEY to be set
+          ssh-key: ${{ secrets.JULIA_CI_WORKFLOWS_UPDATE_KEY }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # fjogeleit/yaml-update-action and other parsers does not reteain comments, therefore we use linewise bash to edit without parsing
+      #- name: update options list
+      #  uses: fjogeleit/yaml-update-action@main
+      #  with:
+      #    valueFile: '.github/workflows/${{ github.workflow }}.yml'
+      #    propertyPath: 'on.workflow_dispatch.inputs.add_workflow.options[1]'
+      #    value: TEST_abc
+      #    commitChange: false
+      - name: update options list
+        run: |
+          within_markers=false
+          replaced_first_occurance=false
+          while IFS= read -r zeile
+          do
+            if [[ "$replaced_first_occurance" = false && "$within_markers" = false && "$zeile" =~ "#MARKER_FOR_AUTO_UPDATE_BEGIN" ]]; then
+                within_markers=true
+                echo "$zeile" >> ".github/workflows/${{ github.workflow }}.yml_tempfile_by_action"
+                LEADING_WHITESPACES="${zeile%%[![:space:]]*}"
+                FILES=( $(find .github -type f -iname "*.yml" -printf "%P\n" | sort ) )
+                for FILE in "${FILES[@]}"; do
+                  FILE_WITHOUT_EXTENSION="${FILE%.*}"
+                  if [[ "$FILE" =~ "${{ github.workflow }}" ]]; then
+                    echo "NOT listing $FILE"
+                  else
+                    echo "$FILE -> options list"
+                    echo -e "${LEADING_WHITESPACES}- '$FILE_WITHOUT_EXTENSION'\r" >> ".github/workflows/${{ github.workflow }}.yml_tempfile_by_action"
+                  fi
+                done
+            elif [[ "$replaced_first_occurance" = false && "$within_markers" = true && "$zeile" =~ "#MARKER_FOR_AUTO_UPDATE_END" ]]; then
+                within_markers=false
+                replaced_first_occurance=true
+                echo "$zeile" >> ".github/workflows/${{ github.workflow }}.yml_tempfile_by_action"
+            elif [ "$within_markers" = false ] ; then
+                echo "$zeile" >> ".github/workflows/${{ github.workflow }}.yml_tempfile_by_action"
+            fi
+          done < ".github/workflows/${{ github.workflow }}.yml"
+          mv -f .github/workflows/${{ github.workflow }}.yml_tempfile_by_action .github/workflows/${{ github.workflow }}.yml
+      - name: create_PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: ${{ env.PR_BRANCH_NAME }}
+          delete-branch: true
+          commit-message: "updated ${{ github.workflow }}"
+          base: ${{ github.ref_name }}
+          title: "updated ${{ github.workflow }}"
+          body: "updated ${{ github.workflow }} to include new workflow file as adding option"
+  # END OF update_JuliaCIWorkflows_repo | END OF {ONLY RUNS IF REPO_NAME == 'JuliaCIWorkflows'}
+  
+
+  # ONLY RUNS IF REPO_NAME != 'JuliaCIWorkflows' 
+  # this job checks if there are any workflows in this repo, that differ from the reference repo ('JuliaCIWorkflows') and if there are, creates a PR to set them to the state in the reference repo
+  # this will update outdated actions and at the same time override any local changes (that is desired behavior, as shared workflows must be the same across all repos, that use them)
+  # At a few points in this job, there is a different implementation for the PR trigger compared to other triggers. 
+  # This is because the source repo of a PR and the repo affected by this action meight be different and so we have to explicitly select the base-repo of the PR.
+  # Also for PRs, we do not want to open a PR again, we just want to warn, if there are mistakes handling shared workflows included in the PR.
+  manage_JuliaCIWorkflows:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.repository.name != 'JuliaCIWorkflows' }}
+    steps:
+    
+      # all following steps starting with "select_reference_repo" are there so select the appropriate reference repo. 
+      # default is 'una-auxme/JuliaCIWorkflows' but if the owner of "this" repo/fork also has a 'JuliaCIWorkflows' use that instead
+      - name: select_reference_repo PR_base 
+        if: github.event_name == 'pull_request'
+        run: |
+          REPO_OWNER_STRING=${{ github.event.pull_request.base.repo.owner.login }}
+          if [[ -n "$REPO_OWNER_STRING" && "$REPO_OWNER_STRING/JuliaCIWorkflows" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$ && $(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/$REPO_OWNER_STRING/JuliaCIWorkflows) == "200" ]]; then
+            echo "REF_REPO_OWNER=$REPO_OWNER_STRING" >> $GITHUB_ENV
+            echo "set REF_REPO_OWNER to ${{ env.REF_REPO_OWNER }}"
+          fi
+      - name: select_reference_repo try_own_user
+        if: github.event_name != 'pull_request'
+        run: |
+          REPO_OWNER_STRING=${{ github.repository_owner }}
+          if [[ -n "$REPO_OWNER_STRING" ]]; then
+            echo "this must not be empty: this is an error in ${{ github.workflow }}; fix it!"
+          fi
+          if [[ -n "$REPO_OWNER_STRING" && "$REPO_OWNER_STRING/JuliaCIWorkflows" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$ && $(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/$REPO_OWNER_STRING/JuliaCIWorkflows) == "200" ]]; then
+            echo "REF_REPO_OWNER=$REPO_OWNER_STRING" >> $GITHUB_ENV
+            echo "set REF_REPO_OWNER to ${{ env.REF_REPO_OWNER }}"
+          fi
+      - name: select_reference_repo default 
+        if: ${{ env.REF_REPO_OWNER == '' }}
+        run: echo "REF_REPO_OWNER=una-auxme" >> $GITHUB_ENV
+      - name: select_reference_repo fail_if_not_set
+        if: ${{ env.REF_REPO_OWNER == '' }}
+        run: exit 1
+      # END OF select_reference_repo
+
+      # we need a ssh private key to deploy the branch for the PR. we can use existing keys for compathelper or documentation deployment, or we need a seperate one
+      - name: Check for available SSH keys and set SSH_KEY 
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "SSH_KEY<<END_MARKER_SSH_KEY" >> $GITHUB_ENV
+          if [ -n "${{ secrets.JULIA_CI_WORKFLOWS_UPDATE_KEY }}" ]; then
+            echo "${{ secrets.JULIA_CI_WORKFLOWS_UPDATE_KEY }}" >> $GITHUB_ENV
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+            echo "JULIA_CI_WORKFLOWS_UPDATE_KEY found"
+          elif [ -n "${{ secrets.COMPATHELPER_PRIV }}" ]; then
+            echo "${{ secrets.COMPATHELPER_PRIV }}" >> $GITHUB_ENV
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+            echo "COMPATHELPER_PRIV found"
+          elif [ -n "${{ secrets.DOCUMENTER_KEY }}" ]; then
+            echo "${{ secrets.DOCUMENTER_KEY }}" >> $GITHUB_ENV
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+            echo "DOCUMENTER_KEY found"
+          else
+            echo "::error::No SSH keys found! Please make shure one of secrets.JULIA_CI_WORKFLOWS_UPDATE_KEY, secrets.COMPATHELPER_PRIV, or secrets.DOCUMENTER_KEY is set according to readme."
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+          fi
+
+      - name: "Check out working repository with key"
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with: 
+          sparse-checkout: '.github'
+          path: working_repo
+          ssh-key: ${{ env.SSH_KEY }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      # for PRs, we have no access to base-repos secrets, so no key
+      - name: "Check out working repository without key (triggered by PR)"
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with: 
+          sparse-checkout: '.github'
+          path: working_repo
+
+      - name: "Check out reference repo ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows"
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+          repository: ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows
+          # access right issue!!! checkout action wants to use the default branch, but this property is not public, so we have to set one fixed -> using main 
+          # (just passing the token for access rights would be a bad idea, as owner of reference repo meight be different from owner of working repo)
+          ref: main
+          path: reference_repo 
+
+      - name: set_github_actor
+        if: github.event_name != 'pull_request'
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "JuliaCIWorkflows Action"
+
+      # here the relevant part happens
+      - name: check_all_if_they_are_latest
+        run: |
+          REPO_NAME=${{ github.event.repository.name }}
+          FILES=( $(find working_repo/.github -type f -iname "*.yml" -printf "%P\n" | sort ) )
+          for FILE in "${FILES[@]}"; do
+            if [ -f reference_repo/.github/$FILE ]; then
+              if ! diff -q working_repo/.github/$FILE reference_repo/.github/$FILE >/dev/null; then
+                echo "::warning file=$FILE,title=different_version_found::$FILE is different, adding most recent version from ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows"
+                cp -f reference_repo/.github/$FILE working_repo/.github/$FILE
+              fi
+            elif [[ ! "${FILE,,}" =~ "${REPO_NAME,,}" ]]; then
+              echo "::notice file=$FILE,title=Repo-specific_workflow::$FILE is not part of ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows, it seems to be specific to this repo and will be ignored. Change its filename to contain $REPO_NAME to suppress this notice."
+            fi
+          done
+      # file_WARNING gets printed if it exists, recommended format is the github-action warning format
+      # file_MESSAGE gets appeded to the PRs message if it exists (e.g. for telling the user to add a secret to the repo, that is required by the workflow) only single line allowed!
+      # TODO: add list of supportfiles/get supportfiles from workflowfile and grab them too (e.g. makedocs.jl, runtests.jl etc.)
+      # TODO: Handle case where the requested workflow is already present (currently, this does not create errors, but also no PR, so the user meight be confused)
+      - name: handle_arguments
+        if: github.event_name == 'workflow_dispatch' && inputs.add_workflow != ''
+        run: |
+          echo '${{ github.event_name }} wants to add ${{ inputs.add_workflow }} workflow to this repo'
+          echo '::notice title=Adding Workflow::${{ inputs.add_workflow }} is to be added to this repository'
+          tree -a
+          cp -f reference_repo/.github/${{ inputs.add_workflow }}.yml working_repo/.github/${{ inputs.add_workflow }}.yml
+          echo "cp -f reference_repo/.github/${{ inputs.add_workflow }}.yml working_repo/.github/${{ inputs.add_workflow }}.yml"
+          tree -a
+          if [ -f reference_repo/.github/${{ inputs.add_workflow }}_WARNING ]; then
+            cat reference_repo/.github/${{ inputs.add_workflow }}_WARNING
+          fi
+          if [ -f reference_repo/.github/${{ inputs.add_workflow }}_MESSAGE ]; then
+            OLD_MSG=${{ env.PR_MESSAGE_ADDITION }}
+            printf "PR_MESSAGE_ADDITION<<END_MARKER_PR_MESSAGE_ADDITION\n" >> $GITHUB_ENV
+            printf "${OLD_MSG}$(cat reference_repo/.github/${{ inputs.add_workflow }}_MESSAGE)\n" >> $GITHUB_ENV
+            printf "END_MARKER_PR_MESSAGE_ADDITION\n" >> $GITHUB_ENV
+          fi
+
+      # for PRs, we want the action to fail, if workflows are not uptodate
+      - name: fail_on_PR_with_wrong_workflows
+        if: github.event_name == 'pull_request'
+        run: |
+          if [[ `git status --porcelain` ]]; then
+            echo "::error title=workflows_not_valid::worksflows are not up-to-date with ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows. Update them. If you want to add a workflow only for this repo, make shure it has not the same name as any workflow from ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows. It is recommended, that the workflows filename contains \"${{ github.event.repository.name }}\""
+            exit 1
+          fi
+
+      # this step creates the PR. It also handls cleanup:
+      # if a PR created by this action is merged, all workflows are uptodate. The merge triggers this action, but there are no changes. So this step deletes the PR branch
+      - name: create_PR
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: working_repo
+          branch: ${{ env.PR_BRANCH_NAME }}
+          delete-branch: true
+          commit-message: "updated all shared workflows"
+          base: ${{ github.ref_name }}
+          title: "reset/updated all shared workflows to latest ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows version"
+          body: "default hints: \nthis will overrite all local changes to the affected files. If you wish to use repo-specific workflows, it is recommended to name their files differently that those in the juliaCIworkflows repo! Then they will be ignored when updating the other workflows \n \n specific hints:\n ${{ env.PR_MESSAGE_ADDITION }}"
