@@ -1952,17 +1952,18 @@ function computeGradient!(
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
 
-        @assert false "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
+        @assert !has_nan     "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
+        @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
 
-        @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
-        gradient = :ForwardDiff
-        computeGradient!(jac, loss, params, gradient, chunk_size, multiObjective)
+        # @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
+        # gradient = :ForwardDiff
+        # computeGradient!(jac, loss, params, gradient, chunk_size, multiObjective)
 
-        if multiObjective
-            grads = collect(jac[i, :] for i = 1:size(jac)[1])
-        else
-            grads = [jac]
-        end
+        # if multiObjective
+        #     grads = collect(jac[i, :] for i = 1:size(jac)[1])
+        # else
+        #     grads = [jac]
+        # end
     end
 
     has_nan = any(collect(any(isnan.(grad)) for grad in grads))

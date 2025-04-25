@@ -159,25 +159,38 @@ struct ShiftScale{T, A}
     function ShiftScale(
         data::AbstractArray{<:AbstractArray{T}},
         activation::A=identity;
-        range::Union{Symbol,UnitRange{<:Integer}} = :Normalize,
+        range::Union{Symbol,Tuple{Real, Real}} = :Normalize,
+        maxScale::Float64=1e8
     ) where {T, A}
-        shift = -mean.(data)
-        scale = nothing
 
         if range == :Normalize
-            range = 0:1
+            range = (0.0, 1.0)
         end
 
+        shift = 0.0
+        scale = 1.0
+
         if range == :Standardize # NormalDistribution
+            shift = -mean.(data) 
             scale = 1.0 ./ std.(data)
-        elseif isa(range, UnitRange{<:Integer})
-            scale =
-                1.0 ./
-                (collect(max(d...) for d in data) - collect(min(d...) for d in data)) .*
-                (range[end] - range[1])
+
+        elseif isa(range, Tuple{Real, Real})
+            _max = collect(max(d...) for d in data)
+            _min = collect(min(d...) for d in data)
+            shift = -(_max + _min) ./ 2.0
+            scale = (range[end] - range[1]) ./ (_max - _min)
+
+            for i in 1:length(scale)
+                if abs(scale[i]) > maxScale
+                    @warn "Scaling for data index $(i) exceeded maximum scale of `$(maxScale)`, limiting to that value."
+                    scale[i] = sign(scale[i]) * maxScale
+                end
+            end
         else
-            @assert false "Unsupported range `$(range)`, supported is `:Standardize`, `:Normalize` or `UnitRange{<:Integer}`"
+            @assert false "Unsupported range `$(range)`, supported is `:Standardize`, `:Normalize` or `Tuple{Real, Real}`"
         end
+
+        @info "$(range) | $(length(data))"
 
         return ShiftScale{T, A}(shift, scale, activation)
     end
@@ -186,7 +199,7 @@ export ShiftScale
 
 function (l::ShiftScale)(x)
 
-    x_proc = l.activation((x .+ l.shift) .* l.scale)
+    x_proc = l.activation.((x .+ l.shift) .* l.scale)
 
     return x_proc
 end
@@ -196,35 +209,30 @@ end
 """
 ToDo.
 """
-struct ScaleShift{T}
+struct ScaleShift{T, A}
     scale::AbstractArray{T}
     shift::AbstractArray{T}
+    activation::A
 
-    function ScaleShift{T}(scale::AbstractArray{T}, shift::AbstractArray{T}) where {T}
-        inst = new(scale, shift)
+    function ScaleShift{T, A}(scale::AbstractArray{T}, shift::AbstractArray{T}, activation::A=identity) where {T, A}
+        inst = new(scale, shift, activation)
         return inst
     end
 
-    function ScaleShift(scale::AbstractArray{T}, shift::AbstractArray{T}) where {T}
-        return ScaleShift{T}(scale, shift)
+    function ScaleShift(scale::AbstractArray{T}, shift::AbstractArray{T}, activation::A=identity) where {T, A}
+        return ScaleShift{T, A}(scale, shift, activation)
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T, A}; indices = 1:length(l.scale)) where {T, A}
-        return ScaleShift{T}(1.0 ./ l.scale[indices], -1.0 .* l.shift[indices])
-    end
-
-    function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}
-        shift = mean.(data)
-        scale = std.(data)
-        return ShiftScale(scale, shift)
+    function ScaleShift(l::ShiftScale{T, _A}, activation::A=identity; indices = 1:length(l.scale)) where {T, A, _A}
+        return ScaleShift{T, A}(1.0 ./ l.scale[indices], -1.0 .* l.shift[indices], activation)
     end
 end
 export ScaleShift
 
 function (l::ScaleShift)(x)
 
-    x_proc = (x .* l.scale) .+ l.shift
+    x_proc = l.activation.( (x .* l.scale) .+ l.shift )
 
     return x_proc
 end
