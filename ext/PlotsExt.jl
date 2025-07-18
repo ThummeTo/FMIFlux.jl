@@ -14,19 +14,19 @@ function FMIFlux.plot(args...; kwargs...)
     Plots.plot(args...; kwargs...)
 end
 
-function Plots.plot(batchElement::FMU2SolutionBatchElement; targets::Bool = true, plotkwargs...)
+function Plots.plot(batchElement::FMU2SolutionBatchElement, solution=batchElement.result; targets::Bool = true, plotkwargs...)
 
     fig = Plots.plot(; xlabel = "t [s]", plotkwargs...) # , title="loss[$(batchElement.step)] = $(nominalLoss(batchElement.losses[end]))")
     for i = 1:length(batchElement.indicesModel)
-        if !isnothing(batchElement.solution)
-            @assert batchElement.solution.states.t == batchElement.saveat "Batch element plotting failed, missmatch between `states.t` and `saveat`."
+        if !isnothing(solution)
+            @assert solution.states.t == batchElement.saveat "Batch element plotting failed, missmatch between `states.t` and `saveat`."
 
             Plots.plot!(
                 fig,
-                batchElement.solution.states.t,
+                solution.states.t,
                 collect(
                     unsense(u[batchElement.indicesModel[i]]) for
-                    u in batchElement.solution.states.u
+                    u in solution.states.u
                 ),
                 label = "Simulation #$(i)",
             )
@@ -45,7 +45,8 @@ function Plots.plot(batchElement::FMU2SolutionBatchElement; targets::Bool = true
 end
 
 function Plots.plot(
-    batchElement::FMU2BatchElement;
+    batchElement::FMU2BatchElement,
+    result=batchElement.result;
     targets::Bool = true,
     features::Bool = true,
     plotkwargs...,
@@ -66,11 +67,11 @@ function Plots.plot(
     end
 
     for i = 1:length(batchElement.indicesModel)
-        if batchElement.result != nothing
+        if result != nothing
             Plots.plot!(
                 fig,
                 batchElement.saveat,
-                collect(ForwardDiff.value(u[i]) for u in batchElement.result),
+                collect(ForwardDiff.value(u[i]) for u in result),
                 label = "Evaluation #$(i)",
             )
         end

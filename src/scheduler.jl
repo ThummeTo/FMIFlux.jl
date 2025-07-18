@@ -403,10 +403,11 @@ function apply!(scheduler::WorstElementScheduler; print::Bool = true)
         l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
 
         if updateAll
-            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
             FMIFlux.loss!(
                 scheduler.batch[i],
-                scheduler.lossFct;
+                scheduler.lossFct,
+                result;
                 logLoss = scheduler.logLoss,
             )
             l = nominalLoss(scheduler.batch[i])
@@ -448,10 +449,11 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool = true)
         l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
 
         if updateAll
-            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
             FMIFlux.loss!(
                 scheduler.batch[i],
-                scheduler.lossFct;
+                scheduler.lossFct,
+                result;
                 logLoss = scheduler.logLoss,
             )
             l = nominalLoss(scheduler.batch[i])
@@ -489,10 +491,11 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool = true)
     num = length(scheduler.batch)
     for i = 1:num
 
-        FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+        result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
         l = FMIFlux.loss!(
             scheduler.batch[i],
-            scheduler.lossFct;
+            scheduler.lossFct,
+            result;
             logLoss = scheduler.logLoss,
         )
 

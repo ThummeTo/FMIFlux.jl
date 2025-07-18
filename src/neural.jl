@@ -1616,7 +1616,7 @@ function (nfmu::ME_NeuralFMU)(
     end
 
     args = Vector{Any}()
-    kwargs = Dict{Symbol,Any}(nfmu.solvekwargs...,solvekwargs...)
+    kwargs = Dict{Symbol,Any}(nfmu.solvekwargs..., solvekwargs...)
 
     if !isnothing(saveat)
         kwargs[:saveat] = saveat

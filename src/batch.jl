@@ -66,12 +66,13 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
 
     indicesModel::Any
 
-    solution::FMUSolution
+    store_result::Bool
+    result::FMUSolution
 
     scalarLoss::Bool
     # canGetSetState::Bool
 
-    function FMU2SolutionBatchElement{D}(; scalarLoss::Bool = true) where {D}
+    function FMU2SolutionBatchElement{D}(; scalarLoss::Bool = true, store_result::Bool=false) where {D}
         inst = new()
 
         inst.snapshot = nothing
@@ -91,6 +92,7 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
 
         inst.indicesModel = nothing
         inst.scalarLoss = scalarLoss
+        inst.store_result = store_result
         # inst.canGetSetState = canGetSetState
 
         return inst
@@ -112,11 +114,12 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
 
     indicesModel::Any
 
+    store_result::Bool
     result::Any
 
     scalarLoss::Bool
 
-    function FMU2EvaluationBatchElement(; scalarLoss::Bool = true)
+    function FMU2EvaluationBatchElement(; scalarLoss::Bool = true, store_result::Bool=false)
         inst = new()
 
         inst.tStart = -Inf
@@ -133,6 +136,7 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
         inst.indicesModel = nothing
         inst.result = nothing
         inst.scalarLoss = scalarLoss
+        inst.store_result = store_result
 
         return inst
     end
@@ -202,7 +206,7 @@ function run!(
 
     @debug "Running $(batchElement.tStart) with snapshot: $(!isnothing(batchElement.snapshot))..."
 
-    batchElement.solution = neuralFMU(
+    solution = neuralFMU(
         batchElement.xStart,
         (batchElement.tStart, batchElement.tStop);
         readSnapshot = readSnapshot,
@@ -211,45 +215,57 @@ function run!(
         kwargs...,
     )
 
-    # @assert batchElement.solution.states.t == batchElement.saveat "Batch element simulation failed, missmatch between `states.t` and `saveat`."
+    if batchElement.store_result
+        batchElement.result = solution
+    end
+
+    # @assert solution.states.t == batchElement.saveat "Batch element simulation failed, missmatch between `states.t` and `saveat`."
 
     neuralFMU.customCallbacksBefore = []
     neuralFMU.customCallbacksAfter = []
 
     batchElement.step += 1
 
-    return batchElement.solution
+    return solution
 end
 
 function run!(model, batchElement::FMU2EvaluationBatchElement, p = nothing)
+    result = nothing 
+
     if isnothing(p) # implicite parameter model
-        batchElement.result =
+        result =
             collect(model(f)[batchElement.indicesModel] for f in batchElement.features)
     else # explicite parameter model
-        batchElement.result =
+        result =
             collect(model(p)(f)[batchElement.indicesModel] for f in batchElement.features)
     end
+
+    if batchElement.store_result
+        batchElement.result = result 
+    end
+
+    return result
 end
 
-function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool = false)
+function loss!(batchElement::FMU2SolutionBatchElement, lossFct, solution::FMUSolution; logLoss::Bool = false)
 
     loss = 0.0 # will be incremented
 
     if hasmethod(lossFct, Tuple{FMUSolution})
-        loss = lossFct(batchElement.solution)
+        loss = lossFct(solution)
 
     elseif hasmethod(lossFct, Tuple{FMUSolution, AbstractVector})
-        loss = lossFct(batchElement.solution, batchElement.targets)
+        loss = lossFct(solution, batchElement.targets)
 
     else # hasmethod(lossFct, Tuple{AbstractVector, AbstractVector})
 
-        if batchElement.solution.success
+        if solution.success
             if batchElement.scalarLoss
                 for i = 1:length(batchElement.indicesModel)
                     dataTarget = collect(d[i] for d in batchElement.targets)
                     modelOutput = collect(
                         u[batchElement.indicesModel[i]] for
-                        u in batchElement.solution.states.u
+                        u in solution.states.u
                     )
 
                     loss += lossFct(modelOutput, dataTarget)
@@ -257,7 +273,7 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool = 
             else
                 dataTarget = batchElement.targets
                 modelOutput = collect(
-                    u[batchElement.indicesModel] for u in batchElement.solution.states.u
+                    u[batchElement.indicesModel] for u in solution.states.u
                 )
 
                 loss = lossFct(modelOutput, dataTarget)
@@ -281,20 +297,20 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct; logLoss::Bool = 
     return loss
 end
 
-function loss!(batchElement::FMU2EvaluationBatchElement, lossFct; logLoss::Bool = true)
+function loss!(batchElement::FMU2EvaluationBatchElement, lossFct, result; logLoss::Bool = true)
 
     loss = 0.0 #  will be incremented 
 
     if batchElement.scalarLoss
         for i = 1:length(batchElement.indicesModel)
             dataTarget = collect(d[i] for d in batchElement.targets)
-            modelOutput = collect(u[i] for u in batchElement.result)
+            modelOutput = collect(u[i] for u in result)
 
             loss += lossFct(modelOutput, dataTarget)
         end
     else
         dataTarget = batchElement.targets
-        modelOutput = batchElement.result
+        modelOutput = result
 
         loss = lossFct(modelOutput, dataTarget)
     end
@@ -431,7 +447,7 @@ function batchDataSolution(
             nextBatchElement = batch[i+1]
         end
 
-        FMIFlux.run!(
+        result = FMIFlux.run!(
             neuralFMU,
             batch[i];
             nextBatchElement = nextBatchElement,
@@ -439,7 +455,7 @@ function batchDataSolution(
         )
 
         if plot
-            fig = FMIFlux.plot(batch[i])
+            fig = FMIFlux.plot(batch[i], result)
             display(fig)
         end
     end
