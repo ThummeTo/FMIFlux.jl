@@ -1067,7 +1067,7 @@ end
 # save FMU values 
 function saveValues(nfmu::ME_NeuralFMU, c::FMU2Component, recordValues, _x, _t, integrator)
 
-    @assert isContinuousTimeMode(c) "stepCompleted(...):\n" * ERR_MSG_CONT_TIME_MODE
+    @assert isContinuousTimeMode(c) "saveValues(...):\n" * ERR_MSG_CONT_TIME_MODE
 
     t = unsense(_t)
     x = unsense(_x)
@@ -1317,6 +1317,8 @@ function (nfmu::ME_NeuralFMU)(
     writeSnapshot::Union{FMUSnapshot,Nothing} = nothing,
     readSnapshot::Union{FMUSnapshot,Nothing} = nothing,
     cleanSnapshots::Bool = true,
+    useStepCallback::Bool = true,
+    useStartCallback::Bool = true,
     solvekwargs...,
 )
 
@@ -1373,8 +1375,10 @@ function (nfmu::ME_NeuralFMU)(
 
     c = getInstance(nfmu)
 
-    @debug "ME_NeuralFMU: Starting callback..."
-    c = startCallback(nothing, nfmu, c, t_start, writeSnapshot, readSnapshot)
+    if useStartCallback
+        @debug "ME_NeuralFMU: Starting callback..."
+        c = startCallback(nothing, nfmu, c, t_start, writeSnapshot, readSnapshot)
+    end
 
     ignore_derivatives() do
 
@@ -1473,13 +1477,15 @@ function (nfmu::ME_NeuralFMU)(
         end
 
         # integrator step callback
-        stepCb = FunctionCallingCallback(
-            (x, t, integrator) ->
-                stepCompleted(nfmu, c, x, t, integrator, t_start, t_stop);
-            func_everystep = true,
-            func_start = true,
-        )
-        push!(callbacks, stepCb)
+        if useStepCallback
+            stepCb = FunctionCallingCallback(
+                (x, t, integrator) ->
+                    stepCompleted(nfmu, c, x, t, integrator, t_start, t_stop);
+                func_everystep = true,
+                func_start = true,
+            )
+            push!(callbacks, stepCb)
+        end
 
         # [ToDo] Allow for AD-primitives for sensitivity analysis of recorded values
         if saving
@@ -1610,7 +1616,7 @@ function (nfmu::ME_NeuralFMU)(
     end
 
     args = Vector{Any}()
-    kwargs = Dict{Symbol,Any}(nfmu.solvekwargs..., solvekwargs...)
+    kwargs = Dict{Symbol,Any}(nfmu.solvekwargs...,solvekwargs...)
 
     if !isnothing(saveat)
         kwargs[:saveat] = saveat
@@ -2082,7 +2088,9 @@ function train!(
     printStep::Bool = false,
     proceed_on_assert::Bool = false,
     multiThreading::Bool = false,
-    multiObjective::Bool = false, assert_length=4096
+    multiObjective::Bool = false, 
+    assert_length=4096,
+    useSnapshots::Bool=true
 )
 
     if length(params) <= 0 #|| length(params[1]) <= 0
@@ -2098,7 +2106,7 @@ function train!(
         # [Note] :ReverseDiff, :Zygote need it for state change sampling and the rrule
         #        :ForwardDiff needs it for state change sampling
         snapshots = neuralFMU.snapshots
-        neuralFMU.snapshots = true
+        neuralFMU.snapshots = useSnapshots
 
         ret = trainStep(
             loss,
