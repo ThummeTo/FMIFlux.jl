@@ -242,7 +242,7 @@ function loss(
     # evaluate model
     result = run!(model, batchElement, p = p)
 
-    return loss!(batchElement, lossFct; logLoss = logLoss)
+    return loss!(batchElement, lossFct, result; logLoss = logLoss)
 end
 
 function loss(
@@ -277,7 +277,7 @@ function loss(
         )
         return Inf
     else
-        return loss!(batch[batchIndex], lossFct; logLoss = logLoss)
+        return loss!(batch[batchIndex], lossFct, solution; logLoss = logLoss)
     end
 end
 
@@ -290,9 +290,9 @@ function loss(
     p = nothing,
 )
 
-    run!(model, batch[batchIndex], p)
+    result = run!(model, batch[batchIndex], p)
 
-    return loss!(batch[batchIndex], lossFct; logLoss = logLoss)
+    return loss!(batch[batchIndex], lossFct, result; logLoss = logLoss)
 end
 
 function batch_loss(
@@ -318,19 +318,21 @@ function batch_loss(
             end
 
             if !isnothing(b.xStart)
-                run!(
+                result = run!(
                     neuralFMU,
                     b;
                     nextBatchElement = b_next,
                     progressDescr = "Sim. Batch $(i)/$(numBatch) |",
                     kwargs...,
                 )
-            end
 
-            if isnothing(accu)
-                accu = loss!(b, lossFct; logLoss = logLoss)
+                if isnothing(accu)
+                    accu = loss!(b, lossFct, result; logLoss = logLoss)
+                else
+                    accu += loss!(b, lossFct, result; logLoss = logLoss)
+                end
             else
-                accu += loss!(b, lossFct; logLoss = logLoss)
+                @warn "xStart is nothing, no loss computation happening..."
             end
 
         end
@@ -367,12 +369,12 @@ function batch_loss(
         for i = 1:numBatch
             b = batch[i]
 
-            run!(model, b, p)
+            result = run!(model, b, p)
 
             if isnothing(accu)
-                accu = loss!(b, lossFct; logLoss = logLoss)
+                accu = loss!(b, lossFct, result; logLoss = logLoss)
             else
-                accu += loss!(b, lossFct; logLoss = logLoss)
+                accu += loss!(b, lossFct, result; logLoss = logLoss)
             end
         end
 
