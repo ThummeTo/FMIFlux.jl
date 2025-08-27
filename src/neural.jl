@@ -242,7 +242,7 @@ function startCallback(
     integrator,
     nfmu::ME_NeuralFMU,
     c::Union{FMU2Component,Nothing},
-    t,
+    t_start,
     writeSnapshot,
     readSnapshot,
 )
@@ -251,16 +251,16 @@ function startCallback(
 
         nfmu.execution_start = time()
 
-        t = unsense(t)
+        t_start = unsense(t_start)
 
-        @assert t == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
+        @assert t_start == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
 
         c, x0 = prepareSolveFMU(
             nfmu.fmu,
             c,
             fmi2TypeModelExchange;
             parameters = nfmu.parameters,
-            t_start = nfmu.tspan[1],
+            t_start = t_start,
             t_stop = nfmu.tspan[end],
             tolerance = nfmu.tolerance,
             x0 = nfmu.x0,
@@ -269,7 +269,7 @@ function startCallback(
             cleanup = true,
         )
 
-        if c.eventInfo.nextEventTime == t && c.eventInfo.nextEventTimeDefined == fmi2True
+        if c.eventInfo.nextEventTime == t_start && c.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
         else
             @debug "No initial time events ..."
@@ -280,22 +280,32 @@ function startCallback(
         end
 
         if !isnothing(writeSnapshot)
-            FMIBase.update!(c, writeSnapshot)
+
+            if t_start != writeSnapshot.t
+                logWarning(
+                    c.fmu,
+                    "Snapshot time mismatch for `writeSnapshot`, snapshot time = $(writeSnapshot.t), but start time is $(t_start)",
+                )
+            end
+
+            FMIBase.update!(c, writeSnapshot) # ; t = t_start)
+
+            @assert writeSnapshot.t == t_start "After writing the snapshot, snapshot time $(writeSnapshot.t) doesn't match start time $(t_start)."
         end
 
         if !isnothing(readSnapshot)
             @assert c == readSnapshot.instance "Snapshot instance mismatch, snapshot instance is $(readSnapshot.instance.addr), current component is $(c.addr)"
             # c = readSnapshot.instance 
 
-            if t != readSnapshot.t
+            if t_start != readSnapshot.t
                 logWarning(
                     c.fmu,
-                    "Snapshot time mismatch, snapshot time = $(readSnapshot.t), but start time is $(t)",
+                    "Snapshot time mismatch for `readSnapshot`, snapshot time = $(readSnapshot.t), but start time is $(t_start)",
                 )
             end
 
             @debug "ME_NeuralFMU: Applying snapshot..."
-            FMIBase.apply!(c, readSnapshot; t = t)
+            FMIBase.apply!(c, readSnapshot; t = t_start)
             @debug "ME_NeuralFMU: Snapshot applied."
         end
 
@@ -867,9 +877,9 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     # assert_integrator_valid(integrator)
 
     if c.termSim
-        logError(c.fmu, "affectFMU!(...): Terminating simulation because of previous errors.")
-        terminate!(integrator)
-        return
+        #logError(c.fmu, "affectFMU!(...): Terminating simulation because of previous errors.")
+        #terminate!(integrator)
+        #return
     end
 
     # [NOTE] Here unsensing is OK, because we just want to reset the FMU to the correct state!
@@ -1005,9 +1015,9 @@ function stepCompleted(
     @assert isContinuousTimeMode(c) "stepCompleted(...):\n" * ERR_MSG_CONT_TIME_MODE
 
     if c.termSim
-        logError(c.fmu, "stepCompleted(...): Terminating simulation because of previous errors.")
-        terminate!(integrator)
-        return
+        #logError(c.fmu, "stepCompleted(...): Terminating simulation because of previous errors.")
+        #terminate!(integrator)
+        #return
     end
 
     # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
@@ -1462,12 +1472,6 @@ function (nfmu::ME_NeuralFMU)(
             logInfo(nfmu.fmu, "Setting max execeution time to $(max_execution_duration)")
         end
 
-        # custom callbacks
-        # TODO: This should be at the very end of callbacks? check if batching still works.
-        for cb in nfmu.customCallbacksAfter
-            push!(callbacks, cb)
-        end
-
         if showProgress
             c.progressMeter =
                 ProgressMeter.Progress(1000; desc = progressDescr, color = :blue, dt = 1.0)
@@ -1563,6 +1567,11 @@ function (nfmu::ME_NeuralFMU)(
         end
 
     end # ignore_derivatives
+
+    # custom callbacks
+    for cb in nfmu.customCallbacksAfter
+        push!(callbacks, cb)
+    end
 
     prob = nothing
 
@@ -2072,7 +2081,7 @@ function train!(
 )
     params = FMIFlux.params(neuralFMU)
 
-    return train!(loss, neuralFMU, params, data, optim; kwargs...)
+    return train!(loss, neuralFMU, params, data, optim; gradient=gradient, kwargs...)
 end
 
 # Dispatch for FMIFlux.jl [FMIFlux.AbstractOptimiser]

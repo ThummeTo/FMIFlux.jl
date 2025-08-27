@@ -149,6 +149,7 @@ function pasteFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
     return nothing
 end
 
+# make a copy of the curren time instant for the batch element
 function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
     c = getCurrentInstance(fmu)
     if isnothing(batchElement.snapshot)
@@ -156,17 +157,18 @@ function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
         #batchElement.snapshot.t = batchElement.tStart
         @debug "New snapshot @$(batchElement.snapshot.t)"
     else
-        #tBefore = batchElement.snapshot.t
+        tBefore = batchElement.snapshot.t
         FMIBase.update!(c, batchElement.snapshot)
         #batchElement.snapshot.t = batchElement.tStart
-        #tAfter = batchElement.snapshot.t
+        tAfter = batchElement.snapshot.t
 
-        # [Note] for discontinuous batches (time offsets inside batch),
+        # [Note] for non-consecutive batch elements (time gaps inside batch),
         #        it might be necessary to correct the new snapshot time to fit the old one.
-        # if tBefore != tAfter
-        #     batchElement.snapshot.t = max(tBefore, tAfter)
-        #     logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
-        # end
+        if tBefore != tAfter
+            #batchElement.snapshot.t = max(tBefore, tAfter)
+            #logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
+            #logWarning(fmu, "Need to correct snapshot time from $(tAfter) to $(tBefore)")
+        end
 
         @debug "Updated snapshot @$(batchElement.snapshot.t)"
     end
@@ -183,10 +185,34 @@ function run!(
     neuralFMU.customCallbacksAfter = []
     neuralFMU.customCallbacksBefore = []
 
+    function finishedCallback(x, t, integrator)
+        c = getCurrentInstance(neuralFMU.fmu)
+
+        # DifferentialEquations does not evaluate f(x, t) at t = t_f (of course)
+        # however, we expect to make a snapshot at the very last state x(t_f),
+        # therefore we need to manually set the FMU to this state with an additional evaluation.
+        # Further, this evaluation does not need to be sensitive, and is only
+        # to capture the correct FMUState.
+        evaluateModel(neuralFMU, c, unsense(x); t=unsense(t))
+
+        if t != c.t
+            @warn "functionCallingCallback called for t=$(t) != FMU time $(c.t)"
+        end
+        if t != batchElement.tStop
+            @warn "functionCallingCallback called for t=$(t) != batch element stop $(batchElement.tStop)"
+        end
+        if !isnothing(nextBatchElement) && t != nextBatchElement.tStart
+            @warn "functionCallingCallback called for t=$(t) != next batch element start $(nextBatchElement.tStart)"
+        end
+
+        copyFMUState!(neuralFMU.fmu, nextBatchElement)
+        return nothing
+    end
+
     # STOP CALLBACK
     if !isnothing(nextBatchElement)
         stopcb = FunctionCallingCallback(
-            (u, t, integrator) -> copyFMUState!(neuralFMU.fmu, nextBatchElement);
+            finishedCallback;
             funcat = [batchElement.tStop],
         )
         push!(neuralFMU.customCallbacksAfter, stopcb)
@@ -200,6 +226,9 @@ function run!(
         c = getCurrentInstance(neuralFMU.fmu)
         batchElement.snapshot = snapshot!(c)
         writeSnapshot = batchElement.snapshot # needs to be updated, therefore write
+
+        # to prevent logging a warning, because we will overwrite this soon
+        writeSnapshot.t = batchElement.tStart 
     else
         readSnapshot = batchElement.snapshot
     end
