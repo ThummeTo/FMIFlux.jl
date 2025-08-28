@@ -119,7 +119,7 @@ function FMIFlux.apply!(optim::OptimisersWrapper, params)
     else
         optim.state, new_ps = Flux.Optimisers.update!(optim.state, params, optim.grad_buffer)
         step = params .- new_ps
-        @info "Grad: $(optim.grad_buffer[1:5])\nStep: $(step[1:5])\nParams: $(params[1:5])"
+        #@info "Grad: $(optim.grad_buffer[1:5])\nStep: $(step[1:5])\nParams: $(params[1:5])"
         return step
     end
 end
