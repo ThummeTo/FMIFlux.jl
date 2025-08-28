@@ -2011,15 +2011,11 @@ function trainStep(
 
     #for j = 1:length(params)
 
-        step = FMIFlux.apply!(optim, params)
+        step = FMIFlux.apply!(optim, params; printStep=printStep)
 
         lock(lk_TrainApply) do
 
             params[:] .-= step
-
-            if printStep
-                @info "Step: min(abs()) = $(min(abs.(step)...))   max(abs()) = $(max(abs.(step)...))"
-            end
 
         end
 

@@ -32,7 +32,7 @@ struct FluxOptimiserWrapper{G} <: AbstractOptimiser
 end
 export FluxOptimiserWrapper
 
-function FMIFlux.apply!(optim::FluxOptimiserWrapper, params)
+function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool=false)
 
     optim.grad_fun!(optim.grad_buffer, params)
 
@@ -43,6 +43,11 @@ function FMIFlux.apply!(optim::FluxOptimiserWrapper, params)
         )
     else
         step = Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer)
+
+        if printStep
+            @info "Grad: $(min(optim.grad_buffer...)) - $(max(optim.grad_buffer...))\nStep: $(min(step...)) - $(max(step...))\nParams: $(min(params...)) - $(max(params...))"
+        end
+        
         return step
     end
 end
@@ -107,7 +112,7 @@ mutable struct OptimisersWrapper{G} <: AbstractOptimiser
 end
 export OptimisersWrapper
 
-function FMIFlux.apply!(optim::OptimisersWrapper, params)
+function FMIFlux.apply!(optim::OptimisersWrapper, params; printStep::Bool=false)
 
     optim.grad_fun!(optim.grad_buffer, params)
 
@@ -119,7 +124,11 @@ function FMIFlux.apply!(optim::OptimisersWrapper, params)
     else
         optim.state, new_ps = Flux.Optimisers.update!(optim.state, params, optim.grad_buffer)
         step = params .- new_ps
-        #@info "Grad: $(optim.grad_buffer[1:5])\nStep: $(step[1:5])\nParams: $(params[1:5])"
+
+        if printStep
+            @info "Grad: $(min(optim.grad_buffer...)) - $(max(optim.grad_buffer...))\nStep: $(min(step...)) - $(max(step...))\nParams: $(min(params...)) - $(max(params...))"
+        end
+
         return step
     end
 end
