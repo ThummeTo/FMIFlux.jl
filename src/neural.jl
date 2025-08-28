@@ -1251,7 +1251,7 @@ function CS_NeuralFMU(fmu::FMU2, model, tspan; recordValues = [])
     nfmu.model = model
     nfmu.tspan = tspan
 
-    nfmu.p, nfmu.re = FMIFlux.destructure(nfmu.model)
+    FMIFlux.params(nfmu; destructure=true)
 
     return nfmu
 end
@@ -1274,7 +1274,7 @@ function CS_NeuralFMU(fmus::Vector{<:FMU2}, model, tspan; recordValues = [])
     nfmu.model = model
     nfmu.tspan = tspan
 
-    nfmu.p, nfmu.re = FMIFlux.destructure(nfmu.model)
+    FMIFlux.params(nfmu; destructure=true)
 
     return nfmu
 end
@@ -1964,6 +1964,7 @@ function computeGradient!(
         any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
 
     @assert !all_zero "Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD."
+    #@info "$(grads[1][1:10])"
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
 
