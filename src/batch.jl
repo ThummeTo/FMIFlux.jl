@@ -188,21 +188,36 @@ function run!(
     function finishedCallback(x, t, integrator)
         c = getCurrentInstance(neuralFMU.fmu)
 
+        t_set = unsense(t)
+        x_set = unsense(x)
+
+        #@info "PRE:  c.default_t=$(c.default_t) | c.t=$(c.t) | t=$(t_set)"
+
         # DifferentialEquations does not evaluate f(x, t) at t = t_f (of course)
         # however, we expect to make a snapshot at the very last state x(t_f),
         # therefore we need to manually set the FMU to this state with an additional evaluation.
         # Further, this evaluation does not need to be sensitive, and is only
         # to capture the correct FMUState.
-        evaluateModel(neuralFMU, c, unsense(x); t=unsense(t))
 
-        if t != c.t
-            @warn "functionCallingCallback called for t=$(t) != FMU time $(c.t)"
+        #@warn "remove this line"
+        #c.default_t = t_set
+        
+        evaluateModel(neuralFMU, c, x_set; t=t_set)
+
+        #@info "POST: c.default_t=$(c.default_t) | c.t=$(c.t) | t=$(t_set)"
+
+        if c.default_t != c.t
+            @warn "After neural FMU evaluation, default_t was not set, c.t=$(c.t) != c.default_t $(c.default_t)"
         end
-        if t != batchElement.tStop
-            @warn "functionCallingCallback called for t=$(t) != batch element stop $(batchElement.tStop)"
+
+        if t_set != c.t
+            @warn "functionCallingCallback called for t=$(t_set) != FMU time $(c.t)"
         end
-        if !isnothing(nextBatchElement) && t != nextBatchElement.tStart
-            @warn "functionCallingCallback called for t=$(t) != next batch element start $(nextBatchElement.tStart)"
+        if t_set != batchElement.tStop
+            @warn "functionCallingCallback called for t=$(t_set) != batch element stop $(batchElement.tStop)"
+        end
+        if !isnothing(nextBatchElement) && t_set != nextBatchElement.tStart
+            @warn "functionCallingCallback called for t=$(t_set) != next batch element start $(nextBatchElement.tStart)"
         end
 
         copyFMUState!(neuralFMU.fmu, nextBatchElement)

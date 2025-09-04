@@ -6,7 +6,7 @@
 function FMIFlux.is64(model::Flux.Chain)
    
     for l = 1:length(model) # layers 
-        @info "Layer $(l)" # \n$(model[l])
+        #@info "Layer $(l)" # \n$(model[l])
         params, re = Flux.destructure(model[l])
 
         for i in 1:length(params)

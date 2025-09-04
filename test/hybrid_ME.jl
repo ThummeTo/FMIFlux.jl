@@ -159,10 +159,10 @@ for solver in solvers
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
-                # if i ∈ (1, 3, 4)
-                #     @warn "Currently skipping nets $(i) ∈ (1, 3, 4)"
-                #     continue
-                # end
+                if i ∈ (1, 3, 4)
+                    @warn "Currently skipping nets $(i) ∈ (1, 3, 4) for cont. FMUs (ANN before FMU)"
+                    continue
+                end
 
                 optim = OPTIMISER(ETA)
 
@@ -170,7 +170,7 @@ for solver in solvers
                 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver)
                 @test problem != nothing
 
-                # [Note] this is not needed from a mathematical perspective, because the system is continuous differentiable
+                # [Note] this is not needed from a mathematical perspective, because the system is continuously differentiable
                 if i ∈ (1, 3, 4)
                     problem.modifiedState = true
                 end

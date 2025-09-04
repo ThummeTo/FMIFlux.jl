@@ -471,12 +471,20 @@ function conditionSingle(nfmu::ME_NeuralFMU, c::FMU2Component, index, x, t, inte
         lastIndicator = zeros(c.fmu.modelDescription.numberOfEventIndicators)
     end
 
+    prev_t = c.default_t
+    prev_ec = c.default_ec
+    prev_ec_idcs = c.default_ec_idcs
+
     # [ToDo] Evaluate on light-weight model (sub-model) without fmi2GetXXX or similar and the bottom ANN
     c.default_t = t
     c.default_ec = lastIndicator
+    # ec_idcs?
+
     evaluateModel(nfmu, c, x; t=t)
-    c.default_t = -1.0
-    c.default_ec = EMPTY_fmi2Real
+
+    c.default_t = c.default_t
+    c.default_ec = c.default_ec
+    # ec_idcs?
 
     c.solution.evals_condition += 1
 
@@ -1316,7 +1324,8 @@ function (nfmu::ME_NeuralFMU)(
     tolerance::Union{Real,Nothing} = nothing,
     parameters::Union{Dict{<:Any,<:Any},Nothing} = nothing,
     p = nfmu.p,
-    solver = nfmu.solver,
+    alg = nfmu.solver,
+    solver = nothing,
     saveEventPositions::Bool = false,
     max_execution_duration::Real = -1.0,
     recordValues::fmi2ValueReferenceFormat = nfmu.recordValues,
@@ -1331,6 +1340,15 @@ function (nfmu::ME_NeuralFMU)(
     useStartCallback::Bool = true,
     solvekwargs...,
 )
+
+    if !isnothing(solver)
+        alg = solver 
+        logWarning(
+                nfmu.fmu,
+                "Neural FMU called with keyword `solver`, please use `alg` instead.",
+                3,
+            )
+    end
 
     if !isnothing(saveat)
         if saveat[1] != tspan[1] || saveat[end] != tspan[end]

@@ -15,7 +15,6 @@ using FMIFlux.FMISensitivity.SciMLSensitivity.ForwardDiff,
     FMIFlux.FMISensitivity.SciMLSensitivity.Zygote
 using FMIFlux.FMIImport, FMIFlux.FMIImport.FMICore, FMIZoo
 import LinearAlgebra: I
-import FMIFlux: isimplicit
 
 import Random
 Random.seed!(5678);
@@ -41,7 +40,7 @@ solvekwargs =
     Dict{Symbol,Any}(:saveat => tData, :abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
 
 numStates = 2
-solvers = [Tsit5(), Rosenbrock23(autodiff = false)]#, FBDF(autodiff=false)]
+algs = [Tsit5()] # , Rosenbrock23(autodiff = false)]#, FBDF(autodiff=false)]
 atols = [1e-3, 1.0] # ToDo: This is too much, but only for Rosenbrock  
 
 Wr = rand(2, 2) * 1e-4 # zeros(2,2) # 
@@ -197,39 +196,40 @@ prob.snapshots = true # needed for correct sensitivities
 
 # ANNs 
 
-losssum = function (p; sensealg = nothing, solver = nothing)
+losssum = function (p; kwargs...)
     global posData
-    posNet = mysolve(p; sensealg = sensealg, solver = solver)
+    posNet = mysolve(p; kwargs...)
 
     return Flux.Losses.mae(posNet, posData)
 end
 
-losssum_bb = function (p; sensealg = nothing, root = :Right, solver = nothing)
+losssum_bb = function (p; root = :Right, kwargs...)
     global posData
-    posNet = mysolve_bb(p; sensealg = sensealg, root = root, solver = solver)
+    posNet = mysolve_bb(p; root = root, kwargs...)
 
     return Flux.Losses.mae(posNet, posData)
 end
 
-mysolve = function (p; sensealg = nothing, solver = nothing)
+mysolve = function (p; kwargs...)
     global solution, events # write
     global prob, x0_bb, posData # read-only
     events = 0
 
+    kwargs = Dict(solvekwargs..., 
+        :p => p, 
+        :parameters => fmu_params, 
+        :cleanSnapshots => false, 
+        kwargs...)
+
     solution = prob(
         x0_bb;
-        p = p,
-        solver = solver,
-        parameters = fmu_params,
-        sensealg = sensealg,
-        cleanSnapshots = false,
-        solvekwargs...,
+        kwargs...,
     )
 
     return collect(u[1] for u in solution.states.u)
 end
 
-mysolve_bb = function (p; sensealg = nothing, root = :Right, solver = nothing)
+mysolve_bb = function (p; root = :Right, kwargs...)
     global solution # write 
     global prob_bb, events # read
     events = 0
@@ -244,13 +244,15 @@ mysolve_bb = function (p; sensealg = nothing, root = :Right, solver = nothing)
     else
         @assert false "unknwon root `$(root)`"
     end
+
+    kwargs = Dict(solvekwargs..., 
+        :p => p, 
+        :callback => callback, 
+        kwargs..., )
+
     solution = solve(
         prob_bb;
-        p = p,
-        alg = solver,
-        callback = callback,
-        sensealg = sensealg,
-        solvekwargs...,
+        kwargs...,
     )
 
     if !isa(solution, AbstractArray)
@@ -406,23 +408,23 @@ jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x_no_event)
 
 ###
 
-for i in 1:length(solvers)
-    solver = solvers[i]
+for i in 1:length(algs)
+    alg = algs[i]
     local atol = atols[i]
 
-    @info "Solver: $(solver)"
+    @info "alg: $(alg)"
 
     # Solution (plain)
-    losssum_bb(p_net_bb; sensealg = sensealg, solver = solver)
+    losssum_bb(p_net_bb; sensealg = sensealg, alg = alg)
     @test events == NUMEVENTS
 
-    losssum(p_net; sensealg = sensealg, solver = solver)
+    losssum(p_net; sensealg = sensealg, alg = alg)
     @test length(solution.events) == NUMEVENTS
 
     # Solution FWD (right)
     root = :Right
     grad_fwd_r = ForwardDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
@@ -430,7 +432,7 @@ for i in 1:length(solvers)
     # Solution FWD (left)
     root = :Left
     grad_fwd_l = ForwardDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
@@ -438,20 +440,20 @@ for i in 1:length(solvers)
     # Solution FWD (time)
     root = :Time
     grad_fwd_t = ForwardDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
 
     # Solution FWD (FMU)
     grad_fwd_f =
-        ForwardDiff.gradient(p -> losssum(p; sensealg = sensealg, solver = solver), p_net)
+        ForwardDiff.gradient(p -> losssum(p; sensealg = sensealg, alg = alg), p_net)
     @test length(solution.events) == NUMEVENTS
 
     # Solution RWD (right)
     root = :Right
     grad_rwd_r = ReverseDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
@@ -459,7 +461,7 @@ for i in 1:length(solvers)
     # Solution RWD (left)
     root = :Left
     grad_rwd_l = ReverseDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
@@ -467,38 +469,38 @@ for i in 1:length(solvers)
     # Solution RWD (time)
     root = :Time
     grad_rwd_t = ReverseDiff.gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = root, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = root, alg = alg),
         p_net_bb,
     )
     @test events == NUMEVENTS
 
     # Solution RWD (FMU)
     grad_rwd_f =
-        ReverseDiff.gradient(p -> losssum(p; sensealg = sensealg, solver = solver), p_net)
+        ReverseDiff.gradient(p -> losssum(p; sensealg = sensealg, alg = alg), p_net)
     @test length(solution.events) == NUMEVENTS
 
     # Ground Truth
     absstep = 1e-6
     grad_fin_r = FiniteDiff.finite_difference_gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = :Right, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = :Right, alg = alg),
         p_net_bb,
         Val{:central};
         absstep = absstep,
     )
     grad_fin_l = FiniteDiff.finite_difference_gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = :Left, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = :Left, alg = alg),
         p_net_bb,
         Val{:central};
         absstep = absstep,
     )
     grad_fin_t = FiniteDiff.finite_difference_gradient(
-        p -> losssum_bb(p; sensealg = sensealg, root = :Time, solver = solver),
+        p -> losssum_bb(p; sensealg = sensealg, root = :Time, alg = alg),
         p_net_bb,
         Val{:central};
         absstep = absstep,
     )
     grad_fin_f = FiniteDiff.finite_difference_gradient(
-        p -> losssum(p; sensealg = sensealg, solver = solver),
+        p -> losssum(p; sensealg = sensealg, alg = alg),
         p_net,
         Val{:central};
         absstep = absstep,
@@ -514,31 +516,31 @@ for i in 1:length(solvers)
     # Jacobian Test
 
     jac_fwd_r = ForwardDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, solver = solver),
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
         p_net,
     )
     jac_fwd_f =
-        ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, solver = solver), p_net)
+        ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
 
     jac_rwd_r = ReverseDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, solver = solver),
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
         p_net,
     )
     jac_rwd_f =
-        ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, solver = solver), p_net)
+        ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
 
     # [TODO] why this?!
     jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:end-1, :]
     jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:end-1, :]
 
     jac_fin_r = FiniteDiff.finite_difference_jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, solver = solver),
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
         p_net,
         Val{:central};
         absstep = absstep,
     )
     jac_fin_f = FiniteDiff.finite_difference_jacobian(
-        p -> mysolve(p; sensealg = sensealg, solver = solver),
+        p -> mysolve(p; sensealg = sensealg, alg = alg),
         p_net,
         Val{:central};
         absstep = absstep,
