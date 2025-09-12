@@ -15,7 +15,7 @@ using FMIFlux.FMISensitivity.SciMLSensitivity.ForwardDiff,
     FMIFlux.FMISensitivity.SciMLSensitivity.Zygote
 using FMIFlux.FMIImport, FMIFlux.FMIImport.FMICore, FMIZoo
 import LinearAlgebra: I
-import FMIFlux: isimplicit
+import FMIFlux: ReverseDiffAdjoint
 
 import Random
 Random.seed!(5678);
@@ -66,7 +66,7 @@ fmu.executionConfig.freeInstance = true
 
 solution = prob(
     x0_bb;
-    p = p_net,
+    p = FMIFlux.params(prob),
     solver = solver,
     parameters = fmu_params,
     sensealg = sensealg,
@@ -85,23 +85,44 @@ for i in 1:NUMEVENTS
     @test solution.snapshots[i+1].t == solution.events[i].t
 end
 
-EPS = 1e-8
+small   = fmu.executionConfig.snapshotDeltaTimeTolerance * 1e-2     # deviation that maps to the same snapshot
+big     = fmu.executionConfig.snapshotDeltaTimeTolerance * 1e2      # deviation that maps to the previous/next snapshot
 for i in 1:NUMEVENTS
     local s, t 
     
     t = solution.events[i].t
 
-    # get snapshot slightly before the event
-    s = getSnapshot(c, t-EPS)
+    @info "Event $(i) @ t=$(t)s"
+
+    # get snapshot at event (little deviation)
+    s = getSnapshot(c, t-small)
+    @test s == solution.snapshots[i+1]
+    s = getPreviousSnapshot(c, t-small)
     @test s == solution.snapshots[i]
 
     # get snapshot at the event
     s = getSnapshot(c, t)
+    @test s == solution.snapshots[i+1] 
+    s = getPreviousSnapshot(c, t)
     @test s == solution.snapshots[i]
 
-    # get snapshot slightly after the event
-    s = getSnapshot(c, t+EPS)
-    @test s == solution.snapshots[min(i+1, NUMEVENTS+1)]
+    # get snapshot slightly after event
+    s = getSnapshot(c, t+small)
+    @test s == solution.snapshots[i+1]     
+    s = getPreviousSnapshot(c, t+small)
+    @test s == solution.snapshots[i]
+
+    # try to get snapshot after the event (out of range)
+    s = getSnapshot(c, t+big)
+    @test s == nothing
+    s = getPreviousSnapshot(c, t+big)
+    @test s == solution.snapshots[i+1]
+
+    # try to get snapshot before the event (out of range)
+    s = getSnapshot(c, t-big)
+    @test s == nothing
+    s = getPreviousSnapshot(c, t-big)
+    @test s == solution.snapshots[i]
 end
 
 unloadFMU(fmu)

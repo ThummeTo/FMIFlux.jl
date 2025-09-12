@@ -276,7 +276,8 @@ function startCallback(
         end
 
         if nfmu.snapshots
-            FMIBase.snapshot!(c.solution)
+            sn = FMIBase.snapshot!(c.solution)
+            @assert sn.t == t_start "Initial snapshot is not at initial time $(sn.t) != $(t_start)"
         end
 
         if !isnothing(writeSnapshot)
@@ -597,7 +598,13 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # [ToDo] ONLY A TEST
     new_left_x = copy(left_x)
     if length(c.solution.snapshots) > 0 # c.t != t 
-        sn = getSnapshot(c.solution, t)
+        sn = getPreviousSnapshot(c.solution, t)
+        
+        # this is the case for t = t_0
+        if isnothing(sn)
+            sn = getSnapshot(c.solution, t)
+        end
+
         FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
         #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
     end
@@ -619,7 +626,13 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
 
         # first, jump to before the event instance
         if length(c.solution.snapshots) > 0 # c.t != t 
-            sn = getSnapshot(c.solution, t)
+            sn = getPreviousSnapshot(c.solution, t)
+
+            # this is the case for t = t_0
+            if isnothing(sn)
+                sn = getSnapshot(c.solution, t)
+            end
+
             FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
             #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
         end
@@ -643,7 +656,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
             new_left_x[i] -= step
 
             if length(c.solution.snapshots) > 0 # c.t != t 
-                sn = getSnapshot(c.solution, t)
+                sn = getPreviousSnapshot(c.solution, t)
                 FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
                 #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
             end
@@ -694,7 +707,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     # stateChange!(nfmu, c, left_x, t, idx)
     if length(c.solution.snapshots) > 0
         #@info "Reset exact snapshot @t=$(t)"
-        sn = getSnapshot(c.solution, t; exact = true)
+        sn = getSnapshot(c.solution, t)
         if !isnothing(sn)
             FMIBase.apply!(c, sn; x_c = left_x, t = t)
         end

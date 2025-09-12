@@ -84,20 +84,20 @@ function runtests(exportingTool)
             include("time_solution_gradients.jl")
         end
 
-        # @info "Layers (layers.jl)"
-        # @testset "Layers" begin
-        #     include("layers.jl")
-        # end
+        @info "Layers (layers.jl)"
+        @testset "Layers" begin
+            include("layers.jl")
+        end
 
-        # @info "Loading / Saving (load_save.jl)"
-        # @testset "Loading / Saving" begin
-        #     include("load_save.jl")
-        # end
+        @info "Loading / Saving (load_save.jl)"
+        @testset "Loading / Saving" begin
+            include("load_save.jl")
+        end
 
-        # @info "Snapshots (snapshots.jl)"
-        # @testset "Snapshots" begin
-        #     include("snapshots.jl")
-        # end
+        @info "Snapshots (snapshots.jl)"
+        @testset "Snapshots" begin
+            include("snapshots.jl")
+        end
 
         for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
 
@@ -105,15 +105,15 @@ function runtests(exportingTool)
             @info "Gradient: $(GRADIENT)"
             @testset "Gradient: $(GRADIENT)" begin
 
-                # @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
-                # @testset "ME-NeuralFMU (Continuous)" begin
-                #     include("hybrid_ME.jl")
-                # end
+                @info "ME-NeuralFMU (Continuous) (hybrid_ME.jl)"
+                @testset "ME-NeuralFMU (Continuous)" begin
+                    include("hybrid_ME.jl")
+                end
 
-                # @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
-                # @testset "ME-NeuralFMU (Discontinuous)" begin
-                #     include("hybrid_ME_dis.jl")
-                # end
+                @info "ME-NeuralFMU (Discontinuous) (hybrid_ME_dis.jl)"
+                @testset "ME-NeuralFMU (Discontinuous)" begin
+                    include("hybrid_ME_dis.jl")
+                end
 
                 # @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
                 # @testset "NeuralFMU with FMU parameter optimization" begin

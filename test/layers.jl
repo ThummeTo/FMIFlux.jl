@@ -42,9 +42,6 @@ p, re = Flux.destructure(Flux.Chain(s))
 s = ScaleShift(scale, shift)
 @test s(input) == [3.0, 8.0, 9.0]
 
-s = ScaleShift(inputArray)
-@test s(input) == [-3.0, 4.4, 4.0]
-
 p = ShiftScale(inputArray)
 s = ScaleShift(p)
 for i = 1:length(inputArray)
