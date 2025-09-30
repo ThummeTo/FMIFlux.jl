@@ -32,7 +32,7 @@ function FMIFlux.params(nfmu::ME_NeuralFMU; destructure::Bool = false)
     
     #### DEPRECATED 
 
-    if destructure
+    if destructure || isnothing(nfmu.p)
         nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
     end
 
@@ -51,7 +51,7 @@ function FMIFlux.params(nfmu::CS_NeuralFMU; destructure::Bool = false) # true)
    
     #### DEPRECATED 
 
-    if destructure
+    if destructure || isnothing(nfmu.p)
         nfmu.p, nfmu.re = Flux.destructure(nfmu.model)
 
         # else

@@ -32,16 +32,17 @@ NUMEVENTS = 4
 t_start = 0.0
 t_step = 0.05
 t_stop = 2.0
+tspan = (t_start, t_stop)
 tData = t_start:t_step:t_stop
 posData = ones(Float64, length(tData))
 x0_bb = [1.0, 0.0]
 
 solvekwargs =
-    Dict{Symbol,Any}(:saveat => tData, :abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
+    Dict{Symbol,Any}(:abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
 
 numStates = 2
 algs = [Tsit5()] # , Rosenbrock23(autodiff = false)]#, FBDF(autodiff=false)]
-atols = [1e-3, 1.0] # ToDo: This is too much, but only for Rosenbrock  
+atols = [1e-2, 1.0] # ToDo: This is too much, but only for Rosenbrock  
 
 Wr = rand(2, 2) * 1e-4 # zeros(2,2) # 
 br = rand(2) * 1e-4 # zeros(2) #
@@ -75,6 +76,8 @@ prob_bb = ODEProblem{true}(ff, x0_bb, (t_start, t_stop), p_net_bb)
 condition = function (out, x, t, integrator)
     #x = re_bb(p_net_bb)[1](x)
     out[1] = x[1] - RADIUS
+    out[2] = x[1] - RADIUS
+    nothing
 end
 
 time_choice = function (integrator)
@@ -95,18 +98,18 @@ affect_right! = function (integrator, idx)
 
     #@info "affect_right! triggered by #$(idx)"
 
-    # if idx == 1
-    #     # event #1 is handeled as "dummy" (e.g. discrete state change)
-    #     return 
-    # end
+    if idx == 2
+        # event #2 is handeled as "dummy" (e.g. discrete state change)
+        return 
+    end
 
     if idx > 0
-        out = zeros(1)
+        out = zeros(2)
         x = integrator.u
         t = integrator.t
         condition(out, unsense(x), unsense(t), integrator)
         if sign(out[idx]) > 0.0
-            @info "Event for bouncing ball (white-box) triggered, but not valid!"
+            @info "Event for bouncing ball (white-box) triggered, skipping!"
             return nothing
         end
     end
@@ -125,12 +128,12 @@ affect_left! = function (integrator, idx)
 
     #@info "affect_left! triggered by #$(idx)"
 
-    # if idx == 1
-    #     # event #1 is handeled as "dummy" (e.g. discrete state change)
-    #     return 
-    # end
+    if idx == 2
+        # event #2 is handeled as "dummy" (e.g. discrete state change)
+        return 
+    end
 
-    out = zeros(1)
+    out = zeros(2)
     x = integrator.u
     t = integrator.t
     condition(out, unsense(x), unsense(t), integrator)
@@ -154,7 +157,7 @@ stepCompleted = function (x, t, integrator)
 
 end
 
-NUMEVENTINDICATORS = 1 # 2
+NUMEVENTINDICATORS = 2
 rightCb = VectorContinuousCallback(
     condition, #_double,
     affect_right!,
@@ -184,6 +187,7 @@ stepCb = FunctionCallingCallback(stepCompleted; func_everystep = true, func_star
 #fmu = loadFMU("BouncingBall", "ModelicaReferenceFMUs", "0.0.25"; type=:ME)
 #fmu_params = nothing
 fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME)
+# fmu.isDummyDiscrete = true # should be set automatically
 fmu_params = Dict("damping" => DAMPING, "mass_radius" => RADIUS, "mass_s_min" => DBL_MIN)
 
 net = Chain(#Dense(W1, b1, identity),
@@ -196,21 +200,25 @@ prob.snapshots = true # needed for correct sensitivities
 
 # ANNs 
 
-losssum = function (p; kwargs...)
+losssum = function (p, tspan=tspan; kwargs...)
     global posData
-    posNet = mysolve(p; kwargs...)
+    posNet = mysolve(p, tspan; kwargs...)
 
-    return Flux.Losses.mae(posNet, posData)
+    num = length(posNet)
+
+    return Flux.Losses.mae(posNet, posData[1:num])
 end
 
-losssum_bb = function (p; root = :Right, kwargs...)
+losssum_bb = function (p, tspan=nothing; root = :Right, kwargs...)
     global posData
-    posNet = mysolve_bb(p; root = root, kwargs...)
+    posNet = mysolve_bb(p, tspan; root = root, kwargs...)
 
-    return Flux.Losses.mae(posNet, posData)
+    num = length(posNet)
+
+    return Flux.Losses.mae(posNet, posData[1:num])
 end
 
-mysolve = function (p; kwargs...)
+mysolve = function (p, tspan=tspan; kwargs...)
     global solution, events # write
     global prob, x0_bb, posData # read-only
     events = 0
@@ -219,17 +227,29 @@ mysolve = function (p; kwargs...)
         :p => p, 
         :parameters => fmu_params, 
         :cleanSnapshots => false, 
+        :saveat => tData[1:round(Integer, 1 + tspan[end]/t_step)], 
         kwargs...)
 
     solution = prob(
-        x0_bb;
+        x0_bb, tspan;
         kwargs...,
     )
+
+    # if !isa(solution.states, AbstractArray)
+    #     if solution.states.retcode != FMIFlux.ReturnCode.Success
+    #         @error "Solution failed!"
+    #         return Inf
+    #     end
+
+    #     return collect(u[1] for u in solution.states.u)
+    # else
+    #     return solution.states[1, :] 
+    # end
 
     return collect(u[1] for u in solution.states.u)
 end
 
-mysolve_bb = function (p; root = :Right, kwargs...)
+mysolve_bb = function (p, tspan=nothing; root = :Right, kwargs...)
     global solution # write 
     global prob_bb, events # read
     events = 0
@@ -248,7 +268,13 @@ mysolve_bb = function (p; root = :Right, kwargs...)
     kwargs = Dict(solvekwargs..., 
         :p => p, 
         :callback => callback, 
+        :saveat => tData, 
         kwargs..., )
+
+    if !isnothing(tspan)
+        kwargs[:tspan] = tspan
+        kwargs[:saveat] = tData[1:round(Integer, 1 + tspan[end]/t_step)]
+    end
 
     solution = solve(
         prob_bb;
@@ -288,12 +314,17 @@ c, _ = FMIFlux.prepareSolveFMU(
 ### START CHECK CONDITIONS 
 
 condition_bb_check = function (x)
-    buffer = similar(x, 1)
+    buffer = similar(x, NUMEVENTINDICATORS)
     condition(buffer, x, t_start, nothing)
     return buffer
 end
 condition_nfmu_check = function (x)
-    buffer = similar(x, 1)
+    buffer = similar(x, NUMEVENTINDICATORS)
+
+    if fmu.isDummyDiscrete
+        x = vcat(x, 0.0)
+    end
+
     FMIFlux.condition!(
         prob,
         FMIFlux.getInstance(prob),
@@ -301,7 +332,7 @@ condition_nfmu_check = function (x)
         x,
         t_start,
         nothing,
-        [UInt32(1)],
+        [UInt32(1), UInt32(2)],
     )
     return buffer
 end
@@ -319,6 +350,12 @@ atol = 1e-6
 @test isapprox(jac_fin1, jac_rwd1; atol = atol)
 @test isapprox(jac_fin2, jac_fwd2; atol = atol)
 @test isapprox(jac_fin2, jac_rwd2; atol = atol)
+
+# check reverse diff with dummy discrete state 
+fmu.isDummyDiscrete = true 
+jac_rwd3 = ReverseDiff.jacobian(condition_nfmu_check, x0_bb)
+fmu.isDummyDiscrete = false
+@test isapprox(jac_fin2, jac_rwd3; atol = atol)
 
 ### START CHECK AFFECT
 
@@ -345,6 +382,11 @@ affect_nfmu_check = function (x)
         x = copy(x)
     end
 
+    x0 = x
+    if fmu.isDummyDiscrete
+        x0 = x[1:end-1]
+    end
+
     c, _ = FMIFlux.prepareSolveFMU(
         prob.fmu,
         nothing,
@@ -352,13 +394,13 @@ affect_nfmu_check = function (x)
         parameters = fmu_params,
         t_start = prob.tspan[1],
         t_stop = prob.tspan[end],
-        x0 = unsense(x),
+        x0 = unsense(x0),
         handleEvents = FMIFlux.handleEvents,
         cleanup = true,
     )
 
     # initial snapshot
-    FMIBase.snapshot!(c.solution)
+    #FMIBase.snapshot!(c.solution)
 
     integrator = (t = t_start, u = x, opts = (internalnorm = (a, b) -> 1.0,))
     FMIFlux.affectFMU!(prob, c, integrator, 1)
@@ -387,6 +429,12 @@ jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x_event_left)
 @test isapprox(jac_con1, ∂xn_∂xp; atol = 1e-4)
 @test isapprox(jac_con2, ∂xn_∂xp; atol = 1e-4)
 
+# check reverse diff with dummy discrete state 
+fmu.isDummyDiscrete = true 
+jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, vcat(x_event_left, 0.0))
+fmu.isDummyDiscrete = false
+@test isapprox(jac_con2[1:2, 1:2], ∂xn_∂xp; atol = 1e-4)
+
 # [Note] checking via FiniteDiff is not possible here, because finite differences offsets might not trigger the events at all
 
 # no-event 
@@ -404,6 +452,12 @@ jac_con1 = ReverseDiff.jacobian(affect_bb_check, x_no_event)
 jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x_no_event)
 
 @test isapprox(jac_con1, I; atol = 1e-4)
+@test isapprox(jac_con2, I; atol = 1e-4)
+
+# check reverse diff with dummy discrete state 
+fmu.isDummyDiscrete = true 
+jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, vcat(x_no_event, 0.0))
+fmu.isDummyDiscrete = false
 @test isapprox(jac_con2, I; atol = 1e-4)
 
 ###
@@ -506,7 +560,7 @@ for i in 1:length(algs)
         absstep = absstep,
     )
 
-    # check if finite differences match together
+    # # check if finite differences match together
     @test isapprox(grad_fin_f, grad_fin_r; atol = atol)
     @test isapprox(grad_fin_f, grad_fin_l; atol = atol)
 
@@ -548,14 +602,13 @@ for i in 1:length(algs)
 
     ###
 
-    # ToDo: * 10 is because of large deviation for Rosenbrock23, why?
-    @test isapprox(jac_fin_f, jac_fin_r; atol = atol*10)
+    @test isapprox(jac_fin_f, jac_fin_r; atol = atol)
 
-    @test isapprox(jac_fin_f, jac_fwd_f; atol = atol*10) 
-    @test isapprox(jac_fin_f, jac_rwd_f; atol = atol*10) 
+    @test isapprox(jac_fin_f, jac_fwd_f; atol = atol) 
+    @test isapprox(jac_fin_f, jac_rwd_f; atol = atol) 
 
-    @test isapprox(jac_fin_r, jac_fwd_r; atol = atol*10)
-    @test isapprox(jac_fin_r, jac_rwd_r; atol = atol*10)
+    @test isapprox(jac_fin_r, jac_fwd_r; atol = atol)
+    @test isapprox(jac_fin_r, jac_rwd_r; atol = atol)
 
     ###
 end

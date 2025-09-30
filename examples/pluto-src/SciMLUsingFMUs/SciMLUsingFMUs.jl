@@ -1207,12 +1207,12 @@ final_model(x0)
 # ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
 begin
     neuralFMU = ME_NeuralFMU(
-        fmu, # the FMU used in the neural FMU 
+        fmu, 			# the FMU used in the neural FMU 
         final_model,    # the model we specified above 
         (tStart, tStop),# start and stop time for solving
-        solver; # the solver (Tsit5)
-        saveat = tSave,
-    )   # time points to save the solution at
+        solver; 		# the solver (Tsit5)
+        saveat = tSave, # time points to save the solution at
+    )   
 end
 
 # ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
@@ -1224,7 +1224,7 @@ begin
 
     # in demo mode, we load parameters from a pre-trained model
     if MODE == :demo
-        fmiLoadParameters(neuralFMU, demo_path)
+        FMIFlux.loadParameters(neuralFMU, demo_path)
     end
 
     HIDDEN_CODE_MESSAGE

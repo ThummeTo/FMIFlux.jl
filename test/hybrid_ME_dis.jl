@@ -17,11 +17,12 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData = collect(abs(cos(u .* 1.0)) for u in tData) * 2.0
 
-fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME) # , logLevel = :info)
 
 # loss function for training
 losssum = function (p)
     global problem, X0, posData
+    global solution
     solution = problem(X0; p = p, saveat = tData)
 
     if !solution.success
@@ -126,11 +127,11 @@ push!(nets, net5)
 net6 = function ()
     net = Chain(
         x -> fmu(; x = x, y_refs = getVRs, dx_refs = :all),
-        x -> c3(x),
+        dx_y -> c3(dx_y),
         Dense(numStates + numGetVRs, 8, tanh; init = init),
         Dense(8, 16, tanh; init = init),
         Dense(16, 1, tanh; init = init),
-        x -> c4(1, x[1]),
+        dx -> c4(1, dx[1]),
     )
 end
 push!(nets, net6)
@@ -148,7 +149,7 @@ net7 = function ()
 end
 push!(nets, net7)
 
-# 8. NeuralFMU with additional setter and getter
+# 8. NeuralFMU with additional setter and getter 
 net8 = function ()
     net = Chain(
         x -> fmu(; x = x, u_refs = setVRs, u = setVal, y_refs = getVRs, dx_refs = :all),
@@ -161,7 +162,7 @@ net8 = function ()
 end
 push!(nets, net8)
 
-# 9. an empty NeuralFMU (this does only make sense for debugging)
+# 9. an empty NeuralFMU (this does only make sense for debugging) 
 net9 = function ()
     net = Chain(x -> fmu(x = x, dx_refs = :all))
 end
@@ -170,9 +171,9 @@ push!(nets, net9)
 solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
-   @testset "Solver: $(solver)" begin
-       for i = 1:length(nets)
-           @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
+  @testset "Solver: $(solver)" begin
+      for i = 1:length(nets)
+          @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
 
@@ -238,6 +239,7 @@ for solver in solvers
                     Iterators.repeated((), NUMSTEPS),
                     optim;
                     gradient = GRADIENT,
+                    #printStep=true,
                     cb = () -> callback(p_net),
                 )
                 @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
@@ -254,9 +256,9 @@ for solver in solvers
                 # fig = plot(solutionAfter; title="Net $(i) - $(FAILED_GRADIENTS) / $(FAILED_GRADIENTS_QUOTA * NUMSTEPS)")
                 # plot!(fig, tData, posData)
                 # display(fig)
-           end
-        end
-    end
+          end
+       end
+   end
 end
 
 @test length(fmu.components) <= 1

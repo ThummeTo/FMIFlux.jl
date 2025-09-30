@@ -224,6 +224,7 @@ stepCb = FunctionCallingCallback(stepCompleted; func_everystep = true, func_star
 
 # load FMU for NeuralFMU
 fmu = loadFMU("BouncingBallGravitySwitch1D", "Dymola", "2023x"; type = :ME)
+# fmu.isDummyDiscrete = true # should be set automatically
 
 # required?
 fmu.executionConfig.eval_t_gradients = true
@@ -390,7 +391,7 @@ affect_nfmu_check = function (x, t, idx = 1)
     if !isa(x, AbstractVector{<:Float64})
         x = [x...]
     else
-        x = copy(x)
+        x = deepcopy(x)
     end
 
     c, _ = FMIFlux.prepareSolveFMU(
@@ -406,7 +407,7 @@ affect_nfmu_check = function (x, t, idx = 1)
     )
 
     # initial snapshot
-    FMIBase.snapshot!(c.solution)
+    # FMIBase.snapshot!(c.solution)
 
     integrator = (t = t, u = x, opts = (internalnorm = (a, b) -> 1.0,))
     FMIFlux.affectFMU!(prob, c, integrator, idx)
@@ -421,20 +422,20 @@ t_no_event = t_start
 
 # [ToDo] the following tests fail for some FMUs
 
-# @test isapprox(affect_bb_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
-# @test isapprox(affect_nfmu_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
+@test isapprox(affect_bb_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
+@test isapprox(affect_nfmu_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
 
-# jac_con1 = ForwardDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
-# jac_con2 = ForwardDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
+jac_con1 = ForwardDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
+jac_con2 = ForwardDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
 
-# @test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
-# @test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
 
-# jac_con1 = ReverseDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
-# jac_con2 = ReverseDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
+jac_con1 = ReverseDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
+jac_con2 = ReverseDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
 
-# @test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
-# @test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
 
 # [Note] checking via FiniteDiff is not possible here, because finite differences offsets might not trigger the events at all
 
@@ -551,50 +552,49 @@ for alg in algs
     @test isapprox(grad_fin_r, grad_fwd_r; atol = atol)
 
     # Jacobian Test
-    @warn "Jacobian tests disabled."
-    # jac_fwd_r = ForwardDiff.jacobian(
-    #     p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-    #     p_net,
-    # )
-    # @test !any(isnan.(jac_fwd_r))
-    # jac_fwd_f =
-    #     ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
-    # @test !any(isnan.(jac_fwd_f))
+    jac_fwd_r = ForwardDiff.jacobian(
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
+        p_net,
+    )
+    @test !any(isnan.(jac_fwd_r))
+    jac_fwd_f =
+        ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    @test !any(isnan.(jac_fwd_f))
 
-    # jac_rwd_r = ReverseDiff.jacobian(
-    #     p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-    #     p_net,
-    # )
-    # @test !any(isnan.(jac_rwd_r))
-    # jac_rwd_f =
-    #     ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
-    # @test !any(isnan.(jac_rwd_f))
+    jac_rwd_r = ReverseDiff.jacobian(
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
+        p_net,
+    )
+    @test !any(isnan.(jac_rwd_r))
+    jac_rwd_f =
+        ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    @test !any(isnan.(jac_rwd_f))
 
-    # # [TODO] why this?!
-    # jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:end-1, :]
-    # jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:end-1, :]
+    # [TODO] why this?!
+    jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:end-1, :]
+    jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:end-1, :]
 
-    # jac_fin_r = FiniteDiff.finite_difference_jacobian(
-    #     p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-    #     p_net,
-    # )
-    # jac_fin_f = FiniteDiff.finite_difference_jacobian(
-    #     p -> mysolve(p; sensealg = sensealg, alg = alg),
-    #     p_net,
-    # )
+    jac_fin_r = FiniteDiff.finite_difference_jacobian(
+        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
+        p_net,
+    )
+    jac_fin_f = FiniteDiff.finite_difference_jacobian(
+        p -> mysolve(p; sensealg = sensealg, alg = alg),
+        p_net,
+    )
 
-    # ###
+    ###
 
-    # local atol = 1e-1
+    local atol = 1e-1
 
-    # @test isapprox(jac_fin_f, jac_fin_r; atol = atol)
-    # @test isapprox(jac_fin_f, jac_fwd_f; atol = atol)
+    @test isapprox(jac_fin_f, jac_fin_r; atol = atol)
+    @test isapprox(jac_fin_f, jac_fwd_f; atol = atol)
 
-    # # [ToDo] whyever... but this is not required to work (but: too much atol here!)
-    # @test isapprox(jac_fin_f, jac_rwd_f; atol = atol)
+    # [ToDo] whyever... but this is not required to work (but: too much atol here!)
+    @test isapprox(jac_fin_f, jac_rwd_f; atol = atol)
 
-    # @test isapprox(jac_fin_r, jac_fwd_r; atol = atol)
-    # @test isapprox(jac_fin_r, jac_rwd_r; atol = atol)
+    @test isapprox(jac_fin_r, jac_fwd_r; atol = atol)
+    @test isapprox(jac_fin_r, jac_rwd_r; atol = atol)
 
     ###
 end

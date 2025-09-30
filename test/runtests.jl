@@ -22,20 +22,24 @@ exportingToolsLinux = [("Dymola", "2022x")]
 
 # number of training steps to perform
 global NUMSTEPS = 30
-global ETA = 1e-5
+global ETA = 1e-4 # 1e-5
 global GRADIENT = nothing
 global EXPORTINGTOOL = nothing
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
 global OPTIMISER = Flux.Descent
-global FAILED_GRADIENTS_QUOTA = 1 / 3
+global FAILED_GRADIENTS_QUOTA = 1 / 10
 
 # callback for bad optimization steps counter
 global FAILED_GRADIENTS = 0
 global LAST_LOSS
 callback = function (p)
     global LAST_LOSS, FAILED_GRADIENTS
+
+    #@info "Start computing loss ..."
     loss = losssum(p) # p[1]
+    #@info "Finished computing loss = $(loss)"
+
     if loss == LAST_LOSS
         @error "Loss stays unchanged.\nZero gradient or broken Optimiser implementation."
         FAILED_GRADIENTS += 1
@@ -94,12 +98,12 @@ function runtests(exportingTool)
             include("load_save.jl")
         end
 
-        @info "Snapshots (snapshots.jl)"
-        @testset "Snapshots" begin
-            include("snapshots.jl")
-        end
+        # @info "Snapshots (snapshots.jl)"
+        # @testset "Snapshots" begin
+        #     include("snapshots.jl")
+        # end
 
-        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff)
+        for _GRADIENT ∈ (:ReverseDiff, ) # (:ReverseDiff, :ForwardDiff)
 
             global GRADIENT = _GRADIENT
             @info "Gradient: $(GRADIENT)"

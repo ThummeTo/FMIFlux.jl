@@ -45,7 +45,7 @@ function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool=fal
         step = Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer)
 
         if printStep
-            @info "Grad: $(min(optim.grad_buffer...)) - $(max(optim.grad_buffer...))\nStep: $(min(step...)) - $(max(step...))\nParams: $(min(params...)) - $(max(params...))"
+            @info "Grad: $(min(optim.grad_buffer...)) -> $(max(optim.grad_buffer...))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
         end
         
         return step

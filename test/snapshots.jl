@@ -125,4 +125,12 @@ for i in 1:NUMEVENTS
     @test s == solution.snapshots[i]
 end
 
+# test for super-dense time
+s1 = snapshot!(c)
+s2 = snapshot!(c)
+
+@test s1.t == s2.t == t_stop
+@test s1.index == 0
+@test s2.index == 1
+
 unloadFMU(fmu)

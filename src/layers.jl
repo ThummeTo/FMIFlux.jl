@@ -190,7 +190,7 @@ struct ShiftScale{T, A}
             @assert false "Unsupported range `$(range)`, supported is `:Standardize`, `:Normalize` or `Tuple{Real, Real}`"
         end
 
-        @info "$(range) | $(length(data))"
+        #@info "$(range) | $(length(data))"
 
         return ShiftScale{T, A}(shift, scale, activation)
     end

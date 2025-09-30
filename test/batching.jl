@@ -36,20 +36,6 @@ losssum_single = function (p)
     return Flux.Losses.mse(posNet, posData)
 end
 
-losssum_multi = function (p)
-    global problem, X0, posData
-    solution = problem(X0; p = p, showProgress = false, saveat = tData)
-
-    if !solution.success
-        return [Inf, Inf]
-    end
-
-    posNet = getState(solution, 1; isIndex = true)
-    velNet = getState(solution, 2; isIndex = true)
-
-    return [Flux.Losses.mse(posNet, posData), Flux.Losses.mse(velNet, velData)]
-end
-
 numStates = length(fmu.modelDescription.stateValueReferences)
 
 c1 = CacheLayer()
@@ -68,29 +54,58 @@ solver = Tsit5()
 problem = ME_NeuralFMU(fmu, net, (t_start, t_stop), solver; saveat = tData)
 @test problem != nothing
 
-# before
-p_net = FMIFlux.params(problem)
-lossBefore = losssum_single(p_net)
+function getInitialState(t)
+    [syntTrainingData(t)[1:2]...]
+end
 
-# single objective
-optim = OPTIMISER(ETA)
-FMIFlux.train!(
-    losssum_single,
-    problem,
-    Iterators.repeated((), NUMSTEPS),
-    optim;
-    gradient = GRADIENT,
+train_data = collect([u] for u in posData)
+
+c.fmu.executionConfig = deepcopy(c.fmu.executionConfig)
+c.fmu.executionConfig.freeInstance = false 
+c.fmu.executionConfig.instantiate = false
+c.fmu.executionConfig.setup = true
+c.fmu.executionConfig.reset = true
+c.fmu.executionConfig.terminate = true
+c, _ = FMIFlux.prepareSolveFMU(
+    fmu,
+    nothing,
+    fmu.type;
+    instantiate=true,
+    setup=true
 )
 
-# multi objective
-# lastLoss = sum(losssum_multi(p_net))
-# optim = OPTIMISER(ETA)
-# FMIFlux.train!(losssum_multi,  problem, Iterators.repeated((), NUMSTEPS), optim; gradient=GRADIENT, multiObjective=true)
+# batching 
+batch = batchDataSolution(
+    problem, 
+    getInitialState, 
+    tData,
+    train_data; 
+    batchDuration = 1.0,
+    indicesModel = [1],
+    plot = false, 
+    showProgress = true,
+)
 
-# after
-lossAfter = losssum_single(p_net)
-@test lossAfter < lossBefore
+len = length(batch) 
+for i in 1:len
+    b_tstart = batch[i].tStart
+    b_tstop = batch[i].tStop
+    b_saveat = b_tstart:0.01:b_tstop
 
-@test length(fmu.components) <= 1
+    if i > 1 
+        @test b_tstart == batch[i-1].tStop
+    end
+    if i < len
+        @test b_tstop == batch[i+1].tStart
+    end
+
+    #solution = FMIFlux.run!(problem, batch[i]; saveat=b_saveat)
+    #sim = collect(u[1] for u in solution.states.u)
+
+    data = collect(getInitialState(t)[1] for t in b_saveat)
+    targets = collect(tar[1] for tar in batch[i].targets)
+    loss = Flux.Losses.mae(data, targets)
+    @test loss < 1e-8
+end
 
 unloadFMU(fmu)

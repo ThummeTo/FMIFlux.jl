@@ -12,9 +12,10 @@ import FMIImport.FMIBase:
     unsense,
     unsense_copy,
     untrack,
-    FMUSnapshot
+    FMUSnapshot,
+    getStates, getContinuousStates, getEmptyReal
 import FMIImport:
-    finishSolveFMU, handleEvents, prepareSolveFMU, snapshot_if_needed!, getSnapshot
+    finishSolveFMU, handleEvents, prepareSolveFMU, snapshot_or_update!
 import Optim
 import FMIImport.FMIBase.ProgressMeter
 import FMISensitivity.SciMLSensitivity.SciMLBase:
@@ -28,7 +29,6 @@ import FMISensitivity.SciMLSensitivity.SciMLBase:
     terminate!,
     u_modified!,
     build_solution
-import OrdinaryDiffEq: isimplicit, alg_autodiff
 using FMISensitivity.ReverseDiff: TrackedArray
 import FMISensitivity.SciMLSensitivity:
     InterpolatingAdjoint, ReverseDiffVJP, AutoForwardDiff
@@ -65,6 +65,7 @@ import FMISensitivity: NoTangent, ZeroTangent
 
 DEFAULT_PROGRESS_DESCR = "Simulating ME-NeuralFMU ..."
 DEFAULT_CHUNK_SIZE = 32
+DUMMY_FREQ = 1/10
 
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
@@ -171,6 +172,14 @@ mutable struct CS_NeuralFMU{F,C} <: NeuralFMU
     end
 end
 
+function dummyDynamics(x_d, x, dx, t)
+    x_d_round = round(Integer, x_d)
+    
+    ẋ_d = 0.25 * DUMMY_FREQ * sin(t * 2 * π * 1/DUMMY_FREQ) # - 2 * (x_d - x_d_round) * 1e-3 # sin(x[1] + t) * 1e-2 + cos(dx[1]) * 1e-2 
+    
+    return ẋ_d
+end
+
 function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = c.default_t, force::Bool=false)
     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
 
@@ -183,6 +192,16 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = 
 
     #@debug "evaluateModel(t=$(t)) [out-of-place dx]"
 
+    x_d = nothing
+
+    if c.fmu.isDummyDiscrete
+        # TODO: Non-sensitive augmented states don't work with reversediff ... leads to NaNs ... this was really hard to debug BTW ...
+        # Because we only want to hard-set it for now (pick FMUState)
+        c.default_x_d = unsense(x[end:end]) 
+        x_d = x[end]
+        x = x[1:end-1]
+    end
+
     mode = c.force
     c.force = force
 
@@ -191,6 +210,13 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = 
     dx = FMIFlux.eval(nfmu, x; p=p)
 
     c.force = mode
+
+    if c.fmu.isDummyDiscrete
+        c.default_x_d = getEmptyReal(c)
+        nx = length(nfmu.fmu.modelDescription.stateValueReferences)
+        #dx_y = vcat(dx_y[1:nx], 1e-2 * cos(sum(x)), dx_y[nx+1:end])
+        dx = vcat(dx, dummyDynamics(x_d, x[1:nx], dx[1:nx], t))
+    end
 
     return dx
 end
@@ -216,6 +242,14 @@ function evaluateModel(
 
     #nfmu.p = p 
 
+    x_d = nothing
+    if c.fmu.isDummyDiscrete
+        # ToDo: because we only want to hard-set it for now (pick FMUState)
+        c.default_x_d = unsense(x[end:end])
+        x_d = x[end]
+        x = x[1:end-1]
+    end
+
     mode = c.force
     c.force = force
 
@@ -228,13 +262,52 @@ function evaluateModel(
     #if issense(x) && !issense(dx)
     #    x = unsense(x)
     #end
-    
-    dx[:] = FMIFlux.eval(nfmu, x; p=p)
+
+    if c.fmu.isDummyDiscrete
+        c.default_x_d = getEmptyReal(c)
+        nx = length(nfmu.fmu.modelDescription.stateValueReferences)
+        #tmp = FMIFlux.eval(nfmu, x; p=p)
+        #dx_y[1:nx] = tmp[1:nx]
+        #dx_y[nx+1] = 1e-2 * cos(sum(x)) 
+        #dx_y[nx+2:end] = tmp[nx+1:end]
+        dx[1:nx] = FMIFlux.eval(nfmu, x; p=p)
+        dx[nx+1] = dummyDynamics(x_d, x[1:nx], dx[1:nx], t)
+    else
+        dx[:] = FMIFlux.eval(nfmu, x; p=p)
+    end
 
     c.force = mode
 
     return nothing
 end
+
+# function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = c.default_t, force::Bool=false)
+#     @assert getCurrentInstance(nfmu.fmu) == c "Thread `$(Threads.threadid())` wants to evaluate wrong component!"
+
+#     nfmu.p = p 
+
+#     @assert false "oop"
+# end
+
+# function evaluateModel(
+#     nfmu::ME_NeuralFMU,
+#     c::FMU2Component,
+#     dx,
+#     x;
+#     p = nfmu.p,
+#     t = c.default_t, force::Bool=false)
+
+#     nfmu.p = p 
+
+#     if nfmu.fmu.isDummyDiscrete
+#         dx[1:end-1] = FMIFlux.eval(nfmu, x[1:end-1]; p=p)
+#         dx[end] = 1e-2 * cos(sum(x)) # TODO: Non-sensitive augmented states don't work with reversediff ... leads to NaNs ... this was really hard to debug BTW ...
+#     else
+#         dx[:] = FMIFlux.eval(nfmu, x; p=p)
+#     end
+
+#     return nothing
+# end
 
 ##### EVENT HANDLING START
 
@@ -255,6 +328,12 @@ function startCallback(
 
         @assert t_start == nfmu.tspan[1] "startCallback(...): Called for non-start-point t=$(t)"
 
+        x0 = nfmu.x0
+
+        if nfmu.fmu.isDummyDiscrete
+            x0 = x0[1:end-1]
+        end
+
         c, x0 = prepareSolveFMU(
             nfmu.fmu,
             c,
@@ -263,11 +342,15 @@ function startCallback(
             t_start = t_start,
             t_stop = nfmu.tspan[end],
             tolerance = nfmu.tolerance,
-            x0 = nfmu.x0,
+            x0 = x0,
             inputs = nfmu.inputs,
             #handleEvents = FMIFlux.handleEvents,
             cleanup = true,
         )
+
+        if nfmu.fmu.isDummyDiscrete
+            c.x_d = nfmu.x0[end:end]
+        end
 
         if c.eventInfo.nextEventTime == t_start && c.eventInfo.nextEventTimeDefined == fmi2True
             @debug "Initial time event detected!"
@@ -275,10 +358,10 @@ function startCallback(
             @debug "No initial time events ..."
         end
 
-        if nfmu.snapshots
-            sn = FMIBase.snapshot!(c.solution)
-            @assert sn.t == t_start "Initial snapshot is not at initial time $(sn.t) != $(t_start)"
-        end
+        # if nfmu.snapshots
+        #     sn = FMIBase.snapshot!(c.solution, 0)
+        #     @assert sn.t == t_start "Initial snapshot is not at initial time $(sn.t) != $(t_start)"
+        # end
 
         if !isnothing(writeSnapshot)
 
@@ -429,23 +512,41 @@ function condition!(
     prev_ec_idcs = c.default_ec_idcs
 
     c.default_t = t
-    c.default_ec = out
+    c.default_ec = out 
     c.default_ec_idcs = handleEventIndicators
 
+    #@info "$(c.default_ec)"
+
+    #@info "x: $(unsense(x))" * (issense(x) ? " (sens.)" : "")
+
     evaluateModel(nfmu, c, x; t=t)
+
+    #@info "out: $(unsense(out))" * (issense(out) ? " (sens.)" : "")
+
     # write back to condition buffer
     if (!isdual(out) && isdual(c.output.ec)) || (!istracked(out) && istracked(c.output.ec))
+        @warn "writing sensitive condition to unsensitive buffer."
         out[:] = unsense(c.output.ec)
+    elseif (isdual(out) && !isdual(c.output.ec)) || (istracked(out) && !istracked(c.output.ec))
+        @assert false "writing unsensitive condition to sensitive buffer."
     else
         out[:] = c.output.ec # [ToDo] This seems not to be necessary, because of `c.default_ec = out`
     end
-
+    
     # reset
     c.default_t = prev_t
     c.default_ec = prev_ec
     c.default_ec_idcs = prev_ec_idcs
 
     c.solution.evals_condition += 1
+
+    # #if issense(x) || issense(t)
+    #     JVP = [1 0 0; 1 0 0] * x #c.∂e_∂x.mtx * x
+    #     C = unsense(c.output.ec) - unsense(JVP)
+    #     out[:] = JVP + C
+    # #else
+    # #    out[:] = c.output.ec
+    # #end
 
     @debug "condition!(...) -> [typeof=$(typeof(out))]\n$(unsense(out))"
 
@@ -578,116 +679,98 @@ function f_optim(
     return ret
 end
 
-function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; step = 1e-8)
+# for dummydiscretestate, build a extended matrix with last zero row/column
+function sampleStateChangeJacobian(nfmu, c, event::FMUEvent; step = 1e-8)
 
-    @debug "sampleStateChangeJacobian(x = $(left_x))"
+    left_x_c = event.left_snapshot.x_c
+    right_x_c = event.right_snapshot.x_c
+
+    left_x_d = event.left_snapshot.x_d
+    right_x_d = event.right_snapshot.x_d
+
+    right_x = vcat(right_x_c, right_x_d)
+    
+    @debug "sampleStateChangeJacobian(x = $(left_x_c))"
 
     c.solution.evals_∂xr_∂xl += 1
 
-    numStates = length(left_x)
+    numStates = length(left_x_c) + length(left_x_d)
+    numConStates = length(left_x_c)
+    
     jac = zeros(numStates, numStates)
 
-    # first, jump to before the event instance
-    # if length(c.solution.snapshots) > 0 # c.t != t 
-    #     sn = getSnapshot(c.solution, t)
-    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
-    #     #@info "[d] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-    # end
-    # indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
-
-    # [ToDo] ONLY A TEST
-    new_left_x = copy(left_x)
-    if length(c.solution.snapshots) > 0 # c.t != t 
-        sn = getPreviousSnapshot(c.solution, t)
-        
-        # this is the case for t = t_0
-        if isnothing(sn)
-            sn = getSnapshot(c.solution, t)
-        end
-
-        FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
-        #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+    if nfmu.fmu.isDummyDiscrete
+        jac[numStates, numStates] = 1.0
     end
-    new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots = false)
-    statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
 
-    # [ToDo: these tests should be included, but will drastically fail on FMUs with no support for get/setState]
-    # @assert statesChanged "Can't reproduce event (statesChanged)!" 
-    # @assert left_x == new_left_x "Can't reproduce event (left_x)!"
-    # @assert right_x == new_right_x "Can't reproduce event (right_x)!"
+    # # [ToDo] ONLY A TEST
+    # new_left_x = copy(left_x)
+    # if length(c.solution.snapshots) > 0 # c.t != t 
+    #     sn = getPreviousSnapshot(c.solution, t; index=index)
+        
+    #     # this is the case for t = t_0
+    #     if isnothing(sn)
+    #         sn = getSnapshot(c.solution, t; index=index)
+    #     end
+
+    #     FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
+    #     #@info "[?] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
+    # end
+    # new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots = false, index=index)
+    # statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
+
+    # # [ToDo: these tests should be included, but will drastically fail on FMUs with no support for get/setState]
+    # # @assert statesChanged "Can't reproduce event (statesChanged)!" 
+    # # @assert left_x == new_left_x "Can't reproduce event (left_x)!"
+    # # @assert right_x == new_right_x "Can't reproduce event (right_x)!"
 
     at_least_one_state_change = false
 
-    for i = 1:numStates
+    for i = 1:numConStates
 
-        #new_left_x[:] .= left_x
-        new_left_x = copy(left_x)
-        new_left_x[i] += step
+        new_left_x_c = copy(left_x_c)
+        new_left_x_c[i] += step
 
         # first, jump to before the event instance
-        if length(c.solution.snapshots) > 0 # c.t != t 
-            sn = getPreviousSnapshot(c.solution, t)
+        FMIBase.apply!(c, event.left_snapshot; x_c = new_left_x_c)
+          
+        # check event
+        new_right_x = stateChange!(nfmu, c, vcat(new_left_x_c, left_x_d), event.t, event.indicator)
 
-            # this is the case for t = t_0
-            if isnothing(sn)
-                sn = getSnapshot(c.solution, t)
-            end
-
-            FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
-            #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-        end
-        # [ToDo] Don't check if event was handled via event-indicator, because there is no guarantee that it is reset (like for the bouncing ball)
-        #        to match the sign from before the event! Better check if FMU detects a new event!
-        # fmi2EnterEventMode(c)
-        # handleEvents(c)
-        new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots = false)
         statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
         at_least_one_state_change = statesChanged || at_least_one_state_change
-        #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
-        #@info "Sample P: t:$(t)   $(new_left_x) -> $(new_right_x)"
+        
+        # if nfmu.fmu.isDummyDiscrete
+        #     new_right_x = new_right_x[1:end-1]
+        # end
 
-        grad = (new_right_x .- right_x) ./ step # (left_x .- new_left_x)
+        grad = (new_right_x .- right_x) ./ step 
 
         # choose other direction
         if !statesChanged
-            #@info "New_indicator sign is $(new_indicator_sign) (should be $(indicator_sign)), retry..."
-            #new_left_x[:] .= left_x
-            new_left_x = copy(left_x)
-            new_left_x[i] -= step
+           
+            new_left_x_c = copy(left_x_c)
+            new_left_x_c[i] -= step
 
-            if length(c.solution.snapshots) > 0 # c.t != t 
-                sn = getPreviousSnapshot(c.solution, t)
-                FMIBase.apply!(c, sn; x_c = new_left_x, t = t)
-                #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-            end
-            #fmi2EnterEventMode(c)
-            #handleEvents(c)
-            new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots = false)
+            FMIBase.apply!(c, event.left_snapshot; x_c = new_left_x_c)
+
+            new_right_x = stateChange!(nfmu, c, vcat(new_left_x_c, left_x_d), event.t, event.indicator)
+
             statesChanged = (c.eventInfo.valuesOfContinuousStatesChanged == fmi2True)
-            at_least_one_state_change = statesChanged || at_least_one_state_change
-            #new_indicator_sign = idx > 0 ? sign(fmi2GetEventIndicators(c)[idx]) : 1.0
 
-            #@info "Sample N: t:$(t)   $(new_left_x) -> $(new_right_x)"
+            at_least_one_state_change = statesChanged || at_least_one_state_change
+           
+            # if nfmu.fmu.isDummyDiscrete
+            #     new_right_x = new_right_x[1:end-1]
+            # end
 
             if statesChanged
-                grad = (new_right_x .- right_x) ./ -step # (left_x .- new_left_x)
+                grad = (new_right_x .- right_x) ./ -step 
             else
                 grad = (right_x .- right_x) # ... so zero, this state is not sensitive at all!
             end
 
         end
-
-        # if length(c.solution.snapshots) > 0 # c.t != t 
-        #     sn = getSnapshot(c.solution, t)
-        #     FMIBase.apply!(c, sn; x_c=new_left_x, t=t)
-        #     #@info "[e] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-        # end
-
-        # new_right_x = stateChange!(nfmu, c, new_left_x, t, idx; snapshots=false)
-
-        # [ToDo] check if the SAME event indicator was triggered!
-
-        #@info "t=$(t) idx=$(idx)\n    left_x: $(left_x)   ->       right_x: $(right_x)   [$(indicator_sign)]\nnew_left_x: $(new_left_x)   ->   new_right_x: $(new_right_x)   [$(new_indicator_sign)]"
 
         jac[i, :] = grad
     end
@@ -699,22 +782,7 @@ function sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx::Integer; st
     end
 
     # finally, jump back to the correct FMU state 
-    # if length(c.solution.snapshots) > 0 # c.t != t 
-    #     @info "Reset snapshot @ t = $(t)"
-    #     sn = getSnapshot(c.solution, t)
-    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
-    # end
-    # stateChange!(nfmu, c, left_x, t, idx)
-    if length(c.solution.snapshots) > 0
-        #@info "Reset exact snapshot @t=$(t)"
-        sn = getSnapshot(c.solution, t)
-        if !isnothing(sn)
-            FMIBase.apply!(c, sn; x_c = left_x, t = t)
-        end
-    end
-
-    #@info "Jac:\n$(jac)"
-    #@assert isapprox(jac, [0.0 0.0; 0.0 -0.7]; atol=1e-4) "Jac missmatch, is $(jac)"
+    FMIBase.apply!(c, event.right_snapshot)
 
     return jac
 end
@@ -732,42 +800,11 @@ function stateChange!(
     left_x::AbstractArray{<:Float64},
     t::Float64,
     idx;
-    snapshots = nfmu.snapshots,
+    snapshots = nfmu.snapshots
 )
-
-    # unpack references 
-    # if typeof(cRef) != UInt64
-    #     cRef = UInt64(cRef)
-    # end
-    # c = unsafe_pointer_to_objref(Ptr{Nothing}(cRef))
-    # if typeof(nfmuRef) != UInt64
-    #     nfmuRef = UInt64(nfmuRef)
-    # end
-    # nfmu = unsafe_pointer_to_objref(Ptr{Nothing}(nfmuRef))
-    # unpack references  done 
-
-    # if length(c.solution.snapshots) > 0 # c.t != t 
-    #     sn = getSnapshot(c.solution, t)
-    #     @info "[x] Set snapshot @ t=$(t) (sn.t=$(sn.t))"
-    #     FMIBase.apply!(c, sn; x_c=left_x, t=t)
-    # end
-
-    # [ToDo]: Debugging, remove this!
-    #@assert fmi2GetContinuousStates(c) == left_x "$(left_x) != $(fmi2GetContinuousStates(c))"
-    #@debug "stateChange!, state is $(fmi2GetContinuousStates(c))"
 
     fmi2EnterEventMode(c)
     handleEvents(c)
-
-    #snapshots = true # nfmu.snapshots || snapshotsNeeded(nfmu, integrator)
-
-    # ignore_derivatives() do
-    #     if idx == 0
-    #         time_affect!(integrator)
-    #     else
-    #         #affect_right!(integrator, idx)
-    #     end
-    # end
 
     right_x = left_x
 
@@ -781,7 +818,7 @@ function stateChange!(
             end
         end
 
-        right_x_fmu = fmi2GetContinuousStates(c) # the new FMU state after handled events
+        right_x_fmu = getContinuousStates(c) # the new FMU state after handled events
 
         # if there is an ANN above the FMU, propaget FMU state through top ANN by optimization
         if nfmu.modifiedState
@@ -845,8 +882,18 @@ function stateChange!(
             right_x = right_x_fmu
         end
 
-        
+        if c.fmu.isDummyDiscrete
+            x_d = [round(Integer, left_x[end]+1)]
+            right_x = vcat(right_x, x_d)
+            # @assert right_x_fmu[end] == x_d+1 "dummy discrete state missmatch after event, before $(x_d), after $(right_x_fmu[end]), should be $(x_d+1)."
+        end
+
     else
+
+        if c.fmu.isDummyDiscrete
+            x_d = [round(Integer, left_x[end]+1)]
+            right_x = vcat(right_x[1:end-1], x_d)
+        end
 
         ignore_derivatives() do
             if idx == 0
@@ -855,36 +902,10 @@ function stateChange!(
                 @debug "stateChange!($(idx)): NeuralFMU state event without state change by indicator $(idx).\nt = $(t)\nx = $(left_x)"
             end
         end
-
         
     end
 
-    if snapshots
-        s = snapshot_if_needed!(c.solution, t)
-        # if !isnothing(s)
-        #     @info "Add snapshot @t=$(s.t)"
-        # end
-    end
-
-    # [ToDo] This is only correct, if every state is only depenent on itself.
-    # This should only be done in the frule/rrule, the actual affect should do a hard "set state"
-    #logWarning(c.fmu, "Before: integrator.u = $(integrator.u)")
-
-    # if nfmu.fmu.executionConfig.isolatedStateDependency
-    #     for i in 1:length(left_x)
-    #         if abs(left_x[i]) > 1e-16 # left_x[i] != 0.0 # 
-    #             scale = right_x[i] / left_x[i]
-    #             integrator.u[i] *= scale
-    #         else # integrator state zero can't be scaled, need to add (but no sensitivities in this case!)
-    #             shift = right_x[i] - left_x[i]
-    #             integrator.u[i] += shift
-    #             #integrator.u[i] = right_x[i]
-    #             #logWarning(c.fmu, "Probably wrong sensitivities @t=$(unsense(t)) for ∂x^+ / ∂x^-\nCan't scale zero state #$(i) from $(left_x[i]) to $(right_x[i])\nNew state after transform is: $(integrator.u[i])")
-    #         end
-    #     end
-    # else
-    #     integrator.u[:] = right_x
-    # end
+    @assert length(right_x) == length(left_x) "len mismatch $(length(right_x)) != $(length(left_x))"
 
     return right_x
 end
@@ -898,6 +919,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
     # assert_integrator_valid(integrator)
 
     if c.termSim
+        @warn "termSim requested!" maxlog=3
         #logError(c.fmu, "affectFMU!(...): Terminating simulation because of previous errors.")
         #terminate!(integrator)
         #return
@@ -930,55 +952,38 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
         #end
     end
 
-    integ_sens = nfmu.snapshots
+    left_snapshot = nothing
+    right_snapshot = nothing
+
+    if nfmu.snapshots
+        left_snapshot = snapshot!(c)
+    end
 
     # INFO: entereventmode and handleevents happens inside stateChange!
     right_x = stateChange!(nfmu, c, left_x, t, idx)
 
-    if isTrue(c.eventInfo.valuesOfContinuousStatesChanged)
-
-         # [ToDo] Do something with that information, e.g. use for FiniteDiff sampling step size determination and pass to ODE solver!
-         c.x_nominals = fmi2GetNominalsOfContinuousStates(c)
-
-        # sensitivities needed
-        if integ_sens
-            jac = I
-
-            if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
-                jac = sampleStateChangeJacobian(nfmu, c, left_x, right_x, t, idx)
-            end
-
-            VJP = jac * integrator.u
-            #tgrad = tvec .* integrator.t
-            staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
-
-            # [ToDo] add (sampled) time gradient
-            integrator.u[:] = staticOff + VJP # + tgrad
-        else
-            integrator.u[:] = right_x
-        end
-
-        # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
-        u_modified!(integrator, true)
-    else
-        # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
-        u_modified!(integrator, false)
+    if nfmu.fmu.isDummyDiscrete
+        c.x_d = right_x[end:end]
     end
 
-    #@info "affect right_x = $(right_x)"
+    if nfmu.snapshots
+        right_snapshot = snapshot!(c)
+    end
 
-    # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
-    # u_modified!(integrator, true)
-
-
+    # log event 
+    event = nothing
     ignore_derivatives() do
         if idx != -1
             _left_x = left_x
             _right_x = isnothing(right_x) ? _left_x : unsense_copy(right_x)
 
             #@assert c.eventInfo.valuesOfContinuousStatesChanged == (_left_x != _right_x) "FMU says valuesOfContinuousStatesChanged $(c.eventInfo.valuesOfContinuousStatesChanged), but states say different!"
-            e = FMUEvent(unsense(t), UInt64(idx), _left_x, _right_x)
-            push!(c.solution.events, e)
+            event = FMUEvent(unsense(t), UInt64(idx), _left_x, _right_x)
+
+            event.left_snapshot = left_snapshot
+            event.right_snapshot = right_snapshot
+            
+            push!(c.solution.events, event)
         end
 
         # calculates state events per second
@@ -1017,10 +1022,129 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
         end
     end
 
+    # always true because of setting the discrete state as part of state!
+    if isTrue(c.eventInfo.valuesOfContinuousStatesChanged)
+
+        # [ToDo] Do something with that information, e.g. use for FiniteDiff sampling step size determination and pass to ODE solver!
+        c.x_nominals = fmi2GetNominalsOfContinuousStates(c)
+
+        # sensitivities needed
+        if nfmu.snapshots
+
+            # Here, we compute a transformation that leads to the new state, and apply it.
+            # This is a workaround as substitute for giving frule/rrule here.
+
+            if c.eventInfo.valuesOfContinuousStatesChanged == fmi2True
+                jac = sampleStateChangeJacobian(nfmu, c, event)
+            end
+
+            VJP = jac * integrator.u
+            #tgrad = tvec .* integrator.t
+            staticOff = right_x .- unsense(VJP) # .- unsense(tgrad)
+
+            #@info "$(unsense(jac))"
+
+            # [ToDo] add (sampled) time gradient
+            integrator.u[:] = staticOff + VJP # + tgrad
+        else
+            # if c.fmu.isDummyDiscrete
+            #     integrator.u[end] = integrator.u[end] + (right_x[end]-integrator.u[end])
+            # end
+            integrator.u[:] = right_x
+        end
+    else
+        if c.fmu.isDummyDiscrete
+            integrator.u[end] = integrator.u[end] + (right_x[end]-integrator.u[end])
+        else
+            # if no cont. state change and no dummy discrete state, then nothing to do here.
+        end
+    end
+
+    # if c.fmu.isDummyDiscrete
+    #     integrator.u[end] = unsense(right_x[end])
+    # end
+
+
+    # [Note] enabling this causes serious issues with time events! (wrong sensitivities!)
+    #u_modified!(integrator, true)
+
     c.solution.evals_affect += 1
 
     return nothing
 end
+
+# function condition!(
+#     nfmu::ME_NeuralFMU,
+#     c::FMU2Component,
+#     out,
+#     x,
+#     t,
+#     integrator,
+#     handleEventIndicators,
+# )
+
+#     # prev_t = c.default_t
+#     # prev_ec = c.default_ec
+#     # prev_ec_idcs = c.default_ec_idcs
+
+#     # c.default_t = t
+#     # c.default_ec = zeros(Float64, 0) # out 
+#     # c.default_ec_idcs = handleEventIndicators
+
+#     # evaluateModel(nfmu, c, x; t=t)
+
+#     # # reset
+#     # c.default_t = prev_t
+#     # c.default_ec = prev_ec
+#     # c.default_ec_idcs = prev_ec_idcs
+
+#     out[:] = [x[1]-0.0, x[1]-0.0]
+
+#     # c.solution.evals_condition += 1
+
+#     # JVP = [1 0 0; 1 0 0] * x #c.∂e_∂x.mtx * x
+#     # C = unsense(c.output.ec) - unsense(JVP)
+#     # out[:] = JVP + C
+    
+#     # return nothing
+# end
+
+# function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
+
+#     # t = unsense(integrator.t)
+#     # left_x = unsense_copy(integrator.u)
+#     # right_x = nothing
+
+#     # evaluateModel(nfmu, c, left_x; t = t, force=true) # evaluate NeuralFMU (set new states)
+   
+#     # right_x = stateChange!(nfmu, c, left_x, t, idx)
+
+#     # jac = [0.0 0.0 0.0; 0.0 -0.7 0.0; 0.0 0.0 1.0]
+#     # JVP = jac * integrator.u
+#     # C = right_x .- unsense(JVP) # .- unsense(tgrad)
+
+#     # integrator.u[:] = C + JVP 
+        
+#     # c.solution.evals_affect += 1
+
+#     out = zeros(2)
+#     condition!(nfmu, c, out, unsense(integrator.u), unsense(integrator.t), integrator, [1,2]) 
+
+#     if idx == 2
+#         return 
+#     end
+
+#     if out[idx] < 0.0
+#         integrator.u[1] = 1e-10
+#         integrator.u[2] = integrator.u[2]*-0.7
+
+#         if nfmu.fmu.isDummyDiscrete
+#             integrator.u[3] = round(Integer, integrator.u[3]+1)
+#         end
+#     end
+
+#     return nothing
+# end
 
 # Does one step in the simulation.
 function stepCompleted(
@@ -1084,13 +1208,30 @@ function stepCompleted(
         # however, this is not that easy for generic NFMUs 
         # Info: We use c.x and c.t, so that no state update happens. 
         # This is important, only inputs are allowed to be set here!
-        evaluateModel(nfmu, c, c.x; t=c.t)
+        #x = c.x 
+        #t = c.t
+        # if c.fmu.isDummyDiscrete
+        #     x = vcat(x, c.x_d)
+        # end
+        evaluateModel(nfmu, c, x; t=t)
     end
 
     #end
 
     # assert_integrator_valid(integrator)
 end
+
+# function stepCompleted(
+#     nfmu::ME_NeuralFMU,
+#     c::FMU2Component,
+#     x,
+#     t,
+#     integrator,
+#     tStart,
+#     tStop,
+# )
+
+# end
 
 # [ToDo] (1) This must be in-place 
 #        (2) getReal must be replaced with the inplace getter within c(...)
@@ -1131,7 +1272,7 @@ function saveEigenvalues(
 
     A = nothing
     if sensitivity == :ForwardDiff
-        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t = _t), _x) # TODO: chunk_size!
+        A = ForwardDiff.jacobian(x -> evaluateModel(nfmu, c, x; t = _t), _x) # TODO: chunk_size!, remove y from dx_y
     elseif sensitivity == :ReverseDiff
         A = ReverseDiff.jacobian(x -> evaluateModel(nfmu, c, x; t = _t), _x)
     elseif sensitivity == :Zygote
@@ -1219,7 +1360,7 @@ function ME_NeuralFMU(
         model = convert64(model)
         logInfo(
             fmu,
-            "Model is not Float64, but this is necessary for (Neural)FMUs.\nModel parameters are automatically converted to Float64.",
+            "Model is not Float64, but this is required for (neural) FMUs.\nModel parameters are automatically converted to Float64.",
         )
     end
 
@@ -1330,17 +1471,17 @@ Evaluates the ME_NeuralFMU `nfmu` in the timespan given during construction or i
 [ToDo]
 """
 function (nfmu::ME_NeuralFMU)(
-    x_start::Union{Array{<:Real},Nothing} = nfmu.x0,
+    x_start::Union{Vector{Float64},Nothing} = nfmu.x0, # Union{Array{<:Real},Nothing}
     tspan::Tuple{Float64,Float64} = nfmu.tspan;
     showProgress::Bool = false,
     progressDescr::String = DEFAULT_PROGRESS_DESCR,
-    tolerance::Union{Real,Nothing} = nothing,
+    tolerance::Union{Float64,Nothing} = nothing,
     parameters::Union{Dict{<:Any,<:Any},Nothing} = nothing,
     p = nfmu.p,
     alg = nfmu.solver,
     solver = nothing,
     saveEventPositions::Bool = false,
-    max_execution_duration::Real = -1.0,
+    max_execution_duration::Float64 = -1.0,
     recordValues::fmi2ValueReferenceFormat = nfmu.recordValues,
     recordEigenvaluesSensitivity::Symbol = :none,
     recordEigenvalues::Bool = (recordEigenvaluesSensitivity != :none),
@@ -1351,8 +1492,28 @@ function (nfmu::ME_NeuralFMU)(
     cleanSnapshots::Bool = true,
     useStepCallback::Bool = true,
     useStartCallback::Bool = true,
+    dummyDiscreteStateIfRequired::Bool = true,
     solvekwargs...,
 )
+
+    if istracked(p)
+        if !nfmu.fmu.isDummyDiscrete
+            if dummyDiscreteStateIfRequired
+                logInfo(nfmu.fmu, "Activating dummy discrete state for FMU to perform proper sensitivity analysis with ReverseDiff.jl.")
+                nfmu.fmu.isDummyDiscrete = true
+            end
+        end
+    elseif isdual(p)
+        if nfmu.fmu.isDummyDiscrete
+            logInfo(nfmu.fmu, "Deactivating dummy discrete state for FMU to save performance for sensitivity analyis with ForwardDiff.jl.")
+            nfmu.fmu.isDummyDiscrete = false
+        end
+    else
+        if nfmu.fmu.isDummyDiscrete
+            logInfo(nfmu.fmu, "Deactivating dummy discrete state for FMU to save performance for simulation.")
+            nfmu.fmu.isDummyDiscrete = false
+        end
+    end
 
     if !isnothing(solver)
         alg = solver 
@@ -1387,16 +1548,18 @@ function (nfmu::ME_NeuralFMU)(
     solvekwargs = Dict{Symbol,Any}(solvekwargs...)
     tspan = setupSolver!(nfmu.fmu, tspan, solvekwargs)
 
+    if haskey(solvekwargs, :dtmax)
+        @info "Removing automatically set dtmax=$(solvekwargs[:dtmax])" maxlog=3
+        delete!(solvekwargs, :dtmax)
+    end
+    
     t_start = tspan[1]
     t_stop = tspan[end]
 
-    nfmu.tspan = tspan
-    nfmu.x0 = x_start
     nfmu.p = p
 
     ignore_derivatives() do
-        @debug "ME_NeuralFMU(showProgress=$(showProgress), tspan=$(tspan), x0=$(nfmu.x0))"
-
+        
         nfmu.firstRun = true
 
         nfmu.tolerance = tolerance
@@ -1415,6 +1578,26 @@ function (nfmu::ME_NeuralFMU)(
     callbacks = []
 
     c = getInstance(nfmu)
+
+    @assert !issense(x_start) "sense x_start not tested!"
+
+    if nfmu.fmu.isDummyDiscrete
+        x_start = vcat(x_start, 0.0)
+    end
+    # if nfmu.fmu.isDummyDiscrete
+    #     buf = similar(x_start, length(x_start)+1)
+    #     buf[1:end-1] = x_start
+    #     buf[end] = 0.0
+    #     if issense(x_start)
+    #         @info "$(x_start[1].deriv) | $(buf[1].deriv)"
+    #     end
+    #     x_start = buf
+    # end
+
+    nfmu.tspan = tspan
+    nfmu.x0 = x_start
+
+    @debug "ME_NeuralFMU(showProgress=$(showProgress), tspan=$(tspan), x0=$(nfmu.x0))"
 
     if useStartCallback
         @debug "ME_NeuralFMU: Starting callback..."
@@ -1672,7 +1855,20 @@ function (nfmu::ME_NeuralFMU)(
     #kwargs[:sensealg]=sensealg
     #kwargs[:u0] = nfmu.x0 # this is because of `IntervalNonlinearProblem has no field u0`
 
-    @debug "Start solving ...\nx0: $(nfmu.x0)\nargs: $(args...)\nkwargs: $(kwargs...)"
+    @debug "Start solving ... tspan=$(nfmu.tspan)\nx0: $(nfmu.x0)\nargs: $(args...)\nkwargs: $(kwargs...)"
+
+    if isdual(p)
+        if !haskey(kwargs, :dt)
+            kwargs[:dt] = 1e-6
+            @warn "ForwardDiff currently requires setting `dt` to work, but is not set. Automatically setting dt=$(kwargs[:dt]).\nThis is printed only 3 times." maxlog=3
+        end
+    end
+
+    #@info "kwargs: $(kwargs)"
+
+    # for callback in callbacks
+    #     @info first("$(callback)", 128)
+    # end
 
     c.solution.states = solve(
         prob,
@@ -1689,8 +1885,8 @@ function (nfmu::ME_NeuralFMU)(
 
         @assert !isnothing(c.solution.states) "Solving NeuralODE returned `nothing`!"
 
-        # ReverseDiff returns an array instead of an ODESolution, this needs to be corrected
-        # [TODO] doesn`t Array cover the TrackedArray case?
+        # # ReverseDiff returns an array instead of an ODESolution, this needs to be corrected
+        # # [TODO] doesn`t Array cover the TrackedArray case?
         if isa(c.solution.states, TrackedArray) || isa(c.solution.states, Array)
 
             @assert !isnothing(saveat) "Keyword `saveat` is nothing, please provide the keyword when using ReverseDiff."
@@ -1728,6 +1924,11 @@ function (nfmu::ME_NeuralFMU)(
         # freeSnapshot only removes them from the FMU2Instance, not the FMUSolution
         c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
     end
+
+    # if nfmu.fmu.isDummyDiscrete
+    #     logInfo(nfmu.fmu, "De-activating dummy discrete state for FMU to perform proper simulation.")
+    #     nfmu.fmu.isDummyDiscrete = false
+    # end
 
     return c.solution
 end
@@ -1903,6 +2104,8 @@ function computeGradient!(
     multiObjective::Bool,
 )
 
+    @assert !issense(params) "Called `computeGradient!` with AD-sensitive training parameters, resulting in nested AD. This is not supported for now."
+
     if gradient == :ForwardDiff
 
         if chunk_size == :auto_forwarddiff
@@ -2046,7 +2249,8 @@ function trainStep(
 
         lock(lk_TrainApply) do
 
-            params[:] .-= step
+            #params[:] .-= step
+            params[:] = params - step
 
         end
 
@@ -2163,14 +2367,24 @@ function train!(
             # invalidate all active snapshots, otherwise execConfig = no-reset causes massive memory allocations!
             if hasCurrentInstance(neuralFMU.fmu)
                 c = getCurrentInstance(neuralFMU.fmu)
-                while length(c.snapshots) > 0
-                    freeSnapshot!(c.snapshots[end])
+               
+                # lazy unloading!
+                # but only the solution snapshots, batch snapshots should be kept available
+                for snapshot in c.solution.snapshots 
+                    freeSnapshot!(snapshot)
                 end
+
             end
             
         end
 
+        # clean things up
         neuralFMU.p = unsense(neuralFMU.p)
+
+        if neuralFMU.fmu.isDummyDiscrete
+            logInfo(neuralFMU.fmu, "De-activating dummy discrete state for FMU to perform proper simulation.")
+            neuralFMU.fmu.isDummyDiscrete = false
+        end
 
         return ret
     end
