@@ -206,9 +206,9 @@ function run!(
 
         #@info "POST: c.default_t=$(c.default_t) | c.t=$(c.t) | t=$(t_set)"
 
-        if c.default_t != c.t
-            @warn "After neural FMU evaluation, default_t was not set, c.t=$(c.t) != c.default_t $(c.default_t)"
-        end
+        # if c.default_t != c.t
+        #     @warn "After neural FMU evaluation, default_t was not set, c.t=$(c.t) != c.default_t $(c.default_t)"
+        # end
 
         if t_set != c.t
             @warn "functionCallingCallback called for t=$(t_set) != FMU time $(c.t)"

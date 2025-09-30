@@ -2378,7 +2378,7 @@ function train!(
             
         end
 
-        # clean things up
+        # clean things up (e.g. if asserting gets thrown during AD pass)
         neuralFMU.p = unsense(neuralFMU.p)
 
         if neuralFMU.fmu.isDummyDiscrete
