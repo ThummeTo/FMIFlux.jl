@@ -2112,6 +2112,7 @@ function computeGradient!(
     gradient::Symbol,
     chunk_size::Union{Symbol,Int},
     multiObjective::Bool,
+    grad_threshold::Real
 )
 
     @assert !issense(params) "Called `computeGradient!` with AD-sensitive training parameters, resulting in nested AD. This is not supported for now."
@@ -2204,10 +2205,12 @@ function computeGradient!(
 
     all_zero = any(collect(all(iszero.(grad)) for grad in grads))
     has_nan = any(collect(any(isnan.(grad)) for grad in grads))
+    max_grad = max(collect(max(abs.(grad)...) for grad in grads)...)
     has_nothing =
         any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
 
     @assert !all_zero "Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD."
+    @assert max_grad <= grad_threshold "Determined gradient max entry $(max_grad) > $(grad_threshold).\nGradient is rated as invalid, asserting."
     #@info "$(grads[1][1:10])"
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
@@ -2319,11 +2322,12 @@ function train!(
     data,
     optim;
     gradient::Symbol = :ReverseDiff,
+    grad_threshold::Real = 1e6,
     kwargs...,
 )
     params = FMIFlux.params(neuralFMU)
 
-    return train!(loss, neuralFMU, params, data, optim; gradient=gradient, kwargs...)
+    return train!(loss, neuralFMU, params, data, optim; gradient=gradient, grad_threshold=grad_threshold, kwargs...)
 end
 
 # Dispatch for FMIFlux.jl [FMIFlux.AbstractOptimiser]

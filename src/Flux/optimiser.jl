@@ -63,6 +63,7 @@ function FMIFlux.train!(
     gradient::Symbol = :ReverseDiff,
     chunk_size::Union{Integer,Symbol} = :auto_fmiflux,
     multiObjective::Bool = false,
+    grad_threshold::Real = 1e6,
     kwargs...,
 )
 
@@ -76,7 +77,7 @@ function FMIFlux.train!(
         grad_buffer = zeros(Float64, length(params))
     end
 
-    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
+    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective, grad_threshold)
     _optim = FluxOptimiserWrapper(optim, grad_fun!, grad_buffer)
     FMIFlux.train!(
         loss,
@@ -144,12 +145,13 @@ function FMIFlux.train!(
     gradient::Symbol = :ReverseDiff,
     chunk_size::Union{Integer,Symbol} = :auto_fmiflux,
     multiObjective::Bool = false,
+    grad_threshold::Real = 1e6,
     kwargs...,
 )
 
     grad_buffer = zeros(Float64, length(params))
    
-    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
+    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective, grad_threshold)
 
     _optim = OptimisersWrapper(optim, grad_fun!, grad_buffer, params)
     FMIFlux.train!(
