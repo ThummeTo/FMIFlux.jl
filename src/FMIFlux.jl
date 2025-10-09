@@ -10,13 +10,9 @@ import FMISensitivity.ForwardDiff
 import FMISensitivity.Zygote
 import FMISensitivity.ReverseDiff
 import FMISensitivity.FiniteDiff
+import StatsBase
 
 @debug "Debugging messages enabled for FMIFlux ..."
-
-if VERSION < v"1.7.0"
-    @warn "Training in Julia < 1.7 is very slow, please consider using Julia 1.7 or newer." maxlog =
-        1
-end
 
 import FMIImport.FMIBase: hasCurrentInstance, getCurrentInstance, unsense
 import FMISensitivity.ChainRulesCore: ignore_derivatives

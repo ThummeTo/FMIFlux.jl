@@ -98,10 +98,10 @@ function runtests(exportingTool)
             include("load_save.jl")
         end
 
-        # @info "Snapshots (snapshots.jl)"
-        # @testset "Snapshots" begin
-        #     include("snapshots.jl")
-        # end
+        @info "Snapshots (snapshots.jl)"
+        @testset "Snapshots" begin
+            include("snapshots.jl")
+        end
 
         for _GRADIENT ∈ (:ReverseDiff, ) # (:ReverseDiff, :ForwardDiff)
 

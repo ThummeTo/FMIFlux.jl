@@ -65,7 +65,7 @@ import FMISensitivity: NoTangent, ZeroTangent
 
 DEFAULT_PROGRESS_DESCR = "Simulating ME-NeuralFMU ..."
 DEFAULT_CHUNK_SIZE = 32
-DUMMY_FREQ = 1/10
+DUMMY_DT = 1/10
 
 """
 The mutable struct representing an abstract (simulation mode unknown) NeuralFMU.
@@ -174,9 +174,13 @@ end
 
 function dummyDynamics(x_d, x, dx, t)
     x_d_round = round(Integer, x_d)
+
+    ẋ_d = 0.0
     
-    ẋ_d = 0.25 * DUMMY_FREQ * sin(t * 2 * π * 1/DUMMY_FREQ) # - 2 * (x_d - x_d_round) * 1e-3 # sin(x[1] + t) * 1e-2 + cos(dx[1]) * 1e-2 
-    
+    if DUMMY_DT > 0.0
+        ẋ_d = 0.25 * DUMMY_DT * sin(t * 2 * π * 1/DUMMY_DT) # - 2 * (x_d - x_d_round) * 1e-3 # sin(x[1] + t) * 1e-2 + cos(dx[1]) * 1e-2 
+    end
+
     return ẋ_d
 end
 
@@ -957,6 +961,8 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     if nfmu.snapshots
         left_snapshot = snapshot!(c)
+        #@info "left! $(length(c.solution.snapshots))"
+        push!(c.solution.snapshots, left_snapshot)
     end
 
     # INFO: entereventmode and handleevents happens inside stateChange!
@@ -968,6 +974,7 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     if nfmu.snapshots
         right_snapshot = snapshot!(c)
+        push!(c.solution.snapshots, right_snapshot)
     end
 
     # log event 
@@ -1489,7 +1496,7 @@ function (nfmu::ME_NeuralFMU)(
     sensealg = nfmu.fmu.executionConfig.sensealg, # ToDo: AbstractSensitivityAlgorithm
     writeSnapshot::Union{FMUSnapshot,Nothing} = nothing,
     readSnapshot::Union{FMUSnapshot,Nothing} = nothing,
-    cleanSnapshots::Bool = true,
+    cleanSnapshots::Bool = false,
     useStepCallback::Bool = true,
     useStartCallback::Bool = true,
     dummyDiscreteStateIfRequired::Bool = true,
@@ -1497,7 +1504,8 @@ function (nfmu::ME_NeuralFMU)(
 )
 
     if istracked(p)
-        if !nfmu.fmu.isDummyDiscrete
+        # not required if we snapshot every step
+        if !nfmu.fmu.isDummyDiscrete && !nfmu.fmu.executionConfig.snapshot_every_step
             if dummyDiscreteStateIfRequired
                 logInfo(nfmu.fmu, "Activating dummy discrete state for FMU to perform proper sensitivity analysis with ReverseDiff.jl.")
                 nfmu.fmu.isDummyDiscrete = true
@@ -1891,19 +1899,19 @@ function (nfmu::ME_NeuralFMU)(
 
             @assert !isnothing(saveat) "Keyword `saveat` is nothing, please provide the keyword when using ReverseDiff."
 
-            t = collect(saveat)
-            while t[1] < tspan[1]
-                popfirst!(t)
-            end
-            while t[end] > tspan[end]
-                pop!(t)
-            end
+            ts = collect(saveat)
+            # while t[1] < tspan[1]
+            #     popfirst!(t)
+            # end
+            # while t[end] > tspan[end]
+            #     pop!(t)
+            # end
             u = c.solution.states
-            c.solution.success = (size(u) == (length(nfmu.x0), length(t)))
+            c.solution.success = (size(u) == (length(nfmu.x0), length(ts)))
 
             if size(u)[2] > 0 # at least some recorded points
                 c.solution.states =
-                    build_solution(prob, solver, t, collect(u[:, i] for i = 1:size(u)[2]))
+                    build_solution(prob, solver, ts, collect(u[:, i] for i = 1:size(u)[2]))
             end
         else
             c.solution.success = (c.solution.states.retcode == ReturnCode.Success)
@@ -1918,6 +1926,8 @@ function (nfmu::ME_NeuralFMU)(
 
     # cleanup snapshots to release memory
     if cleanSnapshots
+        logInfo(c.fmu, "Lazy unloading $(length(c.solution.snapshots)) snapshots ...")
+
         for snapshot in c.solution.snapshots
             FMIBase.freeSnapshot!(snapshot)
         end
@@ -2202,8 +2212,8 @@ function computeGradient!(
 
     if gradient != :ForwardDiff && (has_nan || has_nothing)
 
-        @assert !has_nan     "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
-        @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported."
+        @assert !has_nan     "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nPlease try a smaller value for `FMIFlux.DUMMY_DT` (currently is $(FMIFlux.DUMMY_DT)), that roughly matches the time step of your system."
+        @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nPlease open an issue."
 
         # @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
         # gradient = :ForwardDiff
@@ -2367,12 +2377,17 @@ function train!(
             # invalidate all active snapshots, otherwise execConfig = no-reset causes massive memory allocations!
             if hasCurrentInstance(neuralFMU.fmu)
                 c = getCurrentInstance(neuralFMU.fmu)
+
+                logInfo(c.fmu, "Lazy unloading $(length(c.solution.snapshots)) snapshots ...")
                
                 # lazy unloading!
                 # but only the solution snapshots, batch snapshots should be kept available
                 for snapshot in c.solution.snapshots 
                     freeSnapshot!(snapshot)
                 end
+
+                # freeSnapshot only removes them from the FMU2Instance, not the FMUSolution
+                c.solution.snapshots = Vector{FMUSnapshot}(undef, 0)
 
             end
             
