@@ -2239,7 +2239,7 @@ function computeGradient!(
     return nothing
 end
 
-lk_TrainApply = ReentrantLock()
+#lk_TrainApply = ReentrantLock()
 function trainStep(
     loss,
     params,
@@ -2251,7 +2251,7 @@ function trainStep(
     multiObjective; assert_length=4096
 )
 
-    global lk_TrainApply
+    #global lk_TrainApply
 
     try
 
@@ -2259,12 +2259,12 @@ function trainStep(
 
         step = FMIFlux.apply!(optim, params; printStep=printStep)
 
-        lock(lk_TrainApply) do
+        #lock(lk_TrainApply) do
 
             #params[:] .-= step
             params[:] = params - step
 
-        end
+        #end
 
     #end
 
@@ -2282,6 +2282,7 @@ function trainStep(
         end
     end
 
+    return nothing
 end
 
 """
