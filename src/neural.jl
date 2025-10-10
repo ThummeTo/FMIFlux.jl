@@ -2248,7 +2248,6 @@ function trainStep(
     optim::FMIFlux.AbstractOptimiser,
     printStep,
     proceed_on_assert,
-    cb,
     multiObjective; assert_length=4096
 )
 
@@ -2280,16 +2279,6 @@ function trainStep(
             @error "Training asserted, but continuing: $(msg)"
         else
             throw(e)
-        end
-    end
-
-    if cb != nothing
-        if isa(cb, AbstractArray)
-            for _cb in cb
-                _cb()
-            end
-        else
-            cb()
         end
     end
 
@@ -2371,7 +2360,6 @@ function train!(
             optim,
             printStep,
             proceed_on_assert,
-            cb,
             multiObjective; assert_length=assert_length
         )
 
@@ -2403,6 +2391,17 @@ function train!(
         if neuralFMU.fmu.isDummyDiscrete
             logInfo(neuralFMU.fmu, "De-activating dummy discrete state for FMU to perform proper simulation.")
             neuralFMU.fmu.isDummyDiscrete = false
+        end
+
+        # call callbacks
+        if cb != nothing
+            if isa(cb, AbstractArray)
+                for _cb in cb
+                    _cb()
+                end
+            else
+                cb()
+            end
         end
 
         return ret
