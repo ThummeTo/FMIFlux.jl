@@ -393,6 +393,11 @@ function startCallback(
             end
 
             @debug "ME_NeuralFMU: Applying snapshot..."
+
+            # this is a very special case:
+            # sometimes, snasphsots are recorded with dummyDiscrete=true,
+            # but later used with dummydiscrete=false (e.g. LossAccumulationScheduler).
+            # Therefore, we manually co
             FMIBase.apply!(c, readSnapshot; t = t_start)
             @debug "ME_NeuralFMU: Snapshot applied."
         end
@@ -2204,19 +2209,18 @@ function computeGradient!(
     end
 
     all_zero = any(collect(all(iszero.(grad)) for grad in grads))
-    has_nan = any(collect(any(isnan.(grad)) for grad in grads))
-    max_grad = max(collect(max(abs.(grad)...) for grad in grads)...)
-    has_nothing =
-        any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
-
     @assert !all_zero "Determined gradient containes only zeros.\nThis might be because the loss function is:\n(a) not sensitive regarding the model parameters or\n(b) sensitivities regarding the model parameters are not traceable via AD."
-    @assert max_grad <= grad_threshold "Determined gradient max entry $(max_grad) > $(grad_threshold).\nGradient is rated as invalid, asserting."
+
+    # has_nan = any(collect(any(isnan.(grad)) for grad in grads))
+    # has_nothing =
+    #     any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
+
     #@info "$(grads[1][1:10])"
 
-    if gradient != :ForwardDiff && (has_nan || has_nothing)
+    # if gradient != :ForwardDiff && (has_nan || has_nothing)
 
-        @assert !has_nan     "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nPlease try a smaller value for `FMIFlux.DUMMY_DT` (currently is $(FMIFlux.DUMMY_DT)), that roughly matches the time step of your system."
-        @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nPlease open an issue."
+    #     @assert !has_nan     "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nPlease try a smaller value for `FMIFlux.DUMMY_DT` (currently is $(FMIFlux.DUMMY_DT)), that roughly matches the time step of your system."
+    #     @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nPlease open an issue."
 
         # @warn "Gradient determination with $(gradient) failed, because gradient contains `NaNs` and/or `nothing`.\nThis might be because the FMU is throwing redundant events, which is currently not supported.\nTrying ForwardDiff as back-up.\nIf this message gets printed (almost) every step, consider using keyword `gradient=:ForwardDiff` to fix ForwardDiff as sensitivity system."
         # gradient = :ForwardDiff
@@ -2227,14 +2231,17 @@ function computeGradient!(
         # else
         #     grads = [jac]
         # end
-    end
+    #end
 
     has_nan = any(collect(any(isnan.(grad)) for grad in grads))
+    @assert !has_nan "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nNo back-up options available."
+
     has_nothing =
         any(collect(any(isnothing.(grad)) for grad in grads)) || any(isnothing.(grads))
-
-    @assert !has_nan "Gradient determination with $(gradient) failed, because gradient contains `NaNs`.\nNo back-up options available."
     @assert !has_nothing "Gradient determination with $(gradient) failed, because gradient contains `nothing`.\nNo back-up options available."
+
+    max_grad = max(collect(max(abs.(grad)...) for grad in grads)...)
+    @assert max_grad <= grad_threshold "Determined gradient max entry $(max_grad) > $(grad_threshold).\nGradient is rated as invalid, asserting."
 
     return nothing
 end
