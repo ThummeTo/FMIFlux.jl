@@ -178,7 +178,7 @@ function dummyDynamics(x_d, x, dx, t)
     ẋ_d = 0.0
     
     if DUMMY_DT > 0.0
-        ẋ_d = 0.25 * DUMMY_DT * sin(t * 2 * π * 1/DUMMY_DT) # - 2 * (x_d - x_d_round) * 1e-3 # sin(x[1] + t) * 1e-2 + cos(dx[1]) * 1e-2 
+        ẋ_d = 1/3 * (2 * π * 1/DUMMY_DT) * cos(t * 2 * π * 1/DUMMY_DT) # - 2 * (x_d - x_d_round) * 1e-3 # sin(x[1] + t) * 1e-2 + cos(dx[1]) * 1e-2 
     end
 
     return ẋ_d
@@ -201,7 +201,7 @@ function evaluateModel(nfmu::ME_NeuralFMU, c::FMU2Component, x; p = nfmu.p, t = 
     if c.fmu.isDummyDiscrete
         # TODO: Non-sensitive augmented states don't work with reversediff ... leads to NaNs ... this was really hard to debug BTW ...
         # Because we only want to hard-set it for now (pick FMUState)
-        c.default_x_d = unsense(x[end:end]) 
+        c.default_x_d = unsense(x[end:end])
         x_d = x[end]
         x = x[1:end-1]
     end
@@ -892,7 +892,7 @@ function stateChange!(
         end
 
         if c.fmu.isDummyDiscrete
-            x_d = [round(Integer, left_x[end]+1)]
+            x_d = [left_x[end]+1] # [round(Integer, left_x[end]+1)]
             right_x = vcat(right_x, x_d)
             # @assert right_x_fmu[end] == x_d+1 "dummy discrete state missmatch after event, before $(x_d), after $(right_x_fmu[end]), should be $(x_d+1)."
         end
@@ -900,7 +900,7 @@ function stateChange!(
     else
 
         if c.fmu.isDummyDiscrete
-            x_d = [round(Integer, left_x[end]+1)]
+            x_d = [left_x[end]+1] # [round(Integer, left_x[end]+1)]
             right_x = vcat(right_x[1:end-1], x_d)
         end
 
@@ -966,6 +966,9 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     if nfmu.snapshots
         left_snapshot = snapshot!(c)
+        if c.fmu.isDummyDiscrete
+            left_snapshot.x_d = round.(left_snapshot.x_d; digits=0)
+        end
         #@info "left! $(length(c.solution.snapshots))"
         push!(c.solution.snapshots, left_snapshot)
     end
@@ -979,6 +982,9 @@ function affectFMU!(nfmu::ME_NeuralFMU, c::FMU2Component, integrator, idx)
 
     if nfmu.snapshots
         right_snapshot = snapshot!(c)
+        if c.fmu.isDummyDiscrete
+            right_snapshot.x_d = round.(right_snapshot.x_d; digits=0)
+        end
         push!(c.solution.snapshots, right_snapshot)
     end
 

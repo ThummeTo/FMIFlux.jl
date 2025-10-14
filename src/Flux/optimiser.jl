@@ -46,7 +46,7 @@ function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool=fal
         step = Flux.Optimise.apply!(optim.optim, params, optim.grad_buffer)
 
         if printStep
-            @info "Grad: [p10] $(percentile(optim.grad_buffer,10)) -> [p90] $(percentile(optim.grad_buffer,90))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
+            @info "Grad:\n[p10] $(percentile(optim.grad_buffer,10)) -> [p90] $(percentile(optim.grad_buffer,90))\n[min] $(min(optim.grad_buffer...)) -> [max] $(max(optim.grad_buffer...))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
         end
         
         return step
@@ -128,7 +128,7 @@ function FMIFlux.apply!(optim::OptimisersWrapper, params; printStep::Bool=false)
         step = params .- new_ps
 
         if printStep
-            @info "Grad: [p10] $(percentile(optim.grad_buffer,10)) -> [p90] $(percentile(optim.grad_buffer,90))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
+            @info "Grad:\n[p10] $(percentile(optim.grad_buffer,10)) -> [p90] $(percentile(optim.grad_buffer,90))\n[min] $(min(optim.grad_buffer...)) -> [max] $(max(optim.grad_buffer...))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
         end
 
         return step

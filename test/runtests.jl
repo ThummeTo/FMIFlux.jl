@@ -103,7 +103,7 @@ function runtests(exportingTool)
             include("snapshots.jl")
         end
 
-        for _GRADIENT ∈ (:ReverseDiff, ) # (:ReverseDiff, :ForwardDiff)
+        for _GRADIENT ∈ (:ReverseDiff, :ForwardDiff) # (:ReverseDiff, ) # 
 
             global GRADIENT = _GRADIENT
             @info "Gradient: $(GRADIENT)"

@@ -105,6 +105,18 @@ c = getCurrentInstance(fmu)
 @test length(c.solution.events) == NUMEVENTS
 @test length(c.solution.snapshots) == NUMEVENTS*2
 
+# check dummy discrete state 
+prob.snapshots = true
+prob.fmu.isDummyDiscrete = true
+g3 = ReverseDiff.gradient(loss, p)
+prob.fmu.isDummyDiscrete = false
+c = getCurrentInstance(fmu)
+@test length(c.snapshots) == NUMEVENTS*2
+@test length(c.solution.events) == NUMEVENTS
+@test length(c.solution.snapshots) == NUMEVENTS*2
+
+x_d = unsense(collect(u[3] for u in solution.states.u))
+
 # now we switcht to single instance
 fmu.executionConfig.freeInstance = false
 fmu.executionConfig.setup = false
@@ -117,21 +129,21 @@ addr = c.addr
 
 # add a single persisitent snapshot
 snapshot!(c)
-@test length(c.snapshots) == 1
+@test length(c.snapshots) == 1+NUMEVENTS*2
 
 prob.snapshots = true
 loss(p)
 @test c.addr == addr
-@test length(c.snapshots) == 1+NUMEVENTS*2
+@test length(c.snapshots) == 1+NUMEVENTS*4
 @test length(c.solution.events) == NUMEVENTS
 @test length(c.solution.snapshots) == NUMEVENTS*2
 
 loss(p)
-@test length(c.snapshots) == 1+NUMEVENTS*4
+@test length(c.snapshots) == 1+NUMEVENTS*6
 @test length(c.solution.snapshots) == NUMEVENTS*2
 
 loss(p; cleanSnapshots=true)
-@test length(c.snapshots) == 1+NUMEVENTS*6
+@test length(c.snapshots) == 1+NUMEVENTS*8
 @test length(c.solution.snapshots) == 0
 
 # reset 
