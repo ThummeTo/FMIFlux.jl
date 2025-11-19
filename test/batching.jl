@@ -61,38 +61,32 @@ end
 train_data = collect([u] for u in posData)
 
 c.fmu.executionConfig = deepcopy(c.fmu.executionConfig)
-c.fmu.executionConfig.freeInstance = false 
+c.fmu.executionConfig.freeInstance = false
 c.fmu.executionConfig.instantiate = false
 c.fmu.executionConfig.setup = true
 c.fmu.executionConfig.reset = true
 c.fmu.executionConfig.terminate = true
-c, _ = FMIFlux.prepareSolveFMU(
-    fmu,
-    nothing,
-    fmu.type;
-    instantiate=true,
-    setup=true
-)
+c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate = true, setup = true)
 
 # batching 
 batch = batchDataSolution(
-    problem, 
-    getInitialState, 
+    problem,
+    getInitialState,
     tData,
-    train_data; 
+    train_data;
     batchDuration = 1.0,
     indicesModel = [1],
-    plot = false, 
+    plot = false,
     showProgress = true,
 )
 
-len = length(batch) 
-for i in 1:len
+len = length(batch)
+for i = 1:len
     b_tstart = batch[i].tStart
     b_tstop = batch[i].tStop
     b_saveat = b_tstart:0.01:b_tstop
 
-    if i > 1 
+    if i > 1
         @test b_tstart == batch[i-1].tStop
     end
     if i < len

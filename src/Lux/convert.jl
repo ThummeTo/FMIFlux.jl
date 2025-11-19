@@ -10,7 +10,7 @@ end
 
 # in Lux.jl, only operations are defined, and every model is Float32/64 at the same time
 function FMIFlux.convert64(model::Lux.Chain)
-    return model 
+    return model
 end
 
 function FMIFlux.destructure(model::Lux.Chain)
@@ -19,6 +19,6 @@ function FMIFlux.destructure(model::Lux.Chain)
     return p, st
 end
 
-function FMIFlux.eval(nfmu::ME_NeuralFMU{M,R}, input; p=nfmu.p) where {M <: Lux.Chain, R}
+function FMIFlux.eval(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Lux.Chain,R}
     first(nfmu.model(input, p, nfmu.re))
 end

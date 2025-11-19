@@ -37,8 +37,7 @@ tData = t_start:t_step:t_stop
 posData = ones(Float64, length(tData))
 x0_bb = [1.0, 0.0]
 
-solvekwargs =
-    Dict{Symbol,Any}(:abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
+solvekwargs = Dict{Symbol,Any}(:abstol => 1e-6, :reltol => 1e-6, :dtmax => 1e-2)
 
 numStates = 2
 algs = [Tsit5()] # , Rosenbrock23(autodiff = false)]#, FBDF(autodiff=false)]
@@ -100,7 +99,7 @@ affect_right! = function (integrator, idx)
 
     if idx == 2
         # event #2 is handeled as "dummy" (e.g. discrete state change)
-        return 
+        return
     end
 
     if idx > 0
@@ -130,7 +129,7 @@ affect_left! = function (integrator, idx)
 
     if idx == 2
         # event #2 is handeled as "dummy" (e.g. discrete state change)
-        return 
+        return
     end
 
     out = zeros(2)
@@ -200,7 +199,7 @@ prob.snapshots = true # needed for correct sensitivities
 
 # ANNs 
 
-losssum = function (p, tspan=tspan; kwargs...)
+losssum = function (p, tspan = tspan; kwargs...)
     global posData
     posNet = mysolve(p, tspan; kwargs...)
 
@@ -209,7 +208,7 @@ losssum = function (p, tspan=tspan; kwargs...)
     return Flux.Losses.mae(posNet, posData[1:num])
 end
 
-losssum_bb = function (p, tspan=nothing; root = :Right, kwargs...)
+losssum_bb = function (p, tspan = nothing; root = :Right, kwargs...)
     global posData
     posNet = mysolve_bb(p, tspan; root = root, kwargs...)
 
@@ -218,22 +217,21 @@ losssum_bb = function (p, tspan=nothing; root = :Right, kwargs...)
     return Flux.Losses.mae(posNet, posData[1:num])
 end
 
-mysolve = function (p, tspan=tspan; kwargs...)
+mysolve = function (p, tspan = tspan; kwargs...)
     global solution, events # write
     global prob, x0_bb, posData # read-only
     events = 0
 
-    kwargs = Dict(solvekwargs..., 
-        :p => p, 
-        :parameters => fmu_params, 
-        :cleanSnapshots => false, 
-        :saveat => tData[1:round(Integer, 1 + tspan[end]/t_step)], 
-        kwargs...)
-
-    solution = prob(
-        x0_bb, tspan;
+    kwargs = Dict(
+        solvekwargs...,
+        :p => p,
+        :parameters => fmu_params,
+        :cleanSnapshots => false,
+        :saveat => tData[1:round(Integer, 1+tspan[end]/t_step)],
         kwargs...,
     )
+
+    solution = prob(x0_bb, tspan; kwargs...)
 
     # if !isa(solution.states, AbstractArray)
     #     if solution.states.retcode != FMIFlux.ReturnCode.Success
@@ -249,7 +247,7 @@ mysolve = function (p, tspan=tspan; kwargs...)
     return collect(u[1] for u in solution.states.u)
 end
 
-mysolve_bb = function (p, tspan=nothing; root = :Right, kwargs...)
+mysolve_bb = function (p, tspan = nothing; root = :Right, kwargs...)
     global solution # write 
     global prob_bb, events # read
     events = 0
@@ -265,21 +263,20 @@ mysolve_bb = function (p, tspan=nothing; root = :Right, kwargs...)
         @assert false "unknwon root `$(root)`"
     end
 
-    kwargs = Dict(solvekwargs..., 
-        :p => p, 
-        :callback => callback, 
-        :saveat => tData, 
-        kwargs..., )
+    kwargs = Dict(
+        solvekwargs...,
+        :p => p,
+        :callback => callback,
+        :saveat => tData,
+        kwargs...,
+    )
 
     if !isnothing(tspan)
         kwargs[:tspan] = tspan
-        kwargs[:saveat] = tData[1:round(Integer, 1 + tspan[end]/t_step)]
+        kwargs[:saveat] = tData[1:round(Integer, 1+tspan[end]/t_step)]
     end
 
-    solution = solve(
-        prob_bb;
-        kwargs...,
-    )
+    solution = solve(prob_bb; kwargs...)
 
     if !isa(solution, AbstractArray)
         if solution.retcode != FMIFlux.ReturnCode.Success
@@ -352,7 +349,7 @@ atol = 1e-6
 @test isapprox(jac_fin2, jac_rwd2; atol = atol)
 
 # check reverse diff with dummy discrete state 
-fmu.isDummyDiscrete = true 
+fmu.isDummyDiscrete = true
 jac_rwd3 = ReverseDiff.jacobian(condition_nfmu_check, x0_bb)
 fmu.isDummyDiscrete = false
 @test isapprox(jac_fin2, jac_rwd3; atol = atol)
@@ -384,7 +381,7 @@ affect_nfmu_check = function (x)
 
     x0 = x
     if fmu.isDummyDiscrete
-        x0 = x[1:end-1]
+        x0 = x[1:(end-1)]
     end
 
     c, _ = FMIFlux.prepareSolveFMU(
@@ -430,7 +427,7 @@ jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x_event_left)
 @test isapprox(jac_con2, ∂xn_∂xp; atol = 1e-4)
 
 # check reverse diff with dummy discrete state 
-fmu.isDummyDiscrete = true 
+fmu.isDummyDiscrete = true
 jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, vcat(x_event_left, 0.0))
 fmu.isDummyDiscrete = false
 @test isapprox(jac_con2[1:2, 1:2], ∂xn_∂xp; atol = 1e-4)
@@ -455,14 +452,14 @@ jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, x_no_event)
 @test isapprox(jac_con2, I; atol = 1e-4)
 
 # check reverse diff with dummy discrete state 
-fmu.isDummyDiscrete = true 
+fmu.isDummyDiscrete = true
 jac_con2 = ReverseDiff.jacobian(affect_nfmu_check, vcat(x_no_event, 0.0))
 fmu.isDummyDiscrete = false
 @test isapprox(jac_con2[1:2, 1:2], I; atol = 1e-4) # ToDo: should be `jac_con2`
 
 ###
 
-for i in 1:length(algs)
+for i = 1:length(algs)
     alg = algs[i]
     local atol = atols[i]
 
@@ -564,28 +561,22 @@ for i in 1:length(algs)
     @test isapprox(grad_fin_f, grad_fin_r; atol = atol)
     @test isapprox(grad_fin_f, grad_fin_l; atol = atol)
 
-    @test isapprox(grad_fin_f, grad_fwd_f; atol = atol) 
-    @test isapprox(grad_fin_f, grad_rwd_f; atol = atol) 
+    @test isapprox(grad_fin_f, grad_fwd_f; atol = atol)
+    @test isapprox(grad_fin_f, grad_rwd_f; atol = atol)
 
     # Jacobian Test
 
-    jac_fwd_r = ForwardDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-        p_net,
-    )
-    jac_fwd_f =
-        ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    jac_fwd_r =
+        ForwardDiff.jacobian(p -> mysolve_bb(p; sensealg = sensealg, alg = alg), p_net)
+    jac_fwd_f = ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
 
-    jac_rwd_r = ReverseDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-        p_net,
-    )
-    jac_rwd_f =
-        ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    jac_rwd_r =
+        ReverseDiff.jacobian(p -> mysolve_bb(p; sensealg = sensealg, alg = alg), p_net)
+    jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
 
     # [TODO] why this?!
-    jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:end-1, :]
-    jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:end-1, :]
+    jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:(end-1), :]
+    jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:(end-1), :]
 
     jac_fin_r = FiniteDiff.finite_difference_jacobian(
         p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
@@ -604,8 +595,8 @@ for i in 1:length(algs)
 
     @test isapprox(jac_fin_f, jac_fin_r; atol = atol)
 
-    @test isapprox(jac_fin_f, jac_fwd_f; atol = atol) 
-    @test isapprox(jac_fin_f, jac_rwd_f; atol = atol) 
+    @test isapprox(jac_fin_f, jac_fwd_f; atol = atol)
+    @test isapprox(jac_fin_f, jac_rwd_f; atol = atol)
 
     @test isapprox(jac_fin_r, jac_fwd_r; atol = atol)
     @test isapprox(jac_fin_r, jac_rwd_r; atol = atol)

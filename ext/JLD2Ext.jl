@@ -19,11 +19,7 @@ end
 """
     Loads parameters for a neural FMU.
 """
-function FMIFlux.loadParameters(
-    nfmu::NeuralFMU,
-    path::String;
-    keyword = "parameters",
-)
+function FMIFlux.loadParameters(nfmu::NeuralFMU, path::String; keyword = "parameters")
     nfmu.p = JLD2.load(path, keyword)
     return nothing
 end

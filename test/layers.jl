@@ -18,14 +18,14 @@ s = ShiftScale(shift, scale)
 s = ShiftScale(inputArray)
 @test s(input) == [1.25, -0.4, -0.5]
 
-s = ShiftScale(inputArray; range = (-1,1))
+s = ShiftScale(inputArray; range = (-1, 1))
 for i = 1:length(inputArray)
     res = s(collect(inputArray[j][i] for j = 1:length(inputArray[i])))
     @test max(res...) <= 1
     @test min(res...) >= -1
 end
 
-s = ShiftScale(inputArray; range = (-2,2))
+s = ShiftScale(inputArray; range = (-2, 2))
 for i = 1:length(inputArray)
     res = s(collect(inputArray[j][i] for j = 1:length(inputArray[i])))
     @test max(res...) <= 2

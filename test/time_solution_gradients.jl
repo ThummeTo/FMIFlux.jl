@@ -267,15 +267,9 @@ mysolve = function (p; kwargs...)
     global prob, x0_bb, posData # read-only
     events = 0
 
-    kwargs = Dict(solvekwargs..., 
-        :p => p,
-        :parameters => fmu_params, 
-        kwargs...)
+    kwargs = Dict(solvekwargs..., :p => p, :parameters => fmu_params, kwargs...)
 
-    solution = prob(
-        x0_bb;
-        kwargs...
-    )
+    solution = prob(x0_bb; kwargs...)
 
     return collect(u[1] for u in solution.states.u)
 end
@@ -294,17 +288,11 @@ mysolve_bb = function (p; root = :Right, kwargs...)
         @assert false "unknwon root `$(root)`"
     end
 
-    kwargs = Dict(solvekwargs..., 
-        :u0 => x0_bb,
-        :p => p,
-        :callback => callback, 
-        kwargs...)
+    kwargs =
+        Dict(solvekwargs..., :u0 => x0_bb, :p => p, :callback => callback, kwargs...)
 
     GRAVITY_SIGN = -1
-    solution = solve(
-        prob_bb;
-        kwargs...,
-    )
+    solution = solve(prob_bb; kwargs...)
 
     if !isa(solution, AbstractArray)
         if solution.retcode != FMIFlux.ReturnCode.Success
@@ -422,20 +410,20 @@ t_no_event = t_start
 
 # [ToDo] the following tests fail for some FMUs
 
-@test isapprox(affect_bb_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
-@test isapprox(affect_nfmu_check(x_event_left, t_no_event), x_event_right; atol=1e-4)
+@test isapprox(affect_bb_check(x_event_left, t_no_event), x_event_right; atol = 1e-4)
+@test isapprox(affect_nfmu_check(x_event_left, t_no_event), x_event_right; atol = 1e-4)
 
 jac_con1 = ForwardDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
 jac_con2 = ForwardDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
 
-@test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
-@test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con1, ∂xn_∂xp; atol = 1e-4)
+@test isapprox(jac_con2, ∂xn_∂xp; atol = 1e-4)
 
 jac_con1 = ReverseDiff.jacobian(x -> affect_bb_check(x, t_no_event), x_event_left)
 jac_con2 = ReverseDiff.jacobian(x -> affect_nfmu_check(x, t_no_event), x_event_left)
 
-@test isapprox(jac_con1, ∂xn_∂xp; atol=1e-4)
-@test isapprox(jac_con2, ∂xn_∂xp; atol=1e-4)
+@test isapprox(jac_con1, ∂xn_∂xp; atol = 1e-4)
+@test isapprox(jac_con2, ∂xn_∂xp; atol = 1e-4)
 
 # [Note] checking via FiniteDiff is not possible here, because finite differences offsets might not trigger the events at all
 
@@ -552,27 +540,21 @@ for alg in algs
     @test isapprox(grad_fin_r, grad_fwd_r; atol = atol)
 
     # Jacobian Test
-    jac_fwd_r = ForwardDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-        p_net,
-    )
+    jac_fwd_r =
+        ForwardDiff.jacobian(p -> mysolve_bb(p; sensealg = sensealg, alg = alg), p_net)
     @test !any(isnan.(jac_fwd_r))
-    jac_fwd_f =
-        ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    jac_fwd_f = ForwardDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
     @test !any(isnan.(jac_fwd_f))
 
-    jac_rwd_r = ReverseDiff.jacobian(
-        p -> mysolve_bb(p; sensealg = sensealg, alg = alg),
-        p_net,
-    )
+    jac_rwd_r =
+        ReverseDiff.jacobian(p -> mysolve_bb(p; sensealg = sensealg, alg = alg), p_net)
     @test !any(isnan.(jac_rwd_r))
-    jac_rwd_f =
-        ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
+    jac_rwd_f = ReverseDiff.jacobian(p -> mysolve(p; sensealg = sensealg, alg = alg), p_net)
     @test !any(isnan.(jac_rwd_f))
 
     # [TODO] why this?!
-    jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:end-1, :]
-    jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:end-1, :]
+    jac_rwd_r[2:end, :] = jac_rwd_r[2:end, :] .- jac_rwd_r[1:(end-1), :]
+    jac_rwd_f[2:end, :] = jac_rwd_f[2:end, :] .- jac_rwd_f[1:(end-1), :]
 
     jac_fin_r = FiniteDiff.finite_difference_jacobian(
         p -> mysolve_bb(p; sensealg = sensealg, alg = alg),

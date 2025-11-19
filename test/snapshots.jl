@@ -51,11 +51,11 @@ b1 = [0.0, 0.0] - br
 W2 = [1.0 0.0; 0.0 1.0] - Wr
 b2 = [0.0, 0.0] - br
 
-fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME, logLevel=:info)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME, logLevel = :info)
 fmu_params = Dict("damping" => DAMPING, "mass_radius" => RADIUS, "mass_s_min" => DBL_MIN)
 sensealg = ReverseDiffAdjoint()
 
-loss = function(p; kwargs...)
+loss = function (p; kwargs...)
     global solution
     solution = prob(
         x0_bb;
@@ -142,7 +142,7 @@ loss(p)
 @test length(c.snapshots) == 1+NUMEVENTS*6
 @test length(c.solution.snapshots) == NUMEVENTS*2
 
-loss(p; cleanSnapshots=true)
+loss(p; cleanSnapshots = true)
 @test length(c.snapshots) == 1+NUMEVENTS*8
 @test length(c.solution.snapshots) == 0
 
@@ -155,7 +155,7 @@ fmu.executionConfig.freeInstance = freeInstance
 # big     = fmu.executionConfig.snapshotDeltaTimeTolerance * 1e2      # deviation that maps to the previous/next snapshot
 # for i in 1:NUMEVENTS
 #     local s, t 
-    
+
 #     t = solution.events[i].t
 
 #     @info "Event $(i) @ t=$(t)s"

@@ -33,7 +33,7 @@ struct FluxOptimiserWrapper{G} <: AbstractOptimiser
 end
 export FluxOptimiserWrapper
 
-function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool=false)
+function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool = false)
 
     optim.grad_fun!(optim.grad_buffer, params)
 
@@ -48,7 +48,7 @@ function FMIFlux.apply!(optim::FluxOptimiserWrapper, params; printStep::Bool=fal
         if printStep
             @info "Grad:\n[p10] $(percentile(optim.grad_buffer,10)) -> [p90] $(percentile(optim.grad_buffer,90))\n[min] $(min(optim.grad_buffer...)) -> [max] $(max(optim.grad_buffer...))\nStep: $(min(step...)) -> $(max(step...))\nParams: $(min(params...)) -> $(max(params...))"
         end
-        
+
         return step
     end
 end
@@ -77,7 +77,16 @@ function FMIFlux.train!(
         grad_buffer = zeros(Float64, length(params))
     end
 
-    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective, grad_threshold)
+    grad_fun! =
+        (G, p) -> FMIFlux.computeGradient!(
+            G,
+            loss,
+            p,
+            gradient,
+            chunk_size,
+            multiObjective,
+            grad_threshold,
+        )
     _optim = FluxOptimiserWrapper(optim, grad_fun!, grad_buffer)
     FMIFlux.train!(
         loss,
@@ -99,13 +108,13 @@ mutable struct OptimisersWrapper{G} <: AbstractOptimiser
     grad_fun!::G
     grad_buffer::Union{AbstractVector{Float64},AbstractMatrix{Float64}}
     multiGrad::Bool
-    state
+    state::Any
 
     function OptimisersWrapper(
         optim::Flux.Optimisers.AbstractRule,
         grad_fun!::G,
         grad_buffer::AbstractVector{Float64},
-        params
+        params,
     ) where {G}
         state = Flux.Optimisers.setup(optim, params)
         return new{G}(optim, grad_fun!, grad_buffer, false, state)
@@ -114,7 +123,7 @@ mutable struct OptimisersWrapper{G} <: AbstractOptimiser
 end
 export OptimisersWrapper
 
-function FMIFlux.apply!(optim::OptimisersWrapper, params; printStep::Bool=false)
+function FMIFlux.apply!(optim::OptimisersWrapper, params; printStep::Bool = false)
 
     optim.grad_fun!(optim.grad_buffer, params)
 
@@ -124,7 +133,8 @@ function FMIFlux.apply!(optim::OptimisersWrapper, params; printStep::Bool=false)
             i = 1:size(optim.grad_buffer)[2]
         )
     else
-        optim.state, new_ps = Flux.Optimisers.update!(optim.state, params, optim.grad_buffer)
+        optim.state, new_ps =
+            Flux.Optimisers.update!(optim.state, params, optim.grad_buffer)
         step = params .- new_ps
 
         if printStep
@@ -150,8 +160,17 @@ function FMIFlux.train!(
 )
 
     grad_buffer = zeros(Float64, length(params))
-   
-    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective, grad_threshold)
+
+    grad_fun! =
+        (G, p) -> FMIFlux.computeGradient!(
+            G,
+            loss,
+            p,
+            gradient,
+            chunk_size,
+            multiObjective,
+            grad_threshold,
+        )
 
     _optim = OptimisersWrapper(optim, grad_fun!, grad_buffer, params)
     FMIFlux.train!(

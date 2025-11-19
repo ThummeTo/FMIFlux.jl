@@ -71,7 +71,7 @@ struct FMUTimeLayer{F,O}
         return new{F,O}(fmu, fct, offset)
     end
 
-    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O=zeros(1)) where {F,O}
+    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O = zeros(1)) where {F,O}
         return FMUTimeLayer{F,O}(fmu, fct, offset)
     end
 
@@ -141,27 +141,35 @@ end
 
 Shifts and scales input data to a given distribution
 """
-struct ShiftScale{T, A}
+struct ShiftScale{T,A}
     shift::AbstractArray{T}
     scale::AbstractArray{T}
     activation::A
 
-    function ShiftScale{T, A}(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=identity) where {T, A}
+    function ShiftScale{T,A}(
+        shift::AbstractArray{T},
+        scale::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
         inst = new(shift, scale, activation)
         return inst
     end
 
-    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}, activation::A=identity) where {T, A}
-        return ShiftScale{T, A}(shift, scale, activation)
+    function ShiftScale(
+        shift::AbstractArray{T},
+        scale::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        return ShiftScale{T,A}(shift, scale, activation)
     end
 
     # initialize for data array
     function ShiftScale(
         data::AbstractArray{<:AbstractArray{T}},
-        activation::A=identity;
-        range::Union{Symbol,Tuple{Real, Real}} = :Normalize,
-        maxScale::Float64=1e8
-    ) where {T, A}
+        activation::A = identity;
+        range::Union{Symbol,Tuple{Real,Real}} = :Normalize,
+        maxScale::Float64 = 1e8,
+    ) where {T,A}
 
         if range == :Normalize
             range = (0.0, 1.0)
@@ -171,16 +179,16 @@ struct ShiftScale{T, A}
         scale = 1.0
 
         if range == :Standardize # NormalDistribution
-            shift = -mean.(data) 
+            shift = -mean.(data)
             scale = 1.0 ./ std.(data)
 
-        elseif isa(range, Tuple{Real, Real})
+        elseif isa(range, Tuple{Real,Real})
             _max = collect(max(d...) for d in data)
             _min = collect(min(d...) for d in data)
             shift = -(_max + _min) ./ 2.0
             scale = (range[end] - range[1]) ./ (_max - _min)
 
-            for i in 1:length(scale)
+            for i = 1:length(scale)
                 if abs(scale[i]) > maxScale
                     @warn "Scaling for data index $(i) exceeded maximum scale of `$(maxScale)`, limiting to that value."
                     scale[i] = sign(scale[i]) * maxScale
@@ -192,7 +200,7 @@ struct ShiftScale{T, A}
 
         #@info "$(range) | $(length(data))"
 
-        return ShiftScale{T, A}(shift, scale, activation)
+        return ShiftScale{T,A}(shift, scale, activation)
     end
 end
 export ShiftScale
@@ -209,30 +217,46 @@ end
 """
 ToDo.
 """
-struct ScaleShift{T, A}
+struct ScaleShift{T,A}
     scale::AbstractArray{T}
     shift::AbstractArray{T}
     activation::A
 
-    function ScaleShift{T, A}(scale::AbstractArray{T}, shift::AbstractArray{T}, activation::A=identity) where {T, A}
+    function ScaleShift{T,A}(
+        scale::AbstractArray{T},
+        shift::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
         inst = new(scale, shift, activation)
         return inst
     end
 
-    function ScaleShift(scale::AbstractArray{T}, shift::AbstractArray{T}, activation::A=identity) where {T, A}
-        return ScaleShift{T, A}(scale, shift, activation)
+    function ScaleShift(
+        scale::AbstractArray{T},
+        shift::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        return ScaleShift{T,A}(scale, shift, activation)
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T, _A}, activation::A=identity; indices = 1:length(l.scale)) where {T, A, _A}
-        return ScaleShift{T, A}(1.0 ./ l.scale[indices], -1.0 .* l.shift[indices], activation)
+    function ScaleShift(
+        l::ShiftScale{T,_A},
+        activation::A = identity;
+        indices = 1:length(l.scale),
+    ) where {T,A,_A}
+        return ScaleShift{T,A}(
+            1.0 ./ l.scale[indices],
+            -1.0 .* l.shift[indices],
+            activation,
+        )
     end
 end
 export ScaleShift
 
 function (l::ScaleShift)(x)
 
-    x_proc = l.activation.( (x .* l.scale) .+ l.shift )
+    x_proc = l.activation.((x .* l.scale) .+ l.shift)
 
     return x_proc
 end
@@ -307,7 +331,7 @@ mutable struct CacheLayer
     function CacheLayer()
         # undef fails in newwer Flux versions
         def = Vector{Vector}(undef, Threads.nthreads())
-        for i in 1:length(def)
+        for i = 1:length(def)
             def[i] = Float64[]
         end
         inst = CacheLayer(def)
@@ -316,7 +340,7 @@ mutable struct CacheLayer
 
     function CacheLayer(cache::AbstractVector{<:AbstractVector})
         inst = new()
-        inst.cache = cache 
+        inst.cache = cache
         return inst
     end
 end

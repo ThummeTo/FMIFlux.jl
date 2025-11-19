@@ -4,12 +4,12 @@
 #
 
 function FMIFlux.is64(model::Flux.Chain)
-   
+
     for l = 1:length(model) # layers 
         #@info "Layer $(l)" # \n$(model[l])
         params, re = Flux.destructure(model[l])
 
-        for i in 1:length(params)
+        for i = 1:length(params)
             if !isa(params[i], Float64)
                 return false
             end
@@ -29,7 +29,7 @@ end
 
 # adapting the Flux functions
 function FMIFlux.params(nfmu::ME_NeuralFMU; destructure::Bool = false)
-    
+
     #### DEPRECATED 
 
     if destructure || isnothing(nfmu.p)
@@ -48,7 +48,7 @@ function FMIFlux.params(nfmu::ME_NeuralFMU; destructure::Bool = false)
 end
 
 function FMIFlux.params(nfmu::CS_NeuralFMU; destructure::Bool = false) # true)
-   
+
     #### DEPRECATED 
 
     if destructure || isnothing(nfmu.p)
@@ -69,11 +69,11 @@ function FMIFlux.params(nfmu::CS_NeuralFMU; destructure::Bool = false) # true)
     return nfmu.p
 end
 
-function FMIFlux.eval(nfmu::ME_NeuralFMU{M, R}, input; p=nfmu.p) where {M <: Flux.Chain, R}
+function FMIFlux.eval(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Flux.Chain,R}
     return nfmu.re(p)(input)
 end
 
-function FMIFlux.eval(nfmu::CS_NeuralFMU{F, C}, input; p=nfmu.p) where {F, C} # {F <:FMU2, C <:FMU2Component}
+function FMIFlux.eval(nfmu::CS_NeuralFMU{F,C}, input; p = nfmu.p) where {F,C} # {F <:FMU2, C <:FMU2Component}
     return nfmu.re(p)(input)
 end
 

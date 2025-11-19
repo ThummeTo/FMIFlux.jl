@@ -72,7 +72,10 @@ mutable struct FMU2SolutionBatchElement{D} <: FMU2BatchElement
     scalarLoss::Bool
     # canGetSetState::Bool
 
-    function FMU2SolutionBatchElement{D}(; scalarLoss::Bool = true, store_result::Bool=false) where {D}
+    function FMU2SolutionBatchElement{D}(;
+        scalarLoss::Bool = true,
+        store_result::Bool = false,
+    ) where {D}
         inst = new()
 
         inst.snapshot = nothing
@@ -119,7 +122,10 @@ mutable struct FMU2EvaluationBatchElement <: FMU2BatchElement
 
     scalarLoss::Bool
 
-    function FMU2EvaluationBatchElement(; scalarLoss::Bool = true, store_result::Bool=false)
+    function FMU2EvaluationBatchElement(;
+        scalarLoss::Bool = true,
+        store_result::Bool = false,
+    )
         inst = new()
 
         inst.tStart = -Inf
@@ -175,8 +181,8 @@ function run!(
 
         #@warn "remove this line"
         #c.default_t = t_set
-        
-        evaluateModel(neuralFMU, c, x_set; t=t_set)
+
+        evaluateModel(neuralFMU, c, x_set; t = t_set)
 
         #@info "POST: c.default_t=$(c.default_t) | c.t=$(c.t) | t=$(t_set)"
 
@@ -209,21 +215,21 @@ function run!(
             if tBefore != tAfter
                 #batchElement.snapshot.t = max(tBefore, tAfter)
                 #logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
-                logWarning(fmu, "Need to correct snapshot time from $(tAfter) to $(tBefore)")
+                logWarning(
+                    fmu,
+                    "Need to correct snapshot time from $(tAfter) to $(tBefore)",
+                )
             end
 
             @debug "Updated snapshot @$(batchElement.snapshot.t)"
         end
-    
+
         return nothing
     end
 
     # STOP CALLBACK
     if !isnothing(nextBatchElement)
-        stopcb = FunctionCallingCallback(
-            finishedCallback;
-            funcat = [batchElement.tStop],
-        )
+        stopcb = FunctionCallingCallback(finishedCallback; funcat = [batchElement.tStop])
         push!(neuralFMU.customCallbacksAfter, stopcb)
     end
 
@@ -237,7 +243,7 @@ function run!(
         writeSnapshot = batchElement.snapshot # needs to be updated, therefore write
 
         # to prevent logging a warning, because we will overwrite this soon
-        writeSnapshot.t = batchElement.tStart 
+        writeSnapshot.t = batchElement.tStart
     else
         readSnapshot = batchElement.snapshot
     end
@@ -268,31 +274,35 @@ function run!(
 end
 
 function run!(model, batchElement::FMU2EvaluationBatchElement, p = nothing)
-    result = nothing 
+    result = nothing
 
     if isnothing(p) # implicite parameter model
-        result =
-            collect(model(f)[batchElement.indicesModel] for f in batchElement.features)
+        result = collect(model(f)[batchElement.indicesModel] for f in batchElement.features)
     else # explicite parameter model
         result =
             collect(model(p)(f)[batchElement.indicesModel] for f in batchElement.features)
     end
 
     if batchElement.store_result
-        batchElement.result = result 
+        batchElement.result = result
     end
 
     return result
 end
 
-function loss!(batchElement::FMU2SolutionBatchElement, lossFct, solution::FMUSolution; logLoss::Bool = false)
+function loss!(
+    batchElement::FMU2SolutionBatchElement,
+    lossFct,
+    solution::FMUSolution;
+    logLoss::Bool = false,
+)
 
     loss = 0.0 # will be incremented
 
     if hasmethod(lossFct, Tuple{FMUSolution})
         loss = lossFct(solution)
 
-    elseif hasmethod(lossFct, Tuple{FMUSolution, AbstractVector})
+    elseif hasmethod(lossFct, Tuple{FMUSolution,AbstractVector})
         loss = lossFct(solution, batchElement.targets)
 
     else # hasmethod(lossFct, Tuple{AbstractVector, AbstractVector})
@@ -301,18 +311,15 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct, solution::FMUSol
             if batchElement.scalarLoss
                 for i = 1:length(batchElement.indicesModel)
                     dataTarget = collect(d[i] for d in batchElement.targets)
-                    modelOutput = collect(
-                        u[batchElement.indicesModel[i]] for
-                        u in solution.states.u
-                    )
+                    modelOutput =
+                        collect(u[batchElement.indicesModel[i]] for u in solution.states.u)
 
                     loss += lossFct(modelOutput, dataTarget)
                 end
             else
                 dataTarget = batchElement.targets
-                modelOutput = collect(
-                    u[batchElement.indicesModel] for u in solution.states.u
-                )
+                modelOutput =
+                    collect(u[batchElement.indicesModel] for u in solution.states.u)
 
                 loss = lossFct(modelOutput, dataTarget)
             end
@@ -335,7 +342,12 @@ function loss!(batchElement::FMU2SolutionBatchElement, lossFct, solution::FMUSol
     return loss
 end
 
-function loss!(batchElement::FMU2EvaluationBatchElement, lossFct, result; logLoss::Bool = true)
+function loss!(
+    batchElement::FMU2EvaluationBatchElement,
+    lossFct,
+    result;
+    logLoss::Bool = true,
+)
 
     loss = 0.0 #  will be incremented 
 
@@ -536,7 +548,7 @@ function batchDataEvaluation(
 
     push!(batch, startElement)
 
-    for i = 2:floor(Integer, (train_t[end] - train_t[1]) / batchDuration)
+    for i = 2:floor(Integer, (train_t[end]-train_t[1])/batchDuration)
         push!(batch, FMIFlux.FMU2EvaluationBatchElement(; scalarLoss = scalarLoss))
 
         iStart = timeToIndex(train_t, tStart + (i - 1) * batchDuration)

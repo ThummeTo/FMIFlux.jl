@@ -3,18 +3,23 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-module PlotsExt 
+module PlotsExt
 
 import FMIFlux
 using FMIFlux: FMU2SolutionBatchElement, FMU2BatchElement, BatchScheduler
 using FMIFlux: nominalLoss, unsense
-import Plots 
+import Plots
 
 function FMIFlux.plot(args...; kwargs...)
     Plots.plot(args...; kwargs...)
 end
 
-function Plots.plot(batchElement::FMU2SolutionBatchElement, solution=batchElement.result; targets::Bool = true, plotkwargs...)
+function Plots.plot(
+    batchElement::FMU2SolutionBatchElement,
+    solution = batchElement.result;
+    targets::Bool = true,
+    plotkwargs...,
+)
 
     fig = Plots.plot(; xlabel = "t [s]", plotkwargs...) # , title="loss[$(batchElement.step)] = $(nominalLoss(batchElement.losses[end]))")
     for i = 1:length(batchElement.indicesModel)
@@ -25,8 +30,7 @@ function Plots.plot(batchElement::FMU2SolutionBatchElement, solution=batchElemen
                 fig,
                 solution.states.t,
                 collect(
-                    unsense(u[batchElement.indicesModel[i]]) for
-                    u in solution.states.u
+                    unsense(u[batchElement.indicesModel[i]]) for u in solution.states.u
                 ),
                 label = "Simulation #$(i)",
             )
@@ -46,7 +50,7 @@ end
 
 function Plots.plot(
     batchElement::FMU2BatchElement,
-    result=batchElement.result;
+    result = batchElement.result;
     targets::Bool = true,
     features::Bool = true,
     plotkwargs...,

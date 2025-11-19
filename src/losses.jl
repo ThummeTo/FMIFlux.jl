@@ -8,7 +8,7 @@ module Losses
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMUSolution
 import ..FMIFlux.FMIImport.FMIBase: unsense, logWarning
 
-function mean_error_sum(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real}, fun)
+function mean_error_sum(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real}, fun)
     sum = 0.0
     len_a = length(a)
     len_b = length(b)
@@ -17,33 +17,33 @@ function mean_error_sum(a::Union{AbstractArray, Real}, b::Union{AbstractArray, R
     if len_a != len_b
         len = min(len_a, len_b)
         @warn "Length a ($(len_a)) != Length b ($(len_b)), not entire set is compared, only the first $(len) elements!"
-    end 
+    end
 
-    for i in 1:len 
+    for i = 1:len
         sum += fun(a[i], b[i])
     end
-    
+
     return sum / len
 end
 
 #mse = Flux.Losses.mse
-function mse(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real})
-    fun = function(x, y)
+function mse(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real})
+    fun = function (x, y)
         (x .- y) * (x .- y)
     end
     return mean_error_sum(a, b, fun)
 end
 
 #mae = Flux.Losses.mae
-function mae(a::Union{AbstractArray, Real}, b::Union{AbstractArray, Real})
-    fun = function(x, y)
+function mae(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real})
+    fun = function (x, y)
         abs(x .- y)
     end
     return mean_error_sum(a, b, fun)
 end
 
 function last_element_rel(fun, a::AbstractArray, b::AbstractArray, lastElementRatio::Real)
-    return (1.0 - lastElementRatio) * fun(a[1:end-1], b[1:end-1]) +
+    return (1.0 - lastElementRatio) * fun(a[1:(end-1)], b[1:(end-1)]) +
            lastElementRatio * fun(a[end], b[end])
 end
 
@@ -107,7 +107,7 @@ function mae_last_element_rel_dev(
 )
     num = length(a)
     Δ = deviation(a, b, dev)
-    Δ[1:end-1] .*= (1.0 - lastElementRatio)
+    Δ[1:(end-1)] .*= (1.0 - lastElementRatio)
     Δ[end] *= lastElementRatio
     Δ = sum(Δ) / num
     return Δ
@@ -122,7 +122,7 @@ function mse_last_element_rel_dev(
     num = length(a)
     Δ = deviation(a, b, dev)
     Δ = Δ .^ 2
-    Δ[1:end-1] .*= (1.0 - lastElementRatio)
+    Δ[1:(end-1)] .*= (1.0 - lastElementRatio)
     Δ[end] *= lastElementRatio
     Δ = sum(Δ) / num
     return Δ

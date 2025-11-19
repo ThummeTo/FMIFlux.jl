@@ -181,7 +181,7 @@ for solver in solvers
 
                 # train it ...
                 p_net = FMIFlux.params(problem)
-                
+
                 solutionBefore = problem(X0; p = p_net, saveat = tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)

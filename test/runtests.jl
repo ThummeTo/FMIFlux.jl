@@ -68,7 +68,7 @@ end
 # the integrator is simplified with a NamedTuple here.
 import FMIFlux: u_modified!
 function FMIFlux.u_modified!(integrator::NamedTuple, state::Bool)
-    nothing 
+    nothing
 end
 
 function runtests(exportingTool)

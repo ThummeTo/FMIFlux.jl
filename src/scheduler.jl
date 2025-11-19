@@ -346,11 +346,11 @@ function roundToLength(number::Real, len::Integer)
 
     @assert len >= 5 "`len` must be at least `5`."
 
-    if number == Inf 
+    if number == Inf
         return "Inf"
     end
 
-    if number == -Inf 
+    if number == -Inf
         return "-Inf"
     end
 
@@ -403,7 +403,11 @@ function apply!(scheduler::WorstElementScheduler; print::Bool = true)
         l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
 
         if updateAll
-            result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            result = FMIFlux.run!(
+                scheduler.neuralFMU,
+                scheduler.batch[i];
+                scheduler.runkwargs...,
+            )
             FMIFlux.loss!(
                 scheduler.batch[i],
                 scheduler.lossFct,
@@ -449,7 +453,11 @@ function apply!(scheduler::LossAccumulationScheduler; print::Bool = true)
         l = (nominalLoss(scheduler.batch[i]) != Inf ? nominalLoss(scheduler.batch[i]) : 0.0)
 
         if updateAll
-            result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+            result = FMIFlux.run!(
+                scheduler.neuralFMU,
+                scheduler.batch[i];
+                scheduler.runkwargs...,
+            )
             FMIFlux.loss!(
                 scheduler.batch[i],
                 scheduler.lossFct,
@@ -491,7 +499,8 @@ function apply!(scheduler::WorstGrowScheduler; print::Bool = true)
     num = length(scheduler.batch)
     for i = 1:num
 
-        result = FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
+        result =
+            FMIFlux.run!(scheduler.neuralFMU, scheduler.batch[i]; scheduler.runkwargs...)
         l = FMIFlux.loss!(
             scheduler.batch[i],
             scheduler.lossFct,

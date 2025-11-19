@@ -70,7 +70,8 @@ function FMIFlux._train!(
         return
     end
 
-    grad_fun! = (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
+    grad_fun! =
+        (G, p) -> FMIFlux.computeGradient!(G, loss, p, gradient, chunk_size, multiObjective)
     _optim = FMIFlux.OptimOptimiserWrapper(optim, grad_fun!, loss, params)
     FMIFlux._train!(
         loss,

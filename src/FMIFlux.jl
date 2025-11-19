@@ -61,7 +61,7 @@ function plot end
 function plotLoss end
 
 # ToDo: for now, Optim.jl is still a full (not optionally) dependency, so include this manually
-include(joinpath(@__DIR__, "..", "ext", "OptimExt.jl")) 
+include(joinpath(@__DIR__, "..", "ext", "OptimExt.jl"))
 
 # FMI_neural.jl
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
@@ -71,7 +71,11 @@ export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # scheduler.jl
 export WorstElementScheduler,
-    WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler, TwoStageRandomScheduler
+    WorstGrowScheduler,
+    RandomScheduler,
+    SequentialScheduler,
+    LossAccumulationScheduler,
+    TwoStageRandomScheduler
 
 # batch.jl 
 export batchDataSolution, batchDataEvaluation

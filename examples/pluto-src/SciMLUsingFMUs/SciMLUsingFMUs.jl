@@ -229,12 +229,12 @@ begin
                 fmu,
                 nothing,
                 fmu.type;
-                instantiate=true, # instantiate 
-                freeInstance=false, # free 
-                terminate=true, # terminate 
-                reset=true, # reset 
-                setup=true, # setup
-                parameters=params,
+                instantiate = true, # instantiate 
+                freeInstance = false, # free 
+                terminate = true, # terminate 
+                reset = true, # reset 
+                setup = true, # setup
+                parameters = params,
                 x0 = x0,
             )
         else
@@ -260,12 +260,7 @@ begin
     end
 
     function prepareSolveFMU(fmu, parameters)
-        FMIFlux.prepareSolveFMU(
-            fmu,
-            nothing,
-            fmu.type;
-            parameters=parameters,
-        )
+        FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; parameters = parameters)
     end
 
     function dividePath(values)
@@ -658,7 +653,7 @@ Additional outputs:
 """
 
 # ╔═╡ 93735dca-c9f3-4f1a-b1bd-dfe312a0644a
-y = dx_y[length(x1)+1:end]
+y = dx_y[(length(x1)+1):end]
 
 # ╔═╡ 13ede3cd-99b1-4e65-8a18-9043db544728
 md"""
@@ -679,7 +674,7 @@ We can determine further Jacobians for FMUs, for example the Jacobian $C = \frac
 
 # ╔═╡ ac0afa6c-b6ec-4577-aeb6-10d1ec63fa41
 begin
-    C_rwd = jac_rwd[length(x1)+1:end, :]
+    C_rwd = jac_rwd[(length(x1)+1):end, :]
 end
 
 # ╔═╡ 5e9cb956-d5ea-4462-a649-b133a77929b0
@@ -1054,7 +1049,7 @@ begin
         end
 
         # pre- and post-processing
-        preProcess = ShiftScale(ANN_input_Vals; range=:Standardize)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
+        preProcess = ShiftScale(ANN_input_Vals; range = :Standardize)         # we put in the derivatives recorded above, FMIFlux shift and scales so we have a data mean of 0 and a standard deviation of 1
         preProcess.scale[:] *= 0.1                         # add some additional "buffer"
         postProcess = ScaleShift(preProcess; indices = [1, 2])   # initialize the postProcess as inverse of the preProcess, but only take indices 1 and 2
 
@@ -1207,12 +1202,12 @@ final_model(x0)
 # ╔═╡ 91473bef-bc23-43ed-9989-34e62166d455
 begin
     neuralFMU = ME_NeuralFMU(
-        fmu, 			# the FMU used in the neural FMU 
+        fmu, # the FMU used in the neural FMU 
         final_model,    # the model we specified above 
         (tStart, tStop),# start and stop time for solving
-        solver; 		# the solver (Tsit5)
+        solver; # the solver (Tsit5)
         saveat = tSave, # time points to save the solution at
-    )   
+    )
 end
 
 # ╔═╡ 404ca10f-d944-4a9f-addb-05efebb4f159
