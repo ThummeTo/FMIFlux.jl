@@ -71,7 +71,7 @@ If you haven't seen such a SCARA system yet, you can watch the following video. 
 
 # ╔═╡ 7d694be0-cd3f-46ae-96a3-49d07d7cf65a
 html"""
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ryIwLLr6yRA?si=ncr1IXlnuNhWPWgl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/ryIwLLr6yRA?si=_lzsfV1MgvfzvRrU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 """
 
 # ╔═╡ 10cb63ad-03d7-47e9-bc33-16c7786b9f6a
@@ -1885,7 +1885,7 @@ If your results are not *that* promising, here is a set of hyperparameters to ch
 | layer width | 32 |
 | initial gate opening | 0.2 |
 | batch element length | 0.05s |
-| training steps | $\geq$ 10 000 |
+| training steps | $\geq$ 20 000 |
 | additional variables | Joint 1 Angle $br Joint 2 Angle $br TCP velocity x $br TCP velocity y $br TCP nominal force |
 
 ## Citation
@@ -2773,7 +2773,7 @@ version = "1.2.0"
 deps = ["Dates"]
 path = "C:\\Users\\thummeto\\Documents\\FMICore.jl"
 uuid = "8af89139-c281-408e-bce2-3005eb87462f"
-version = "1.1.2"
+version = "1.2.0"
 
 [[deps.FMIExport]]
 deps = ["Dates", "FMIBase", "UUIDs"]
@@ -2782,7 +2782,7 @@ uuid = "31b88311-cab6-44ed-ba9c-fe5a9abbd67a"
 version = "0.4.1"
 
 [[deps.FMIFlux]]
-deps = ["Colors", "DifferentiableEigen", "FMIImport", "FMISensitivity", "Optim", "OrdinaryDiffEq", "Printf", "Statistics", "ThreadPools"]
+deps = ["Colors", "DifferentiableEigen", "FMIBase", "FMIImport", "FMISensitivity", "Optim", "OrdinaryDiffEq", "Printf", "Statistics", "StatsBase", "ThreadPools"]
 path = "C:\\Users\\thummeto\\Documents\\FMIFlux.jl"
 uuid = "fabad875-0d53-4e47-9446-963b74cae21f"
 version = "0.14.0"
@@ -2813,7 +2813,7 @@ weakdeps = ["FMIZoo"]
 deps = ["FMIBase", "ForwardDiffChainRules", "SciMLSensitivity"]
 path = "C:\\Users\\thummeto\\Documents\\FMISensitivity.jl"
 uuid = "3e748fe5-cd7f-4615-8419-3159287187d2"
-version = "0.2.5"
+version = "0.3.1"
 
 [[deps.FMIZoo]]
 deps = ["Downloads", "FilePaths", "FilePathsBase", "Glob", "Interpolations", "MAT", "Optim", "PackageExtensionCompat", "Requires", "ZipFile"]
@@ -5648,7 +5648,7 @@ version = "1.9.2+0"
 # ╟─b0ce7b92-93e0-4715-8324-3bf4ff42a0b3
 # ╟─919419fe-35de-44bb-89e4-8f8688bee962
 # ╟─ed25a535-ca2f-4cd2-b0af-188e9699f1c3
-# ╠═2918daf2-6499-4019-a04b-8c3419ee1ab7
+# ╟─2918daf2-6499-4019-a04b-8c3419ee1ab7
 # ╟─d798a5d0-3017-4eab-9cdf-ee85d63dfc49
 # ╟─048e39c3-a3d9-4e6b-b050-1fd5a919e4ae
 # ╟─b489f97d-ee90-48c0-af06-93b66a1f6d2e

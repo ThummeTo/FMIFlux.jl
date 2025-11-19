@@ -149,32 +149,6 @@ function pasteFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
     return nothing
 end
 
-# make a copy of the curren time instant for the batch element
-function copyFMUState!(fmu::FMU2, batchElement::FMU2SolutionBatchElement)
-    c = getCurrentInstance(fmu)
-    if isnothing(batchElement.snapshot)
-        batchElement.snapshot = FMIBase.snapshot!(c)
-        #batchElement.snapshot.t = batchElement.tStart
-        @debug "New snapshot @$(batchElement.snapshot.t)"
-    else
-        tBefore = batchElement.snapshot.t
-        FMIBase.update!(c, batchElement.snapshot)
-        #batchElement.snapshot.t = batchElement.tStart
-        tAfter = batchElement.snapshot.t
-
-        # [Note] for non-consecutive batch elements (time gaps inside batch),
-        #        it might be necessary to correct the new snapshot time to fit the old one.
-        if tBefore != tAfter
-            #batchElement.snapshot.t = max(tBefore, tAfter)
-            #logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
-            #logWarning(fmu, "Need to correct snapshot time from $(tAfter) to $(tBefore)")
-        end
-
-        @debug "Updated snapshot @$(batchElement.snapshot.t)"
-    end
-    return nothing
-end
-
 function run!(
     neuralFMU::ME_NeuralFMU,
     batchElement::FMU2SolutionBatchElement;
@@ -220,7 +194,27 @@ function run!(
             @warn "functionCallingCallback called for t=$(t_set) != next batch element start $(nextBatchElement.tStart)"
         end
 
-        copyFMUState!(neuralFMU.fmu, nextBatchElement)
+        # make/update snapshot
+        if isnothing(nextBatchElement.snapshot)
+            nextBatchElement.snapshot = FMIBase.snapshot!(c)
+            @debug "New snapshot @$(batchElement.snapshot.t)"
+        else
+            tBefore = nextBatchElement.snapshot.t
+            FMIBase.update!(c, nextBatchElement.snapshot)
+            #batchElement.snapshot.t = batchElement.tStart
+            tAfter = nextBatchElement.snapshot.t
+
+            # [Note] for non-consecutive batch elements (time gaps inside batch),
+            #        it might be necessary to correct the new snapshot time to fit the old one.
+            if tBefore != tAfter
+                #batchElement.snapshot.t = max(tBefore, tAfter)
+                #logInfo(fmu, "Corrected snapshot time from $(tAfter) to $(tBefore)")
+                logWarning(fmu, "Need to correct snapshot time from $(tAfter) to $(tBefore)")
+            end
+
+            @debug "Updated snapshot @$(batchElement.snapshot.t)"
+        end
+    
         return nothing
     end
 

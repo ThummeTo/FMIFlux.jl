@@ -28,7 +28,7 @@ global EXPORTINGTOOL = nothing
 global EXPORTINGVERSION = nothing
 global X0 = [2.0, 0.0]
 global OPTIMISER = Flux.Descent
-global FAILED_GRADIENTS_QUOTA = 1 / 10
+global FAILED_GRADIENTS_QUOTA = 0 / 10
 
 # callback for bad optimization steps counter
 global FAILED_GRADIENTS = 0

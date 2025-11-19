@@ -1516,7 +1516,7 @@ function (nfmu::ME_NeuralFMU)(
 
     if istracked(p)
         # not required if we snapshot every step
-        if !nfmu.fmu.isDummyDiscrete && !nfmu.fmu.executionConfig.snapshot_every_step
+        if !nfmu.fmu.isDummyDiscrete # && !nfmu.fmu.executionConfig.snapshot_every_step
             if dummyDiscreteStateIfRequired
                 logInfo(nfmu.fmu, "Activating dummy discrete state for FMU to perform proper sensitivity analysis with ReverseDiff.jl.")
                 nfmu.fmu.isDummyDiscrete = true
@@ -1567,10 +1567,12 @@ function (nfmu::ME_NeuralFMU)(
     solvekwargs = Dict{Symbol,Any}(solvekwargs...)
     tspan = setupSolver!(nfmu.fmu, tspan, solvekwargs)
 
-    if haskey(solvekwargs, :dtmax)
-        @info "Removing automatically set dtmax=$(solvekwargs[:dtmax])" maxlog=3
-        delete!(solvekwargs, :dtmax)
-    end
+    # if haskey(solvekwargs, :dtmax)
+    #     @info "Removing automatically set dtmax=$(solvekwargs[:dtmax])" # maxlog=3
+    #     delete!(solvekwargs, :dtmax)
+    # end
+
+    #@assert !haskey(solvekwargs, :dtmax) "dtmax"
     
     t_start = tspan[1]
     t_stop = tspan[end]
