@@ -60,12 +60,12 @@ end
 
 train_data = collect([u] for u in posData)
 
-c.fmu.executionConfig = deepcopy(c.fmu.executionConfig)
-c.fmu.executionConfig.freeInstance = false
-c.fmu.executionConfig.instantiate = false
-c.fmu.executionConfig.setup = true
-c.fmu.executionConfig.reset = true
-c.fmu.executionConfig.terminate = true
+fmu.executionConfig = deepcopy(fmu.executionConfig)
+fmu.executionConfig.freeInstance = false
+fmu.executionConfig.instantiate = false
+fmu.executionConfig.setup = true
+fmu.executionConfig.reset = true
+fmu.executionConfig.terminate = true
 c, _ = FMIFlux.prepareSolveFMU(fmu, nothing, fmu.type; instantiate = true, setup = true)
 
 # batching 
