@@ -223,7 +223,7 @@ function evaluateModel(
 
     #nfmu.p = p 
     c.default_t = t
-    dx = FMIFlux.eval(nfmu, x; p = p)
+    dx = FMIFlux.evaluate(nfmu, x; p = p)
 
     c.force = mode
 
@@ -283,14 +283,14 @@ function evaluateModel(
     if c.fmu.isDummyDiscrete
         c.default_x_d = getEmptyReal(c)
         nx = length(nfmu.fmu.modelDescription.stateValueReferences)
-        #tmp = FMIFlux.eval(nfmu, x; p=p)
+        #tmp = FMIFlux.evaluate(nfmu, x; p=p)
         #dx_y[1:nx] = tmp[1:nx]
         #dx_y[nx+1] = 1e-2 * cos(sum(x)) 
         #dx_y[nx+2:end] = tmp[nx+1:end]
-        dx[1:nx] = FMIFlux.eval(nfmu, x; p = p)
+        dx[1:nx] = FMIFlux.evaluate(nfmu, x; p = p)
         dx[nx+1] = dummyDynamics(x_d, x[1:nx], dx[1:nx], t)
     else
-        dx[:] = FMIFlux.eval(nfmu, x; p = p)
+        dx[:] = FMIFlux.evaluate(nfmu, x; p = p)
     end
 
     c.force = mode
@@ -317,10 +317,10 @@ end
 #     nfmu.p = p 
 
 #     if nfmu.fmu.isDummyDiscrete
-#         dx[1:end-1] = FMIFlux.eval(nfmu, x[1:end-1]; p=p)
+#         dx[1:end-1] = FMIFlux.evaluate(nfmu, x[1:end-1]; p=p)
 #         dx[end] = 1e-2 * cos(sum(x)) # TODO: Non-sensitive augmented states don't work with reversediff ... leads to NaNs ... this was really hard to debug BTW ...
 #     else
-#         dx[:] = FMIFlux.eval(nfmu, x; p=p)
+#         dx[:] = FMIFlux.evaluate(nfmu, x; p=p)
 #     end
 
 #     return nothing
@@ -2043,7 +2043,7 @@ function (nfmu::CS_NeuralFMU{F,C})(
             y = nfmu.model(input)
         else # flattened, explicite parameters
             @assert !isnothing(nfmu.re) "Using explicite parameters without destructing the model."
-            y = FMIFlux.eval(nfmu, input; p = p)
+            y = FMIFlux.evaluate(nfmu, input; p = p)
         end
 
         return y
@@ -2127,7 +2127,7 @@ function (nfmu::CS_NeuralFMU{Vector{F},Vector{C}})(
             # else
             #     y = nfmu.re(p)(input)
             # end
-            FMIFlux.eval(nfmu, input; p = p)
+            FMIFlux.evaluate(nfmu, input; p = p)
         end
 
         return y

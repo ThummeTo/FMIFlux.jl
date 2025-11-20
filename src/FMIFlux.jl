@@ -44,7 +44,7 @@ function saveParameters end
 function loadParameters end
 
 # (F)Lux/convert.jl
-function eval end
+function evaluate end
 function is64 end
 function convert64 end
 function destructure end

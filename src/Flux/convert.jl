@@ -69,14 +69,14 @@ function FMIFlux.params(nfmu::CS_NeuralFMU; destructure::Bool = false) # true)
     return nfmu.p
 end
 
-function FMIFlux.eval(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Flux.Chain,R}
+function FMIFlux.evaluate(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Flux.Chain,R}
     return nfmu.re(p)(input)
 end
 
-function FMIFlux.eval(nfmu::CS_NeuralFMU{F,C}, input; p = nfmu.p) where {F,C} # {F <:FMU2, C <:FMU2Component}
+function FMIFlux.evaluate(nfmu::CS_NeuralFMU{F,C}, input; p = nfmu.p) where {F,C} # {F <:FMU2, C <:FMU2Component}
     return nfmu.re(p)(input)
 end
 
-# function FMIFlux.eval(nfmu::CS_NeuralFMU{F, C}, input; p=nfmu.p) where {F <: Vector{<:FMU2}, C <: Vector{<:FMU2Component}}
+# function FMIFlux.evaluate(nfmu::CS_NeuralFMU{F, C}, input; p=nfmu.p) where {F <: Vector{<:FMU2}, C <: Vector{<:FMU2Component}}
 #     return nfmu.re(p)(input)
 # end

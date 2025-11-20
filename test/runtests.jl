@@ -119,25 +119,25 @@ function runtests(exportingTool)
                     include("hybrid_ME_dis.jl")
                 end
 
-                # @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
-                # @testset "NeuralFMU with FMU parameter optimization" begin
-                #     include("fmu_params.jl")
-                # end
+                @info "NeuralFMU with FMU parameter optimization (fmu_params.jl)"
+                @testset "NeuralFMU with FMU parameter optimization" begin
+                    include("fmu_params.jl")
+                end
 
-                # @info "Training modes (train_modes.jl)"
-                # @testset "Training modes" begin
-                #     include("train_modes.jl")
-                # end
+                @info "Training modes (train_modes.jl)"
+                @testset "Training modes" begin
+                    include("train_modes.jl")
+                end
 
-                # @info "CS-NeuralFMU (hybrid_CS.jl)"
-                # @testset "CS-NeuralFMU" begin
-                #     include("hybrid_CS.jl")
-                # end
+                @info "CS-NeuralFMU (hybrid_CS.jl)"
+                @testset "CS-NeuralFMU" begin
+                    include("hybrid_CS.jl")
+                end
 
-                # @info "Batching (batching.jl)"
-                # @testset "Batching" begin
-                #     include("batching.jl")
-                # end
+                @info "Batching (batching.jl)"
+                @testset "Batching" begin
+                    include("batching.jl")
+                end
 
                 @warn "Multi-threading test skipped"
                 # @info    "Multi-threading (multi_threading.jl)"

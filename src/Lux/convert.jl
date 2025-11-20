@@ -19,6 +19,6 @@ function FMIFlux.destructure(model::Lux.Chain)
     return p, st
 end
 
-function FMIFlux.eval(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Lux.Chain,R}
+function FMIFlux.evaluate(nfmu::ME_NeuralFMU{M,R}, input; p = nfmu.p) where {M<:Lux.Chain,R}
     first(nfmu.model(input, p, nfmu.re))
 end
