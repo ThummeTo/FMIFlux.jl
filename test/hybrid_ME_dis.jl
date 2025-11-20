@@ -17,11 +17,12 @@ tData = t_start:t_step:t_stop
 # generate training data
 posData = collect(abs(cos(u .* 1.0)) for u in tData) * 2.0
 
-fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME)
+fmu = loadFMU("BouncingBall1D", "Dymola", "2023x"; type = :ME) # , logLevel = :info)
 
 # loss function for training
 losssum = function (p)
     global problem, X0, posData
+    global solution
     solution = problem(X0; p = p, saveat = tData)
 
     if !solution.success
@@ -126,11 +127,11 @@ push!(nets, net5)
 net6 = function ()
     net = Chain(
         x -> fmu(; x = x, y_refs = getVRs, dx_refs = :all),
-        x -> c3(x),
+        dx_y -> c3(dx_y),
         Dense(numStates + numGetVRs, 8, tanh; init = init),
         Dense(8, 16, tanh; init = init),
         Dense(16, 1, tanh; init = init),
-        x -> c4(1, x[1]),
+        dx -> c4(1, dx[1]),
     )
 end
 push!(nets, net6)
@@ -148,7 +149,7 @@ net7 = function ()
 end
 push!(nets, net7)
 
-# 8. NeuralFMU with additional setter and getter
+# 8. NeuralFMU with additional setter and getter 
 net8 = function ()
     net = Chain(
         x -> fmu(; x = x, u_refs = setVRs, u = setVal, y_refs = getVRs, dx_refs = :all),
@@ -161,7 +162,7 @@ net8 = function ()
 end
 push!(nets, net8)
 
-# 9. an empty NeuralFMU (this does only make sense for debugging)
+# 9. an empty NeuralFMU (this does only make sense for debugging) 
 net9 = function ()
     net = Chain(x -> fmu(x = x, dx_refs = :all))
 end
@@ -197,8 +198,8 @@ for solver in solvers
                         problem.modifiedState = true
                     end
 
-                    p_net = Flux.params(problem)
-                    solutionBefore = problem(X0; p = p_net[1], saveat = tData)
+                    p_net = FMIFlux.params(problem)
+                    solutionBefore = problem(X0; p = p_net, saveat = tData)
                     ne = length(solutionBefore.events)
 
                     if ne > 0 && ne <= 10
@@ -215,20 +216,19 @@ for solver in solvers
                 @test !isnothing(problem)
 
                 # train it ...
-                p_net = Flux.params(problem)
-                @test length(p_net) == 1
+                p_net = FMIFlux.params(problem)
 
-                solutionBefore = problem(X0; p = p_net[1], saveat = tData)
+                solutionBefore = problem(X0; p = p_net, saveat = tData)
                 if solutionBefore.success
                     @test length(solutionBefore.states.t) == length(tData)
                     @test solutionBefore.states.t[1] == t_start
                     @test solutionBefore.states.t[end] == t_stop
                 end
 
-                LAST_LOSS = losssum(p_net[1])
+                LAST_LOSS = losssum(p_net)
                 @info "Start-Loss for net #$i: $(LAST_LOSS)"
 
-                if length(p_net[1]) == 0
+                if length(p_net) == 0
                     @info "The following warning is not an issue, because training on zero parameters must throw a warning:"
                 end
 
@@ -239,13 +239,14 @@ for solver in solvers
                     Iterators.repeated((), NUMSTEPS),
                     optim;
                     gradient = GRADIENT,
+                    #printStep=true,
                     cb = () -> callback(p_net),
                 )
                 @info "Failed Gradients: $(FAILED_GRADIENTS) / $(NUMSTEPS)"
                 @test FAILED_GRADIENTS <= FAILED_GRADIENTS_QUOTA * NUMSTEPS
 
                 # check results
-                solutionAfter = problem(X0; p = p_net[1], saveat = tData)
+                solutionAfter = problem(X0; p = p_net, saveat = tData)
                 if solutionAfter.success
                     @test length(solutionAfter.states.t) == length(tData)
                     @test solutionAfter.states.t[1] == t_start

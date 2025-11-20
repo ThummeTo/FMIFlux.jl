@@ -10,29 +10,21 @@ import FMISensitivity.ForwardDiff
 import FMISensitivity.Zygote
 import FMISensitivity.ReverseDiff
 import FMISensitivity.FiniteDiff
+import StatsBase
 
 @debug "Debugging messages enabled for FMIFlux ..."
-
-if VERSION < v"1.7.0"
-    @warn "Training under Julia 1.6 is very slow, please consider using Julia 1.7 or newer." maxlog =
-        1
-end
 
 import FMIImport.FMIBase: hasCurrentInstance, getCurrentInstance, unsense
 import FMISensitivity.ChainRulesCore: ignore_derivatives
 
 import FMIImport
 
-import Flux
-
 using FMIImport
 
+include("misc.jl")
 include("optimiser.jl")
 include("hotfixes.jl")
-include("convert.jl")
-include("flux_overload.jl")
 include("neural.jl")
-include("misc.jl")
 include("layers.jl")
 include("deprecated.jl")
 include("batch.jl")
@@ -51,6 +43,26 @@ end
 function saveParameters end
 function loadParameters end
 
+# (F)Lux/convert.jl
+function evaluate end
+function is64 end
+function convert64 end
+function destructure end
+function params end
+
+# optimisers 
+struct FluxOptimiserWrapper end # via FluxExt
+struct OptimOptimiserWrapper end # via OptimExt
+function apply! end
+function _train! end
+
+# plot 
+function plot end
+function plotLoss end
+
+# ToDo: for now, Optim.jl is still a full (not optionally) dependency, so include this manually
+include(joinpath(@__DIR__, "..", "ext", "OptimExt.jl"))
+
 # FMI_neural.jl
 export ME_NeuralFMU, CS_NeuralFMU, NeuralFMU
 
@@ -59,7 +71,11 @@ export mse_interpolate, transferParams!, transferFlatParams!, lin_interp
 
 # scheduler.jl
 export WorstElementScheduler,
-    WorstGrowScheduler, RandomScheduler, SequentialScheduler, LossAccumulationScheduler
+    WorstGrowScheduler,
+    RandomScheduler,
+    SequentialScheduler,
+    LossAccumulationScheduler,
+    TwoStageRandomScheduler
 
 # batch.jl 
 export batchDataSolution, batchDataEvaluation

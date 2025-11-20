@@ -100,14 +100,14 @@ for handleEvents in [true, false]
                 end
 
                 # train it ...
-                p_net = Flux.params(problem)
+                p_net = FMIFlux.params(problem)
 
                 iterCB = 0
-                lastLoss = losssum(p_net[1])
+                lastLoss = losssum(p_net)
                 lastInstCount = length(problem.fmu.components)
                 @info "Start-Loss for net: $lastLoss"
 
-                lossBefore = losssum(p_net[1])
+                lossBefore = losssum(p_net)
                 FMIFlux.train!(
                     losssum,
                     problem,
@@ -115,7 +115,7 @@ for handleEvents in [true, false]
                     optim;
                     gradient = GRADIENT,
                 )
-                lossAfter = losssum(p_net[1])
+                lossAfter = losssum(p_net)
 
                 @test lossAfter < lossBefore
 

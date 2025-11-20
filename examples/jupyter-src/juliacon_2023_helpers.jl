@@ -73,9 +73,9 @@ function plotEnhancements(
 
     # Finite differences for acceleration
     dt = data.consumption_t[2] - data.consumption_t[1]
-    acceleration_val = (data.speed_val[2:end] - data.speed_val[1:end-1]) / dt
+    acceleration_val = (data.speed_val[2:end] - data.speed_val[1:(end-1)]) / dt
     acceleration_val = [acceleration_val..., 0.0]
-    acceleration_dev = (data.speed_dev[2:end] - data.speed_dev[1:end-1]) / dt
+    acceleration_dev = (data.speed_dev[2:end] - data.speed_dev[1:(end-1)]) / dt
     acceleration_dev = [acceleration_dev..., 0.0]
 
     ANNInputs = getValue(resultNFMU, :derivatives) # collect([0.0, 0.0, 0.0, data.speed_val[i], acceleration_val[i], data.consumption_val[i]] for i in 1:length(data.consumption_t))
@@ -244,7 +244,7 @@ function plotCumulativeConsumption(
 )
 
     len = length(data.consumption_t)
-    steps = (1+round(Int, range[1] * len)):(round(Int, range[end] * len))
+    steps = (1+round(Int, range[1]*len)):(round(Int, range[end]*len))
 
     t = data.consumption_t
     nfmu_val = getState(solutionNFMU, 6; isIndex = true)

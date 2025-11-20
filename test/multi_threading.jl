@@ -95,15 +95,15 @@ for i = 1:length(nets)
         end
 
         # train it ...
-        p_net = Flux.params(problem)
-        p_start = copy(p_net[1])
+        p_net = FMIFlux.params(problem)
+        p_start = copy(p_net)
 
         iterCB = 0
-        lastLoss = losssum(p_net[1])
+        lastLoss = losssum(p_net)
         startLoss = lastLoss
         @info "[ $(iterCB)] Loss: $lastLoss"
 
-        p_net[1][:] = p_start[:]
+        p_net[:] = p_start[:]
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
@@ -119,7 +119,7 @@ for i = 1:length(nets)
         dt = round(time() - st; digits = 2)
         @info "Training time single threaded (not pre-compiled): $(dt)s"
 
-        p_net[1][:] = p_start[:]
+        p_net[:] = p_start[:]
         lastLoss = startLoss
         st = time()
         optim = OPTIMISER(ETA)
@@ -137,7 +137,7 @@ for i = 1:length(nets)
 
         # [ToDo] currently not implemented 
 
-        # p_net[1][:] = p_start[:]
+        # p_net[:] = p_start[:]
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)
@@ -145,7 +145,7 @@ for i = 1:length(nets)
         # dt = round(time()-st; digits=2)
         # @info "Training time multi threaded x$(Threads.nthreads()) (not pre-compiled): $(dt)s"
 
-        # p_net[1][:] = p_start[:]
+        # p_net[:] = p_start[:]
         # lastLoss = startLoss
         # st = time()
         # optim = OPTIMISER(ETA)

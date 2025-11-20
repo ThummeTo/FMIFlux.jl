@@ -5,6 +5,8 @@
 
 using Statistics: mean, std
 
+identity = (a,) -> a
+
 ### FMUParameterRegistrator ###
 
 """
@@ -55,8 +57,6 @@ function (l::FMUParameterRegistrator)(x)
     return x
 end
 
-Flux.@functor FMUParameterRegistrator (p,)
-
 ### TimeLayer ###
 
 """
@@ -71,7 +71,7 @@ struct FMUTimeLayer{F,O}
         return new{F,O}(fmu, fct, offset)
     end
 
-    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O) where {F,O}
+    function FMUTimeLayer(fmu::FMU2, fct::F, offset::O = zeros(1)) where {F,O}
         return FMUTimeLayer{F,O}(fmu, fct, offset)
     end
 
@@ -87,8 +87,6 @@ function (l::FMUTimeLayer)(x)
 
     return x
 end
-
-Flux.@functor FMUTimeLayer (offset,)
 
 ### ParameterRegistrator ###
 
@@ -111,8 +109,6 @@ export ParameterRegistrator
 function (l::ParameterRegistrator)(x)
     return x
 end
-
-Flux.@functor ParameterRegistrator (p,)
 
 ### SimultaniousZeroCrossing ###
 
@@ -137,98 +133,162 @@ function (l::SimultaniousZeroCrossing)(x)
     return x * l.m * l.fct()
 end
 
-Flux.@functor SimultaniousZeroCrossing (m,)
-
 ### SHIFTSCALE ###
 
 """
-ToDo.
+
+    ToDo.
+
+Shifts and scales input data to a given distribution
 """
-struct ShiftScale{T}
+struct ShiftScale{T,A}
     shift::AbstractArray{T}
     scale::AbstractArray{T}
+    activation::A
 
-    function ShiftScale{T}(shift::AbstractArray{T}, scale::AbstractArray{T}) where {T}
-        inst = new(shift, scale)
+    function ShiftScale{T,A}(
+        shift::AbstractArray{T},
+        scale::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        inst = new(shift, scale, activation)
         return inst
     end
 
-    function ShiftScale(shift::AbstractArray{T}, scale::AbstractArray{T}) where {T}
-        return ShiftScale{T}(shift, scale)
+    function ShiftScale(
+        shift::AbstractArray{T},
+        scale::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        return ShiftScale{T,A}(shift, scale, activation)
     end
 
     # initialize for data array
     function ShiftScale(
-        data::AbstractArray{<:AbstractArray{T}};
-        range::Union{Symbol,UnitRange{<:Integer}} = -1:1,
-    ) where {T}
-        shift = -mean.(data)
-        scale = nothing
+        data::AbstractArray{<:AbstractArray{T}},
+        activation::A = identity;
+        range::Union{Symbol,Tuple{Real,Real}} = :Normalize,
+        maxScale::Float64 = 1e8,
+    ) where {T,A}
 
-        if range == :NormalDistribution
-            scale = 1.0 ./ std.(data)
-        elseif isa(range, UnitRange{<:Integer})
-            scale =
-                1.0 ./
-                (collect(max(d...) for d in data) - collect(min(d...) for d in data)) .*
-                (range[end] - range[1])
-        else
-            @assert false "Unsupported scaleMode, supported is `:NormalDistribution` or `UnitRange{<:Integer}`"
+        if range == :Normalize
+            range = (0.0, 1.0)
         end
 
-        return ShiftScale{T}(shift, scale)
+        shift = 0.0
+        scale = 1.0
+
+        if range == :Standardize # NormalDistribution
+            shift = -mean.(data)
+            scale = 1.0 ./ std.(data)
+
+        elseif isa(range, Tuple{Real,Real})
+            _max = collect(max(d...) for d in data)
+            _min = collect(min(d...) for d in data)
+            shift = -(_max + _min) ./ 2.0
+            scale = (range[end] - range[1]) ./ (_max - _min)
+
+            for i = 1:length(scale)
+                if abs(scale[i]) > maxScale
+                    @warn "Scaling for data index $(i) exceeded maximum scale of `$(maxScale)`, limiting to that value."
+                    scale[i] = sign(scale[i]) * maxScale
+                end
+            end
+        else
+            @assert false "Unsupported range `$(range)`, supported is `:Standardize`, `:Normalize` or `Tuple{Real, Real}`"
+        end
+
+        #@info "$(range) | $(length(data))"
+
+        return ShiftScale{T,A}(shift, scale, activation)
     end
 end
 export ShiftScale
 
 function (l::ShiftScale)(x)
 
-    x_proc = (x .+ l.shift) .* l.scale
+    x_proc = l.activation.((x .+ l.shift) .* l.scale)
 
     return x_proc
 end
-
-Flux.@functor ShiftScale (shift, scale)
 
 ### SCALESHIFT ###
 
 """
 ToDo.
 """
-struct ScaleShift{T}
+struct ScaleShift{T,A}
     scale::AbstractArray{T}
     shift::AbstractArray{T}
+    activation::A
 
-    function ScaleShift{T}(scale::AbstractArray{T}, shift::AbstractArray{T}) where {T}
-        inst = new(scale, shift)
+    function ScaleShift{T,A}(
+        scale::AbstractArray{T},
+        shift::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        inst = new(scale, shift, activation)
         return inst
     end
 
-    function ScaleShift(scale::AbstractArray{T}, shift::AbstractArray{T}) where {T}
-        return ScaleShift{T}(scale, shift)
+    function ScaleShift(
+        scale::AbstractArray{T},
+        shift::AbstractArray{T},
+        activation::A = identity,
+    ) where {T,A}
+        return ScaleShift{T,A}(scale, shift, activation)
     end
 
     # init ScaleShift with inverse transformation of a given ShiftScale
-    function ScaleShift(l::ShiftScale{T}; indices = 1:length(l.scale)) where {T}
-        return ScaleShift{T}(1.0 ./ l.scale[indices], -1.0 .* l.shift[indices])
-    end
-
-    function ScaleShift(data::AbstractArray{<:AbstractArray{T}}) where {T}
-        shift = mean.(data)
-        scale = std.(data)
-        return ShiftScale{T}(scale, shift)
+    function ScaleShift(
+        l::ShiftScale{T,_A},
+        activation::A = identity;
+        indices = 1:length(l.scale),
+    ) where {T,A,_A}
+        return ScaleShift{T,A}(
+            1.0 ./ l.scale[indices],
+            -1.0 .* l.shift[indices],
+            activation,
+        )
     end
 end
 export ScaleShift
 
 function (l::ScaleShift)(x)
 
-    x_proc = (x .* l.scale) .+ l.shift
+    x_proc = l.activation.((x .* l.scale) .+ l.shift)
 
     return x_proc
 end
 
-Flux.@functor ScaleShift (scale, shift)
+### SHIFT ###
+
+"""
+
+    ToDo.
+
+Shifts input signals.
+"""
+struct Shift{T}
+    shift::AbstractArray{T}
+
+    function Shift{T}(shift::AbstractArray{T}) where {T}
+        inst = new(shift)
+        return inst
+    end
+
+    function Shift(shift::AbstractArray{T}) where {T}
+        return Shift{T}(shift)
+    end
+end
+export Shift
+
+function (l::Shift)(x)
+
+    x_proc = x .+ l.shift
+
+    return x_proc
+end
 
 ### ScaleSum ###
 
@@ -263,22 +323,30 @@ function (l::ScaleSum)(x)
     end
 end
 
-Flux.@functor ScaleSum (scale,)
-
 ### CACHE ### 
 
 mutable struct CacheLayer
-    cache::AbstractArray{<:AbstractArray}
+    cache::AbstractVector{<:AbstractVector}
 
     function CacheLayer()
+        # undef fails in newwer Flux versions
+        def = Vector{Vector}(undef, Threads.nthreads())
+        for i = 1:length(def)
+            def[i] = Float64[]
+        end
+        inst = CacheLayer(def)
+        return inst
+    end
+
+    function CacheLayer(cache::AbstractVector{<:AbstractVector})
         inst = new()
-        inst.cache = Array{Array,1}(undef, Threads.nthreads())
+        inst.cache = cache
         return inst
     end
 end
 export CacheLayer
 
-function (l::CacheLayer)(x)
+function (l::CacheLayer)(x::AbstractVector)
 
     tid = Threads.threadid()
     l.cache[tid] = x

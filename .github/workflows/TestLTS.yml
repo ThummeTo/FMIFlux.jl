@@ -1,4 +1,4 @@
-name: Test v1.6 (LTS)
+name: Test (LTS)
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.6']
+        julia-version: ['lts']
         julia-arch: [x64]
         os: [ubuntu-latest, windows-latest]
         experimental: [false]
@@ -34,6 +34,10 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+
+      # Set up julia-cache
+      - name: Set up julia-cache
+        uses: julia-actions/cache@v2
 
      # Set up cache
       - name: "Set up cache"

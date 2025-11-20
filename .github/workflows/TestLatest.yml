@@ -35,6 +35,10 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
 
+      # Set up julia-cache
+      - name: Set up julia-cache
+        uses: julia-actions/cache@v2
+
      # Set up cache
       - name: "Set up cache"
         uses: actions/cache@v4
@@ -62,8 +66,8 @@ jobs:
 
       # Run codecov
       - name: "Run CodeCov"
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          file: lcov.info
+          files: lcov.info

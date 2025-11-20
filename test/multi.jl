@@ -69,11 +69,11 @@ problem = CS_NeuralFMU(fmus, net, (t_start, t_stop))
 solutionBefore = problem(extForce, t_step)
 
 # train it ...
-p_net = Flux.params(problem)
+p_net = FMIFlux.params(problem)
 
 optim = OPTIMISER(ETA)
 
-lossBefore = losssum(p_net[1])
+lossBefore = losssum(p_net)
 FMIFlux.train!(
     losssum,
     problem,
@@ -81,7 +81,7 @@ FMIFlux.train!(
     optim;
     gradient = GRADIENT,
 )
-lossAfter = losssum(p_net[1])
+lossAfter = losssum(p_net)
 @test lossAfter < lossBefore
 
 # check results

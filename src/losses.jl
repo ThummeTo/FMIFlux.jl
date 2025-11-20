@@ -5,15 +5,45 @@
 
 module Losses
 
-using Flux
 import ..FMIFlux: FMU2BatchElement, NeuralFMU, loss!, run!, ME_NeuralFMU, FMUSolution
 import ..FMIFlux.FMIImport.FMIBase: unsense, logWarning
 
-mse = Flux.Losses.mse
-mae = Flux.Losses.mae
+function mean_error_sum(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real}, fun)
+    sum = 0.0
+    len_a = length(a)
+    len_b = length(b)
+    len = len_a
+
+    if len_a != len_b
+        len = min(len_a, len_b)
+        @warn "Length a ($(len_a)) != Length b ($(len_b)), not entire set is compared, only the first $(len) elements!"
+    end
+
+    for i = 1:len
+        sum += fun(a[i], b[i])
+    end
+
+    return sum / len
+end
+
+#mse = Flux.Losses.mse
+function mse(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real})
+    fun = function (x, y)
+        (x .- y) * (x .- y)
+    end
+    return mean_error_sum(a, b, fun)
+end
+
+#mae = Flux.Losses.mae
+function mae(a::Union{AbstractArray,Real}, b::Union{AbstractArray,Real})
+    fun = function (x, y)
+        abs(x .- y)
+    end
+    return mean_error_sum(a, b, fun)
+end
 
 function last_element_rel(fun, a::AbstractArray, b::AbstractArray, lastElementRatio::Real)
-    return (1.0 - lastElementRatio) * fun(a[1:end-1], b[1:end-1]) +
+    return (1.0 - lastElementRatio) * fun(a[1:(end-1)], b[1:(end-1)]) +
            lastElementRatio * fun(a[end], b[end])
 end
 
@@ -77,7 +107,7 @@ function mae_last_element_rel_dev(
 )
     num = length(a)
     Δ = deviation(a, b, dev)
-    Δ[1:end-1] .*= (1.0 - lastElementRatio)
+    Δ[1:(end-1)] .*= (1.0 - lastElementRatio)
     Δ[end] *= lastElementRatio
     Δ = sum(Δ) / num
     return Δ
@@ -92,7 +122,7 @@ function mse_last_element_rel_dev(
     num = length(a)
     Δ = deviation(a, b, dev)
     Δ = Δ .^ 2
-    Δ[1:end-1] .*= (1.0 - lastElementRatio)
+    Δ[1:(end-1)] .*= (1.0 - lastElementRatio)
     Δ[end] *= lastElementRatio
     Δ = sum(Δ) / num
     return Δ
@@ -101,7 +131,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::AbstractArray{<:AbstractArray{<:Tuple{Real,Real}}};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -135,7 +165,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::AbstractArray{<:Tuple{Real,Real}};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -169,7 +199,7 @@ end
 function stiffness_corridor(
     solution::FMUSolution,
     corridor::Tuple{Real,Real};
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
 )
     @assert !isnothing(solution.eigenvalues) "stiffness_corridor: Need eigenvalue information, that is not present in the given `FMUSolution`. Use keyword `recordEigenvalues=true` for FMU or NeuralFMU simulation."
 
@@ -203,7 +233,7 @@ function loss(
     model,
     batchElement::FMU2BatchElement;
     logLoss::Bool = true,
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     p = nothing,
 )
 
@@ -212,14 +242,14 @@ function loss(
     # evaluate model
     result = run!(model, batchElement, p = p)
 
-    return loss!(batchElement, lossFct; logLoss = logLoss)
+    return loss!(batchElement, lossFct, result; logLoss = logLoss)
 end
 
 function loss(
     nfmu::NeuralFMU,
     batch::AbstractArray{<:FMU2BatchElement};
     batchIndex::Integer = rand(1:length(batch)),
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     logLoss::Bool = true,
     solvekwargs...,
 )
@@ -243,11 +273,11 @@ function loss(
     if !solution.success
         logWarning(
             nfmu.fmu,
-            "Solving the NeuralFMU as part of the loss function failed with return code `$(solution.states.retcode)`.\nThis is often because the ODE cannot be solved. Did you initialize the NeuralFMU model?\nOften additional solver errors/warnings are printed before this warning.\nHowever, it is tried to compute a loss on the partial retrieved solution from $(unsense(solution.states.t[1]))s to $(unsense(solution.states.t[end]))s.",
+            "Solving the neural FMU as part of the loss function failed with return code `$(solution.states.retcode)`.\nThis is often because the ODE cannot be solved. Did you initialize the neural FMU model?\nOften additional solver errors/warnings are printed before this warning.\nHowever, it is tried to compute a loss on the partial retrieved solution from $(unsense(solution.states.t[1]))s to $(unsense(solution.states.t[end]))s.",
         )
         return Inf
     else
-        return loss!(batch[batchIndex], lossFct; logLoss = logLoss)
+        return loss!(batch[batchIndex], lossFct, solution; logLoss = logLoss)
     end
 end
 
@@ -255,14 +285,14 @@ function loss(
     model,
     batch::AbstractArray{<:FMU2BatchElement};
     batchIndex::Integer = rand(1:length(batch)),
-    lossFct = Flux.Losses.mse,
+    lossFct = mse,
     logLoss::Bool = true,
     p = nothing,
 )
 
-    run!(model, batch[batchIndex], p)
+    result = run!(model, batch[batchIndex], p)
 
-    return loss!(batch[batchIndex], lossFct; logLoss = logLoss)
+    return loss!(batch[batchIndex], lossFct, result; logLoss = logLoss)
 end
 
 function batch_loss(
@@ -288,19 +318,21 @@ function batch_loss(
             end
 
             if !isnothing(b.xStart)
-                run!(
+                result = run!(
                     neuralFMU,
                     b;
                     nextBatchElement = b_next,
                     progressDescr = "Sim. Batch $(i)/$(numBatch) |",
                     kwargs...,
                 )
-            end
 
-            if isnothing(accu)
-                accu = loss!(b, lossFct; logLoss = logLoss)
+                if isnothing(accu)
+                    accu = loss!(b, lossFct, result; logLoss = logLoss)
+                else
+                    accu += loss!(b, lossFct, result; logLoss = logLoss)
+                end
             else
-                accu += loss!(b, lossFct; logLoss = logLoss)
+                @warn "xStart is nothing, no loss computation happening..."
             end
 
         end
@@ -337,12 +369,12 @@ function batch_loss(
         for i = 1:numBatch
             b = batch[i]
 
-            run!(model, b, p)
+            result = run!(model, b, p)
 
             if isnothing(accu)
-                accu = loss!(b, lossFct; logLoss = logLoss)
+                accu = loss!(b, lossFct, result; logLoss = logLoss)
             else
-                accu += loss!(b, lossFct; logLoss = logLoss)
+                accu += loss!(b, lossFct, result; logLoss = logLoss)
             end
         end
 
@@ -378,6 +410,46 @@ function (t::ToggleLoss)(args...; kwargs...)
         t.index = 1
     end
     return ret
+end
+
+"""
+Compares non-equidistant (or equidistant) datapoints by linear interpolating and comparing at given interpolation points `t_comp`. 
+(Zygote-friendly: Zygote can differentiate through via AD.)
+"""
+function mse_interpolate(t1, x1, t2, x2, t_comp)
+    #lin1 = LinearInterpolation(t1, x1)
+    #lin2 = LinearInterpolation(t2, x2)
+    ar1 = collect(lin_interp(t1, x1, t_sample) for t_sample in t_comp) #lin1.(t_comp)
+    ar2 = collect(lin_interp(t2, x2, t_sample) for t_sample in t_comp) #lin2.(t_comp)
+    mse(ar1, ar2)
+end
+
+# Helper: simple linear interpolation 
+function lin_interp(t, x, t_sample)
+    if t_sample <= t[1]
+        return x[1]
+    end
+
+    if t_sample >= t[end]
+        return x[end]
+    end
+
+    i = 1
+    while t_sample > t[i]
+        i += 1
+    end
+
+    x_left = x[i-1]
+    x_right = x[i]
+
+    t_left = t[i-1]
+    t_right = t[i]
+
+    dx = x_right - x_left
+    dt = t_right - t_left
+    h = t_sample - t_left
+
+    x_left + dx / dt * h
 end
 
 end # module
