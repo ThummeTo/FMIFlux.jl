@@ -172,7 +172,7 @@ solvers = [Tsit5()]#, Rosenbrock23(autodiff=false)]
 
 for solver in solvers
     @testset "Solver: $(solver)" begin
-        for i = 6:6 # 1:length(nets)
+        for i = 1:length(nets)
             @testset "Net setup $(i)/$(length(nets)) (Discontinuous NeuralFMU)" begin
                 global nets, problem, iterCB
                 global LAST_LOSS, FAILED_GRADIENTS
