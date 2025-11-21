@@ -9,13 +9,14 @@ on:
     paths:
       - 'src/**'
       - 'test/**'
-      - '.github/workflows/Test.yml'
+      - '.github/workflows/TestLTS.yml'
       - 'Project.toml'
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Don't cancel in-progress jobs if any matrix job fails
       fail-fast: false
       matrix:
         julia-version: ['lts']
@@ -34,10 +35,6 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
-
-      # Set up julia-cache
-      - name: Set up julia-cache
-        uses: julia-actions/cache@v2
 
      # Set up cache
       - name: "Set up cache"
