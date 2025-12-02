@@ -3,7 +3,7 @@ name: Documentation
 on:
   # manual trigger
   workflow_dispatch:
-  # trigger from an other action
+  # trigger from an other action (e.g. as last step of the example action after example building)
   repository_dispatch:
     types: [trigger-docu]
 
@@ -22,8 +22,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # we need a ssh private key to deploy the docs. we can use the existing key for compathelper, or we need a seperate one
+      - name: Check for available SSH keys and set SSH_KEY 
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "SSH_KEY<<END_MARKER_SSH_KEY" >> $GITHUB_ENV
+          if [ -n "${{ secrets.DOCUMENTER_KEY }}" ]; then
+            echo "${{ secrets.DOCUMENTER_KEY }}" >> $GITHUB_ENV
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+            echo "DOCUMENTER_KEY found"
+          elif [ -n "${{ secrets.COMPATHELPER_PRIV }}" ]; then
+            echo "${{ secrets.COMPATHELPER_PRIV }}" >> $GITHUB_ENV
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+            echo "COMPATHELPER_PRIV found"
+          else
+            echo "::error::No SSH keys found! Please make shure secrets.COMPATHELPER_PRIV or secrets.DOCUMENTER_KEY is set according to readme."
+            echo "END_MARKER_SSH_KEY" >> $GITHUB_ENV
+          fi
+
       - name: "Check out repository"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v2
@@ -31,17 +49,22 @@ jobs:
           version: '1'
           arch: x64
 
-      - name: "Copy examples, readme"
+      - name: "Copy examples from examples branch and readme from main"
         env:
           WORK_TREE: './docs/src/examples'
           SRC_BRANCH: 'origin/examples'
           SRC_FOLDER_PATH: 'examples'
-        # copy the examples from the examples branch (.md, .svg) and copy the readme in the docs folder
+        # copy the examples from the examples branch (jupyter: .md, .fmu, .svg, .gif; pluto: .html) ("|| true" for optional files, else command will fail) and the readme from main
+        # all jupyter examples are moved out of the jupyter-src folder into the docs-src-examples folder, pluto examples are not. Those are provided to the documentation within their pluto-src folder. 
         run: |
           git fetch
-          git --work-tree=$WORK_TREE/.. checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/jupyter-src/*.md $SRC_FOLDER_PATH/jupyter-src/*.svg $SRC_FOLDER_PATH/jupyter-src/*.gif $SRC_FOLDER_PATH/pluto-src/*.html
-          mv $WORK_TREE/jupyter-src/* $WORK_TREE 
-          rm -r $WORK_TREE/jupyter-src
+          git --work-tree=$WORK_TREE checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/jupyter-src/*.md || true
+          git --work-tree=$WORK_TREE checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/jupyter-src/*.svg || true
+          git --work-tree=$WORK_TREE checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/jupyter-src/*.gif || true
+          git --work-tree=$WORK_TREE checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/jupyter-src/*.fmu || true
+          git --work-tree=$WORK_TREE checkout $SRC_BRANCH -- $SRC_FOLDER_PATH/pluto-src/*.html && mkdir -p $WORK_TREE/pluto-src && mv $WORK_TREE/$SRC_FOLDER_PATH/pluto-src/* $WORK_TREE/pluto-src || true
+          mv $WORK_TREE/$SRC_FOLDER_PATH/jupyter-src/* $WORK_TREE 
+          rm -r $WORK_TREE/$SRC_FOLDER_PATH
           cp ./README.md ./docs/src/index.md
 
       - name: "Install dependencies"
@@ -49,6 +72,6 @@ jobs:
 
       - name: "Build and deploy"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ env.SSH_KEY }}
         run: julia --project=docs/ docs/make.jl

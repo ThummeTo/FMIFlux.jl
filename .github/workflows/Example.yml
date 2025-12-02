@@ -11,84 +11,145 @@ on:
       - 'examples/**'
       - '.github/workflows/Example.yml'
       - 'Project.toml'
-  
+
 jobs:
+  # dynamically generate matrix for jupyter; to exclude an example, change its file extenstion to be different from .ipynb
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      notebookfiles: ${{ steps.get-notebooks.outputs.notebookfiles }}
+      notebookfiles_len: ${{ steps.get-notebooks.outputs.notebookfiles_len }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Get Jupyter Notebooks
+        id: get-notebooks
+        run: |
+          notebooks=$(find examples/jupyter-src -name "*.ipynb" -exec basename {} \; | tr '[:space:]' ',' | tr '[:space:]' ',')
+          echo "Notebooks found: ${notebooks:0:-1}"
+          echo "notebookfiles=$(echo ${notebooks:0:-1})" >> $GITHUB_OUTPUT
+          IFS=',' read -r -a notebooks_array <<< "${notebooks}"
+          echo "notebookfiles_len=${#notebooks_array[@]}" >> $GITHUB_OUTPUT
+          echo "len: ${#notebooks_array[@]}"
+  
   jupyter:
+    needs: generate-matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest] # ubuntu-latest]
-        file-name: [simple_hybrid_CS, simple_hybrid_ME, juliacon_2023, modelica_conference_2021]
-        julia-version: ['1.10']
+        os: [windows-latest]
+        id: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # up to 16 jupyter examples are supported as of now. If required, just add more IDs here. 
+        julia-version: ['1'] # "1" automatically expands to the latest stable 1.x release of Julia
         julia-arch: [x64]
         experimental: [false]
 
-    steps:
+    steps: 
+      - name: Get notebook name based on matrix ID
+        # powershell syntax, not bash!, we are on windows...
+        id: get-notebook-name
+        run: |
+          $notebooks = "${{ needs.generate-matrix.outputs.notebookfiles }}" -split ","
+          $notebookCount = $notebooks.Length
+          Write-Host "Notebooks: $notebooks"
+          Write-Host "Anzahl der Notebooks: $notebookCount"
+          
+          if (${{ matrix.id }} -ge $notebookCount) {
+            Write-Host "Job überspringen, ID ${{ matrix.id }} überschreitet die Anzahl der Notebooks ($notebookCount)."
+            exit 0
+          }
+
+          $notebook = $notebooks[${{ matrix.id }}]
+          $notebook = [System.IO.Path]::GetFileNameWithoutExtension($notebook)
+          Write-Host "Job ${{ matrix.id }} wird das Notebook $notebook ausführen"
+          echo "filename=$(echo ${notebook})" >> $GITHUB_OUTPUT
+
       - name: "Check out repository"
-        uses: actions/checkout@v6
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
+        uses: actions/checkout@v4
 
       - name: "Set up Julia"
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         uses: julia-actions/setup-julia@v2
         with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
 
       - name: "Install dependencies"
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         run: julia --project=examples/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
 
       - name: "Install packages"
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         run: pip install jupyter nbconvert
         
       - name: "Execute notebook"
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         env:
-          FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
+          FILE: examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}.ipynb
         run: jupyter nbconvert --ExecutePreprocessor.kernel_name="julia-${{ matrix.julia-version }}" --to notebook --inplace --execute ${{ env.FILE }}
-      
+
+      # required, as newer versions of nbconvert create multiple ouput cells for graphics outputs (eg. plots). 
+      # "--to markdown" fails to select the correct way to include those afterwards and prints the svg contents directly into the md file instead of linking them as !(svg)[...]
+      # if the text/html output of the plot is removed, "--to markdown" links the svgs correctly afterwards
       - name: "Fix SVGs" # on notebook (json) level: removes all cells, that have the tag "text/html" AND have "<?xml " within their content
-        run: julia -e 'using Pkg; Pkg.add("JSON"); using JSON; data = JSON.parsefile(joinpath("examples", "jupyter-src", "${{ matrix.file-name }}.ipynb"); use_mmap=false); function search_and_remove!(json, tag, content=""); if typeof(json) == Vector{Any}; for e in json; search_and_remove!(e, tag, content); end; elseif typeof(json) == Dict{String, Any}; for (t, c) in json; if contains(t, tag) && (content == "" || any([contains(line, content) for line in c])); pop!(json, t); else; search_and_remove!(c, tag, content); end; end; end; end; search_and_remove!(data, "text/html", "<?xml "); open(joinpath("examples", "jupyter-src", "tmp_${{ matrix.file-name }}.ipynb"),"w") do f; JSON.print(f, data, 1); end; mv(joinpath("examples", "jupyter-src", "tmp_${{ matrix.file-name }}.ipynb"), joinpath("examples", "jupyter-src", "${{ matrix.file-name }}.ipynb"); force=true);'
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
+        run: julia -e 'using Pkg; Pkg.add("JSON"); using JSON; data = JSON.parsefile(joinpath("examples", "jupyter-src", "${{ steps.get-notebook-name.outputs.filename}}.ipynb"); use_mmap=false); function search_and_remove!(json, tag, content=""); if typeof(json) == Vector{Any}; for e in json; search_and_remove!(e, tag, content); end; elseif typeof(json) == Dict{String, Any}; for (t, c) in json; if contains(t, tag) && (content == "" || any([contains(line, content) for line in c])); pop!(json, t); else; search_and_remove!(c, tag, content); end; end; end; end; search_and_remove!(data, "text/html", "<?xml "); open(joinpath("examples", "jupyter-src", "tmp_${{ steps.get-notebook-name.outputs.filename}}.ipynb"),"w") do f; JSON.print(f, data, 1); end; mv(joinpath("examples", "jupyter-src", "tmp_${{ steps.get-notebook-name.outputs.filename}}.ipynb"), joinpath("examples", "jupyter-src", "${{ steps.get-notebook-name.outputs.filename}}.ipynb"); force=true);'
 
       - name: "Export notebook to jl and md"
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         env:
-          FILE: examples/jupyter-src/${{ matrix.file-name }}.ipynb
+          FILE: examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}.ipynb
         run: |
           jupyter nbconvert --to script ${{ env.FILE }}
           jupyter nbconvert --to markdown ${{ env.FILE }}
           
+      # if any of the jupyter examples in your repo exports a gif file, remove the hashtags (#) from the following command and make shure the gif, that is exported, follows the naming convention.    
       - name: "Fix GIFs" # on md level, requires .gif to be exportet prior during execution and follow naming convention of gifs: gif_1.gif, gif_2.gif, ...
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
         run: |
-          echo "starting gif fixing"
-          mv examples/jupyter-src/gif_*.gif examples/jupyter-src/${{ matrix.file-name }}_files
-          $env:Path += ";C:\Program Files\Git\usr\bin"
-          awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ matrix.file-name }}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ matrix.file-name }}.md > examples/jupyter-src/tmp_${{ matrix.file-name }}.md
-          mv -Force examples/jupyter-src/tmp_${{ matrix.file-name }}.md examples/jupyter-src/${{ matrix.file-name }}.md
-          echo "gifs should be fixed"
+          if (Test-Path "examples/jupyter-src/*.gif") {
+            echo "starting gif fixing"
+            mv examples/jupyter-src/gif_*.gif examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}_files
+            $env:Path += ";C:\Program Files\Git\usr\bin"
+            awk '{if($0~/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/) {sub(/<img src="data:image\/gif;base64,[[:alpha:],[:digit:],\/,+,=]*" \/>/,"![gif](${{ steps.get-notebook-name.outputs.filename}}_files\/gif_"++i".gif)")}}1' examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}.md > examples/jupyter-src/tmp_${{ steps.get-notebook-name.outputs.filename}}.md
+            mv -Force examples/jupyter-src/tmp_${{ steps.get-notebook-name.outputs.filename}}.md examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}.md
+            echo "gifs should be fixed"
+          }
 
+      # required, as nbconvert does not fail, if the notbook contains errors in the julia cells. We do not want broken examples to push and be reported as successful
       - name: "run generated jl script to determine success of example building"
-        run: julia --project=examples/ examples/jupyter-src/${{ matrix.file-name }}.jl
+        if: ${{ matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
+        run: julia --project=examples/ examples/jupyter-src/${{ steps.get-notebook-name.outputs.filename}}.jl
 
       - name: "auto-commit (retry on merge)"
-        if: success() && github.event_name != 'pull_request' && github.ref_name == 'main'
+        # only push to examples branch, if we execute on the current main branch of this repo and the example build successfully!
+        if: ${{ success() && github.event_name != 'pull_request' && github.ref_name == 'main' && matrix.id < needs.generate-matrix.outputs.notebookfiles_len }}  # Job überspringen, wenn ID größer oder gleich der Anzahl der Notebooks ist
+        # retrying is required, as a race condition can occur: all parallel example builds try to push to the same branch. Instead of merging, retrying is the cleanest solution
+        # successful termination is guaranteed, if max_attemts is >= the number of jupyter-examples plus one (pluto-slider-server) as each race condition ends with one example successfully pushing, as long as ONLY ONE PUSHING ACTION-RUN IS RUNNING AT THE SAME TIME (only pushing for runs on main branch)
+        # successful termination is still likely, even if max_attemts is < number of examples, as long as runtimes of most examples do not match eachother. This is also why there is no prevention of simultaneous runs of this action implemented.
         uses: nick-fields/retry@v3
         env: 
-          CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.file-name }}-${{ matrix.os }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref_name }}]
+          CI_COMMIT_MESSAGE: jupyter-example-${{ steps.get-notebook-name.outputs.filename}}-${{ matrix.os }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref_name }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
           EXAMPLES_PATH: examples/jupyter-src
-        # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
-        # Reset the branch and remove all current files in the examples folder. 
+        # Fetch all and clear the stash. Include all files from the examples folder (just generated those) to the stash and switch the branch.
+        # Reset the branch and remove all old files of "this" example in the examples folder. 
         # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        # Commit changes and try to push. If another example was faster and pushed just before us, we undo our commit to not have to deal with the merge, but keep our generated files and just retry (fetching the commit from the faster push at the beginning).
         with:
           timeout_minutes: 999
-          max_attempts: 10
+          max_attempts: 16
           warning_on_retry: false
           shell: bash
           command: |
             git fetch --all
             git stash clear
-            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
+            git stash --include-untracked -- ${{ env.EXAMPLES_PATH }}/${{ steps.get-notebook-name.outputs.filename}}*
             git switch examples
             git reset --hard origin/examples
-            rm -r ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
+            rm -r ${{ env.EXAMPLES_PATH }}/${{ steps.get-notebook-name.outputs.filename}}*
             git checkout stash -f -- ${{ env.EXAMPLES_PATH }}
             git stash apply --index
             git stash drop
@@ -97,15 +158,16 @@ jobs:
             git config --global core.autocrlf false
             git pull
             git reset
-            git add ${{ env.EXAMPLES_PATH }}/${{ matrix.file-name }}*
+            git add ${{ env.EXAMPLES_PATH }}/${{ steps.get-notebook-name.outputs.filename}}*
             git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
             git push origin examples || (git reset --soft HEAD~1 && (exit 1))
 
+  # we do not need to provide all examples seperately, as pluto slider server just compiles everything in the pluto-src folder
   pluto:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v2
@@ -116,7 +178,9 @@ jobs:
       - run: julia -e 'using PlutoSliderServer; PlutoSliderServer.export_directory("examples/pluto-src")'
 
       - name: "auto-commit (retry on merge)"
+        # only push to examples branch, if we execute on the current main branch of this repo and the examples build successfully!
         if: success() && github.event_name != 'pull_request' && github.ref_name == 'main'
+        # retrying is required, as a race condition can occur: all parallel example builds (one pluto and multiple jupyter) try to push to the same branch. Instead of merging, retrying is the cleanest solution
         uses: nick-fields/retry@v3
         env: 
           CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref_name }}]
@@ -124,7 +188,7 @@ jobs:
           EXAMPLES_PATH: examples/pluto-src
         # Fetch all and clear the stash list. Include all files from the examples folder to the stash and switch the branch.
         # Reset the branch and remove all current files in the examples folder. 
-        # Checkout the last stash to restore the new notebooks and apply the stash index to restore all other new files in the folder.
+        # Checkout the last stash and apply the stash index to restore all new files in the folder.
         with:
           timeout_minutes: 999
           max_attempts: 10
@@ -151,6 +215,7 @@ jobs:
             
   call-docu:
     needs: [jupyter, pluto]
+    # only trigger docu if examples branch contents could have changes (see jupyter and pluto job "auto-commit" restrictions)
     if: github.event_name != 'pull_request' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
