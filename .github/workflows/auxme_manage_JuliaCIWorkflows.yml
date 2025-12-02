@@ -68,7 +68,7 @@ jobs:
     if: ${{ github.event.repository.name == 'JuliaCIWorkflows' && github.event_name == 'push' }} 
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: '.github'
           # as we are in 'JuliaCIWorkflows' where are no Compathelper and Documenter as of now, we require the specific JULIA_CI_WORKFLOWS_UPDATE_KEY to be set
@@ -188,7 +188,7 @@ jobs:
 
       - name: "Check out working repository with key"
         if: github.event_name != 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with: 
           sparse-checkout: '.github'
           path: working_repo
@@ -197,13 +197,13 @@ jobs:
       # for PRs, we have no access to base-repos secrets, so no key
       - name: "Check out working repository without key (triggered by PR)"
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with: 
           sparse-checkout: '.github'
           path: working_repo
 
       - name: "Check out reference repo ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: '.github'
           repository: ${{ env.REF_REPO_OWNER }}/JuliaCIWorkflows
