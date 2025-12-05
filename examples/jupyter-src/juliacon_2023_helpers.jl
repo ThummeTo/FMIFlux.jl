@@ -14,7 +14,7 @@ function singleInstanceMode(fmu::FMU2, mode::Bool)
     if mode
         # switch to a more efficient execution configuration, allocate only a single FMU instance, see:
         # https://thummeto.github.io/FMI.jl/dev/features/#Execution-Configuration
-        fmu.executionConfig = FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING
+        fmu.executionConfig = deepcopy(FMI.FMIImport.FMU_EXECUTION_CONFIGURATION_NOTHING)
         c, _ = FMIFlux.prepareSolveFMU(
             fmu,
             nothing,
