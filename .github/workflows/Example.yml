@@ -69,7 +69,7 @@ jobs:
 
       - name: "auto-commit (retry on merge)"
         if: success() && github.event_name != 'pull_request' && github.ref_name == 'main'
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         env: 
           CI_COMMIT_MESSAGE: jupyter-example-${{ matrix.file-name }}-${{ matrix.os }}-${{ matrix.julia-version }}-${{ matrix.julia-arch }}-${{ matrix.experimental }}[${{ github.ref_name }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
@@ -117,7 +117,7 @@ jobs:
 
       - name: "auto-commit (retry on merge)"
         if: success() && github.event_name != 'pull_request' && github.ref_name == 'main'
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         env: 
           CI_COMMIT_MESSAGE: pluto-examples[${{ github.ref_name }}]
           CI_COMMIT_AUTHOR: github-actions[bot]
